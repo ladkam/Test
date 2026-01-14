@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYT Cooking Recipe Translator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍳 NYT Cooking Recipe Translator</h1>
+            <p class="subtitle">Download, convert to metric, and translate recipes to any language</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <form id="recipeForm">
+                    <div class="form-group">
+                        <label for="recipeUrl">
+                            Recipe URL
+                            <span class="required">*</span>
+                        </label>
+                        <input
+                            type="url"
+                            id="recipeUrl"
+                            name="recipeUrl"
+                            placeholder="https://cooking.nytimes.com/recipes/..."
+                            required
+                        >
+                        <small>Enter a NYT Cooking recipe URL</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="language">Target Language</label>
+                        <select id="language" name="language">
+                            <option value="Spanish">Spanish</option>
+                            <option value="French">French</option>
+                            <option value="German">German</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Portuguese">Portuguese</option>
+                            <option value="Chinese">Chinese</option>
+                            <option value="Japanese">Japanese</option>
+                            <option value="Korean">Korean</option>
+                            <option value="Arabic">Arabic</option>
+                            <option value="Russian">Russian</option>
+                            <option value="English">English (No translation)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nytCookie">
+                            NYT Cookie (Optional)
+                            <span class="info-icon" title="Required for subscriber-only recipes. Find your NYT-S cookie in browser developer tools.">ℹ️</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="nytCookie"
+                            name="nytCookie"
+                            placeholder="Your NYT-S cookie value"
+                        >
+                        <small>For subscriber-only recipes. <a href="#" id="cookieHelp">How to find this?</a></small>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="convertUnits" name="convertUnits" checked>
+                            <span>Convert measurements to metric</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="translate" name="translate" checked>
+                            <span>Translate recipe</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn btn-primary">
+                        <span class="btn-text">Translate Recipe</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span> Processing...
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results section -->
+            <div id="results" class="card" style="display: none;">
+                <div class="results-header">
+                    <h2 id="recipeTitle">Recipe</h2>
+                    <button id="downloadBtn" class="btn btn-secondary">
+                        📥 Download Markdown
+                    </button>
+                </div>
+                <div id="recipeContent" class="recipe-content"></div>
+            </div>
+
+            <!-- Error section -->
+            <div id="error" class="alert alert-error" style="display: none;">
+                <strong>Error:</strong> <span id="errorMessage"></span>
+            </div>
+
+            <!-- Success notification -->
+            <div id="success" class="alert alert-success" style="display: none;">
+                <strong>Success!</strong> Recipe translated successfully.
+            </div>
+        </main>
+
+        <footer>
+            <div class="info-section">
+                <h3>How to get your NYT Cookie:</h3>
+                <ol>
+                    <li>Log in to <a href="https://cooking.nytimes.com" target="_blank">cooking.nytimes.com</a></li>
+                    <li>Open browser Developer Tools (F12 or right-click → Inspect)</li>
+                    <li>Go to the "Application" or "Storage" tab</li>
+                    <li>Click on "Cookies" → "https://cooking.nytimes.com"</li>
+                    <li>Find the cookie named "NYT-S" and copy its value</li>
+                    <li>Paste it in the "NYT Cookie" field above</li>
+                </ol>
+                <p class="note">⚠️ Keep your cookie private - it's like a password!</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Cookie help modal -->
+    <div id="cookieModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>How to Find Your NYT Cookie</h2>
+            <div class="modal-body">
+                <p>To access subscriber-only recipes, you need to provide your NYT-S cookie:</p>
+                <ol>
+                    <li>Open <a href="https://cooking.nytimes.com" target="_blank">cooking.nytimes.com</a> in your browser</li>
+                    <li>Log in to your NYT Cooking account</li>
+                    <li>Press <kbd>F12</kbd> to open Developer Tools</li>
+                    <li>Click on the <strong>Application</strong> tab (Chrome) or <strong>Storage</strong> tab (Firefox)</li>
+                    <li>In the left sidebar, expand <strong>Cookies</strong></li>
+                    <li>Click on <code>https://cooking.nytimes.com</code></li>
+                    <li>Find the cookie named <code>NYT-S</code></li>
+                    <li>Double-click the value and copy it</li>
+                    <li>Paste it in the "NYT Cookie" field</li>
+                </ol>
+                <div class="warning">
+                    <strong>⚠️ Security Note:</strong> Your cookie is like a password. Don't share it with anyone!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
