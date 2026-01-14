@@ -4,19 +4,37 @@ A Python application that downloads recipes from New York Times Cooking, convert
 
 ## Features
 
-- 🌐 **Web Interface** - Easy-to-use web application with modern UI
-- 🔐 **Authentication Support** - Access subscriber-only recipes with your NYT cookie
-- 🍳 **Scrapes recipes** from NYT Cooking URLs
-- 📏 **Converts measurements** from imperial to metric (cups→ml, oz→g, °F→°C, etc.)
-- 🌍 **Translates recipes** to 10+ languages using Mistral AI
-- 📝 **Preserves formatting** maintains markdown structure and organization
-- 💾 **Download recipes** as markdown files
+### Core Features
+- 🌐 **Modern Web Interface** - Responsive web application with authentication
+- 🔐 **User Authentication** - Secure login system with role-based access (User & Admin)
+- 👤 **Admin Panel** - Manage users, languages, and translation settings
+- 🍳 **Recipe Scraping** - Extract recipes from NYT Cooking URLs (with subscriber support)
+- 📏 **Unit Conversion** - Automatic imperial to metric conversion (cups→ml, oz→g, °F→°C)
+- 🌍 **Multi-language Translation** - Translate to 15+ languages using Mistral AI
+- 📝 **Format Preservation** - Maintains markdown structure and formatting
+- 🖼️ **Recipe Images** - Automatically extracts and displays recipe photos
+- 📋 **Copy to Clipboard** - One-click copy functionality
+- 💾 **Download as Markdown** - Save translated recipes locally
 - 🖥️ **CLI Support** - Command-line interface for automation
+
+### Admin Features
+- **Language Management**: Add or remove translation languages dynamically
+- **Prompt Customization**: Edit system and translation prompts for better results
+- **User Management**: Create users, assign roles (admin/user), manage access
+- **Settings Reset**: Restore default configurations with one click
 
 ## Prerequisites
 
 - Python 3.7 or higher
 - A Mistral AI API key (free tier with 1 billion tokens/month at [console.mistral.ai](https://console.mistral.ai))
+
+## Default Credentials
+
+After first setup, use these credentials to login:
+- **Username**: `admin`
+- **Password**: `admin123`
+
+⚠️ **Important**: Change the admin password after first login!
 
 ## Installation
 
@@ -40,6 +58,7 @@ cp .env.example .env
 ```
 MISTRAL_API_KEY=your_actual_api_key_here
 MISTRAL_MODEL=open-mistral-nemo
+SECRET_KEY=your-random-secret-key-for-sessions
 TARGET_LANGUAGE=Spanish
 ```
 
@@ -49,6 +68,8 @@ To get your Mistral API key:
 - Click "API Keys" in the sidebar
 - Create a new API key
 - Copy and paste it in your `.env` file
+
+**Security Note**: Change the `SECRET_KEY` to a random string for production use.
 
 ## Usage
 
@@ -215,13 +236,32 @@ Some recipes may have different HTML structures. The scraper tries multiple meth
 - Requires internet connection
 - NYT cookies expire periodically and need to be updated
 
+## Technology Stack
+
+- **Backend**: Flask (Python web framework)
+- **Authentication**: Flask-Login with role-based access control
+- **Translation**: Mistral AI API (1 billion free tokens/month)
+- **Frontend**: Vanilla JavaScript, responsive CSS
+- **Storage**: JSON-based (users, settings)
+- **Web Scraping**: BeautifulSoup4 + lxml
+
 ## Why Mistral AI?
 
 - ✅ **Generous Free Tier**: 1 billion tokens/month (no credit card required)
 - ✅ **High Quality**: Excellent translation quality
 - ✅ **Fast**: Quick response times
 - ✅ **European AI**: Privacy-focused, GDPR compliant
+- ✅ **Configurable**: Customize prompts via admin panel
 - ✅ **Multiple Models**: Choose from various models (open-mistral-nemo recommended for free tier)
+
+## Security Features
+
+- 🔒 Password hashing with Werkzeug
+- 🔐 Session-based authentication
+- 👤 Role-based access control (User & Admin)
+- 🛡️ Protected admin routes
+- 🔑 Secure cookie handling
+- ⚠️ CSRF protection via Flask
 
 ## Contributing
 

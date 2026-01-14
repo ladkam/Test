@@ -8,6 +8,9 @@ const btnLoader = submitBtn.querySelector('.btn-loader');
 const resultsSection = document.getElementById('results');
 const recipeTitle = document.getElementById('recipeTitle');
 const recipeContent = document.getElementById('recipeContent');
+const recipeImage = document.getElementById('recipeImage');
+const recipeImageContainer = document.getElementById('recipeImageContainer');
+const copyBtn = document.getElementById('copyBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const errorSection = document.getElementById('error');
 const errorMessage = document.getElementById('errorMessage');
@@ -165,11 +168,21 @@ recipeForm.addEventListener('submit', async (e) => {
         // Display results
         currentRecipe = {
             content: data.recipe,
-            title: data.title
+            title: data.title,
+            image: data.image || ''
         };
 
         recipeTitle.textContent = data.title;
         recipeContent.innerHTML = markdownToHtml(data.recipe);
+
+        // Display image if available
+        if (data.image) {
+            recipeImage.src = data.image;
+            recipeImageContainer.style.display = 'block';
+        } else {
+            recipeImageContainer.style.display = 'none';
+        }
+
         resultsSection.style.display = 'block';
         showSuccess();
 
@@ -180,6 +193,50 @@ recipeForm.addEventListener('submit', async (e) => {
         showError(error.message);
     } finally {
         setLoading(false);
+    }
+});
+
+// Handle copy to clipboard
+copyBtn.addEventListener('click', async () => {
+    if (!currentRecipe) {
+        showError('No recipe to copy');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(currentRecipe.content);
+
+        // Show visual feedback
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '✓ Copied!';
+        copyBtn.classList.add('btn-success');
+
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.classList.remove('btn-success');
+        }, 2000);
+    } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = currentRecipe.content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
+            copyBtn.innerHTML = '✓ Copied!';
+            copyBtn.classList.add('btn-success');
+            setTimeout(() => {
+                copyBtn.innerHTML = '📋 Copy';
+                copyBtn.classList.remove('btn-success');
+            }, 2000);
+        } catch (err) {
+            showError('Failed to copy recipe: ' + err.message);
+        }
+
+        document.body.removeChild(textArea);
     }
 });
 

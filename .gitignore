@@ -44,6 +44,10 @@ recipes/
 instance/
 .webassets-cache
 
+# User data and settings
+data/
+*.backup
+
 # OS
 .DS_Store
 Thumbs.db

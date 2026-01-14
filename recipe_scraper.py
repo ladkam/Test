@@ -86,8 +86,21 @@ class NYTRecipeScraper:
             'ingredients': [],
             'instructions': [],
             'author': '',
-            'url': data.get('url', '')
+            'url': data.get('url', ''),
+            'image': ''
         }
+
+        # Extract image
+        image = data.get('image', '')
+        if isinstance(image, dict):
+            recipe['image'] = image.get('url', '')
+        elif isinstance(image, list) and len(image) > 0:
+            if isinstance(image[0], dict):
+                recipe['image'] = image[0].get('url', '')
+            else:
+                recipe['image'] = image[0]
+        elif isinstance(image, str):
+            recipe['image'] = image
 
         # Extract ingredients
         ingredients = data.get('recipeIngredient', [])
@@ -133,8 +146,16 @@ class NYTRecipeScraper:
             'ingredients': [],
             'instructions': [],
             'author': '',
-            'url': ''
+            'url': '',
+            'image': ''
         }
+
+        # Extract image
+        image_tag = soup.find('img', class_=re.compile('recipe.*image', re.I))
+        if not image_tag:
+            image_tag = soup.find('meta', property='og:image')
+        if image_tag:
+            recipe['image'] = image_tag.get('content') or image_tag.get('src', '')
 
         # Extract title
         title_tag = soup.find('h1', class_=re.compile('recipe.*title|pantry.*title', re.I))

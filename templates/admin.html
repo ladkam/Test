@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Recipe Translator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container admin-container">
+        <header class="admin-header">
+            <div>
+                <h1>⚙️ Admin Dashboard</h1>
+                <p class="subtitle">Manage users, languages, and translation settings</p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to App</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline">Logout</a>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div id="adminAlerts"></div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="languages">🌍 Languages</button>
+            <button class="tab-button" data-tab="prompts">✏️ Prompts</button>
+            <button class="tab-button" data-tab="users">👥 Users</button>
+        </div>
+
+        <!-- Languages Tab -->
+        <div class="tab-content active" id="languages-tab">
+            <div class="card">
+                <h2>Manage Languages</h2>
+                <p>Add or remove languages available for translation.</p>
+
+                <div class="form-inline">
+                    <input
+                        type="text"
+                        id="newLanguage"
+                        placeholder="Enter language name (e.g., Japanese)"
+                        class="input-inline"
+                    >
+                    <button onclick="addLanguage()" class="btn btn-primary">
+                        Add Language
+                    </button>
+                </div>
+
+                <div class="language-list">
+                    <h3>Current Languages</h3>
+                    <div class="tag-list" id="languagesList">
+                        {% for lang in languages %}
+                        <div class="tag">
+                            <span>{{ lang }}</span>
+                            {% if lang != 'English' %}
+                            <button onclick="removeLanguage('{{ lang }}')" class="tag-remove">×</button>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prompts Tab -->
+        <div class="tab-content" id="prompts-tab">
+            <div class="card">
+                <h2>Translation Prompts</h2>
+                <p>Customize the prompts used for recipe translation. Use <code>{language}</code> and <code>{recipe_text}</code> as placeholders.</p>
+
+                <div class="form-group">
+                    <label for="systemPrompt">System Prompt</label>
+                    <textarea
+                        id="systemPrompt"
+                        rows="3"
+                        placeholder="System-level instructions for the AI..."
+                    >{{ system_prompt }}</textarea>
+                    <small>This sets the overall behavior of the AI translator.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="translationPrompt">Translation Prompt Template</label>
+                    <textarea
+                        id="translationPrompt"
+                        rows="10"
+                        placeholder="Detailed translation instructions..."
+                    >{{ translation_prompt }}</textarea>
+                    <small>Use <code>{language}</code> for target language and <code>{recipe_text}</code> for the recipe content.</small>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="savePrompts()" class="btn btn-primary">
+                        Save Prompts
+                    </button>
+                    <button onclick="resetSettings()" class="btn btn-danger">
+                        Reset to Defaults
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-content" id="users-tab">
+            <div class="card">
+                <h2>User Management</h2>
+                <p>Create and manage user accounts.</p>
+
+                <div class="user-form">
+                    <h3>Create New User</h3>
+                    <div class="form-row">
+                        <input
+                            type="text"
+                            id="newUsername"
+                            placeholder="Username"
+                            class="input-inline"
+                        >
+                        <input
+                            type="password"
+                            id="newPassword"
+                            placeholder="Password"
+                            class="input-inline"
+                        >
+                        <select id="newRole" class="select-inline">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button onclick="createUser()" class="btn btn-primary">
+                            Create User
+                        </button>
+                    </div>
+                </div>
+
+                <div class="user-list">
+                    <h3>Existing Users</h3>
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td><span class="badge badge-{{ user.role }}">{{ user.role }}</span></td>
+                                <td>
+                                    {% if user.id != '1' %}
+                                    <button onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-danger">
+                                        Delete
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">Default admin</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>
