@@ -804,3 +804,131 @@ small a:hover {
         flex: 1;
     }
 }
+
+/* Results Page */
+.results-page {
+    padding-top: 1rem;
+}
+
+.results-header-page {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.results-header-page h1 {
+    flex: 1;
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.recipe-display {
+    margin-bottom: 2rem;
+}
+
+.recipe-image-container {
+    margin-bottom: 2rem;
+}
+
+.recipe-image-large {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.quick-actions {
+    background: var(--background);
+    border: 2px dashed var(--border-color);
+}
+
+.quick-actions h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.action-btn {
+    padding: 1rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    display: block;
+}
+
+.action-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+/* Print styles */
+@media print {
+    .top-nav,
+    .quick-actions,
+    .results-actions,
+    .btn {
+        display: none !important;
+    }
+
+    .recipe-image-large {
+        max-height: 300px;
+    }
+
+    body {
+        background: white;
+    }
+
+    .card {
+        box-shadow: none;
+        border: none;
+    }
+}
+
+/* Responsive Results Page */
+@media (max-width: 768px) {
+    .results-header-page {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .results-header-page h1 {
+        font-size: 1.75rem;
+        order: -1;
+    }
+
+    .results-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .results-actions button {
+        flex: 1;
+    }
+
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+}

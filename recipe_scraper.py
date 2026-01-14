@@ -8,6 +8,38 @@ import re
 from typing import Dict, List, Optional
 
 
+def parse_iso_duration(duration: str) -> str:
+    """
+    Convert ISO 8601 duration format to human-readable time.
+    Examples: PT5M -> 5 minutes, PT1H30M -> 1 hour 30 minutes
+    """
+    if not duration or not duration.startswith('PT'):
+        return duration
+
+    duration = duration[2:]  # Remove 'PT'
+    hours = 0
+    minutes = 0
+
+    # Extract hours
+    hour_match = re.search(r'(\d+)H', duration)
+    if hour_match:
+        hours = int(hour_match.group(1))
+
+    # Extract minutes
+    min_match = re.search(r'(\d+)M', duration)
+    if min_match:
+        minutes = int(min_match.group(1))
+
+    # Build human-readable string
+    parts = []
+    if hours > 0:
+        parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+    if minutes > 0:
+        parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+
+    return ' '.join(parts) if parts else duration
+
+
 class NYTRecipeScraper:
     """Scraper for New York Times Cooking recipes."""
 
@@ -79,9 +111,9 @@ class NYTRecipeScraper:
             'description': data.get('description', ''),
             'yield': data.get('recipeYield', ''),
             'time': {
-                'prep': data.get('prepTime', ''),
-                'cook': data.get('cookTime', ''),
-                'total': data.get('totalTime', '')
+                'prep': parse_iso_duration(data.get('prepTime', '')),
+                'cook': parse_iso_duration(data.get('cookTime', '')),
+                'total': parse_iso_duration(data.get('totalTime', ''))
             },
             'ingredients': [],
             'instructions': [],

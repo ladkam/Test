@@ -54,6 +54,7 @@ def admin_required(f):
 
 
 @app.route('/')
+@login_required
 def index():
     """Render the main page."""
     return render_template('index.html', languages=settings.get_languages())
@@ -89,6 +90,19 @@ def logout():
     return redirect(url_for('index'))
 
 
+@app.route('/results')
+@login_required
+def show_results():
+    """Display recipe translation results."""
+    recipe_data = session.get('current_recipe')
+
+    if not recipe_data:
+        flash('No recipe to display. Please translate a recipe first.', 'error')
+        return redirect(url_for('index'))
+
+    return render_template('results.html', recipe=recipe_data, languages=settings.get_languages())
+
+
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
@@ -108,6 +122,7 @@ def admin_dashboard():
 
 
 @app.route('/api/translate', methods=['POST'])
+@login_required
 def translate_recipe():
     """
     API endpoint to translate a recipe.
@@ -165,11 +180,20 @@ def translate_recipe():
                 return jsonify({'error': f'Translation failed: {str(e)}'}), 500
 
         # Return the processed recipe
+        # Store in session for the results page
+        session['current_recipe'] = {
+            'content': recipe_text,
+            'title': recipe['title'],
+            'image': recipe.get('image', ''),
+            'url': url
+        }
+
         return jsonify({
             'success': True,
             'recipe': recipe_text,
             'title': recipe['title'],
-            'image': recipe.get('image', '')
+            'image': recipe.get('image', ''),
+            'redirect': url_for('show_results')
         })
 
     except Exception as e:
@@ -177,6 +201,7 @@ def translate_recipe():
 
 
 @app.route('/api/download', methods=['POST'])
+@login_required
 def download_recipe():
     """
     API endpoint to download a recipe as a markdown file.
