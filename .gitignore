@@ -40,6 +40,10 @@ recipes/
 *.txt
 !requirements.txt
 
+# Flask
+instance/
+.webassets-cache
+
 # OS
 .DS_Store
 Thumbs.db

@@ -4,11 +4,14 @@ A Python application that downloads recipes from New York Times Cooking, convert
 
 ## Features
 
+- 🌐 **Web Interface** - Easy-to-use web application with modern UI
+- 🔐 **Authentication Support** - Access subscriber-only recipes with your NYT cookie
 - 🍳 **Scrapes recipes** from NYT Cooking URLs
 - 📏 **Converts measurements** from imperial to metric (cups→ml, oz→g, °F→°C, etc.)
-- 🌍 **Translates recipes** to any language using Grok API
+- 🌍 **Translates recipes** to 10+ languages using Grok API
 - 📝 **Preserves formatting** maintains markdown structure and organization
-- 💾 **Saves recipes** as markdown files for easy reading
+- 💾 **Download recipes** as markdown files
+- 🖥️ **CLI Support** - Command-line interface for automation
 
 ## Prerequisites
 
@@ -41,9 +44,48 @@ TARGET_LANGUAGE=Spanish
 
 ## Usage
 
-### Basic Usage
+### Web Application (Recommended)
 
-Simply provide a NYT Cooking recipe URL:
+The easiest way to use the recipe translator is through the web interface:
+
+1. Start the web server:
+```bash
+python app.py
+```
+
+2. Open your browser and go to:
+```
+http://localhost:5000
+```
+
+3. Enter your recipe details:
+   - **Recipe URL**: Paste a NYT Cooking recipe URL
+   - **Target Language**: Choose from 10+ languages
+   - **NYT Cookie** (Optional): For subscriber-only recipes - see instructions below
+   - **Options**: Toggle metric conversion and translation
+
+4. Click "Translate Recipe" and view the results in your browser
+
+5. Download the recipe as a markdown file
+
+#### Getting Your NYT Cookie (for Subscriber Recipes)
+
+If you have an NYT Cooking subscription and want to access subscriber-only recipes:
+
+1. Log in to [cooking.nytimes.com](https://cooking.nytimes.com)
+2. Open browser Developer Tools (F12 or Right-click → Inspect)
+3. Go to the **Application** tab (Chrome) or **Storage** tab (Firefox)
+4. Click on **Cookies** → `https://cooking.nytimes.com`
+5. Find the cookie named `NYT-S` and copy its value
+6. Paste it in the "NYT Cookie" field in the web app
+
+⚠️ **Security Note**: Your cookie is like a password - keep it private!
+
+### Command Line Interface
+
+You can also use the CLI for automation:
+
+**Basic Usage:**
 
 ```bash
 python recipe_translator.py https://cooking.nytimes.com/recipes/1234-recipe-name
@@ -121,10 +163,18 @@ python recipe_translator.py https://cooking.nytimes.com/recipes/1014991-banana-b
 
 ```
 .
-├── recipe_translator.py    # Main application script
-├── recipe_scraper.py        # NYT Cooking scraper
+├── app.py                   # Flask web application
+├── recipe_translator.py     # CLI application
+├── recipe_scraper.py        # NYT Cooking scraper (with auth support)
 ├── unit_converter.py        # Imperial to metric converter
 ├── grok_translator.py       # Grok API integration
+├── templates/
+│   └── index.html          # Web UI template
+├── static/
+│   ├── css/
+│   │   └── style.css       # Web UI styles
+│   └── js/
+│       └── app.js          # Web UI JavaScript
 ├── requirements.txt         # Python dependencies
 ├── .env.example            # Environment variables template
 └── recipes/                # Output directory (auto-created)
@@ -147,9 +197,11 @@ Some recipes may have different HTML structures. The scraper tries multiple meth
 ## Limitations
 
 - Only works with NYT Cooking recipes (not general NYT articles)
+- Free recipes work without authentication; subscriber-only recipes require your NYT cookie
 - Grok API free tier has rate limits
 - Some complex measurements may not convert perfectly
 - Requires internet connection
+- NYT cookies expire periodically and need to be updated
 
 ## Contributing
 

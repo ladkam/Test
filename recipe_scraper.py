@@ -11,10 +11,19 @@ from typing import Dict, List, Optional
 class NYTRecipeScraper:
     """Scraper for New York Times Cooking recipes."""
 
-    def __init__(self):
+    def __init__(self, nyt_cookie: Optional[str] = None):
+        """
+        Initialize the scraper.
+
+        Args:
+            nyt_cookie: Optional NYT-S cookie for authenticated access
+        """
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
+        self.cookies = {}
+        if nyt_cookie:
+            self.cookies['NYT-S'] = nyt_cookie
 
     def scrape_recipe(self, url: str) -> Dict:
         """
@@ -27,7 +36,7 @@ class NYTRecipeScraper:
             Dictionary containing recipe information
         """
         try:
-            response = requests.get(url, headers=self.headers, timeout=30)
+            response = requests.get(url, headers=self.headers, cookies=self.cookies, timeout=30)
             response.raise_for_status()
         except requests.RequestException as e:
             raise Exception(f"Failed to fetch recipe: {str(e)}")
