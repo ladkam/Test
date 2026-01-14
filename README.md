@@ -1,6 +1,6 @@
 # NYT Cooking Recipe Translator
 
-A Python application that downloads recipes from New York Times Cooking, converts imperial measurements to metric, and translates them to any language using the Grok API (free tier).
+A Python application that downloads recipes from New York Times Cooking, converts imperial measurements to metric, and translates them to any language using Mistral AI (free tier with 1 billion tokens/month).
 
 ## Features
 
@@ -8,7 +8,7 @@ A Python application that downloads recipes from New York Times Cooking, convert
 - 🔐 **Authentication Support** - Access subscriber-only recipes with your NYT cookie
 - 🍳 **Scrapes recipes** from NYT Cooking URLs
 - 📏 **Converts measurements** from imperial to metric (cups→ml, oz→g, °F→°C, etc.)
-- 🌍 **Translates recipes** to 10+ languages using Grok API
+- 🌍 **Translates recipes** to 10+ languages using Mistral AI
 - 📝 **Preserves formatting** maintains markdown structure and organization
 - 💾 **Download recipes** as markdown files
 - 🖥️ **CLI Support** - Command-line interface for automation
@@ -16,7 +16,7 @@ A Python application that downloads recipes from New York Times Cooking, convert
 ## Prerequisites
 
 - Python 3.7 or higher
-- A Grok API key (free tier available at [x.ai](https://x.ai))
+- A Mistral AI API key (free tier with 1 billion tokens/month at [console.mistral.ai](https://console.mistral.ai))
 
 ## Installation
 
@@ -36,11 +36,19 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-4. Edit `.env` and add your Grok API key:
+4. Edit `.env` and add your Mistral AI API key:
 ```
-GROK_API_KEY=your_actual_api_key_here
+MISTRAL_API_KEY=your_actual_api_key_here
+MISTRAL_MODEL=open-mistral-nemo
 TARGET_LANGUAGE=Spanish
 ```
+
+To get your Mistral API key:
+- Go to [console.mistral.ai](https://console.mistral.ai)
+- Sign up or log in
+- Click "API Keys" in the sidebar
+- Create a new API key
+- Copy and paste it in your `.env` file
 
 ## Usage
 
@@ -140,7 +148,7 @@ python recipe_translator.py https://cooking.nytimes.com/recipes/1014991-banana-b
 
 2. **Unit Conversion**: All imperial measurements (cups, tablespoons, ounces, pounds, Fahrenheit) are automatically converted to metric equivalents (ml, liters, grams, kg, Celsius). The original measurements are kept in parentheses for reference.
 
-3. **Translation**: The recipe text is sent to the Grok API with specific instructions to translate while preserving formatting and measurements.
+3. **Translation**: The recipe text is sent to Mistral AI with specific instructions to translate while preserving formatting and measurements.
 
 4. **Output**: The final recipe is saved as a markdown file with all formatting preserved.
 
@@ -167,7 +175,8 @@ python recipe_translator.py https://cooking.nytimes.com/recipes/1014991-banana-b
 ├── recipe_translator.py     # CLI application
 ├── recipe_scraper.py        # NYT Cooking scraper (with auth support)
 ├── unit_converter.py        # Imperial to metric converter
-├── grok_translator.py       # Grok API integration
+├── mistral_translator.py    # Mistral AI API integration
+├── grok_translator.py       # Legacy (kept for compatibility)
 ├── templates/
 │   └── index.html          # Web UI template
 ├── static/
@@ -185,11 +194,14 @@ python recipe_translator.py https://cooking.nytimes.com/recipes/1014991-banana-b
 ### "Error: Please provide a valid NYT Cooking URL"
 Make sure you're using a URL from `cooking.nytimes.com`, not regular nytimes.com.
 
-### "Error: Grok API key not provided"
-Check that your `.env` file exists and contains a valid `GROK_API_KEY`.
+### "Error: Mistral API key not provided"
+Check that your `.env` file exists and contains a valid `MISTRAL_API_KEY`.
 
-### "Warning: Could not connect to Grok API"
-Verify your API key is correct and you have internet connectivity. The script will continue without translation if the API is unavailable.
+### "Warning: Could not connect to Mistral API"
+Verify your API key is correct and you have internet connectivity. The script will continue without translation if the API is unavailable. You can test your connection with:
+```bash
+python test_mistral_api.py
+```
 
 ### Recipe not scraping correctly
 Some recipes may have different HTML structures. The scraper tries multiple methods to extract data. If a recipe fails, please open an issue with the URL.
@@ -198,10 +210,18 @@ Some recipes may have different HTML structures. The scraper tries multiple meth
 
 - Only works with NYT Cooking recipes (not general NYT articles)
 - Free recipes work without authentication; subscriber-only recipes require your NYT cookie
-- Grok API free tier has rate limits
+- Mistral AI free tier: 1 billion tokens/month (very generous!)
 - Some complex measurements may not convert perfectly
 - Requires internet connection
 - NYT cookies expire periodically and need to be updated
+
+## Why Mistral AI?
+
+- ✅ **Generous Free Tier**: 1 billion tokens/month (no credit card required)
+- ✅ **High Quality**: Excellent translation quality
+- ✅ **Fast**: Quick response times
+- ✅ **European AI**: Privacy-focused, GDPR compliant
+- ✅ **Multiple Models**: Choose from various models (open-mistral-nemo recommended for free tier)
 
 ## Contributing
 
@@ -214,4 +234,4 @@ MIT License - feel free to use this project for personal or commercial purposes.
 ## Acknowledgments
 
 - New York Times Cooking for the amazing recipes
-- Grok API by x.ai for translation capabilities
+- Mistral AI for providing excellent free-tier translation capabilities

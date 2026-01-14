@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
-from grok_translator import GrokTranslator
+from mistral_translator import MistralTranslator
 
 # Load environment variables
 load_dotenv()
@@ -80,10 +80,10 @@ def translate_recipe():
         # Step 3: Translate the recipe
         if do_translate:
             try:
-                translator = GrokTranslator()
+                translator = MistralTranslator()
                 recipe_text = translator.translate_recipe(recipe_text, language)
             except ValueError as e:
-                return jsonify({'error': f'Grok API error: {str(e)}'}), 500
+                return jsonify({'error': f'Mistral API error: {str(e)}'}), 500
             except Exception as e:
                 return jsonify({'error': f'Translation failed: {str(e)}'}), 500
 
@@ -135,15 +135,15 @@ def download_recipe():
         return jsonify({'error': f'Failed to create download: {str(e)}'}), 500
 
 
-@app.route('/api/test-grok', methods=['GET'])
-def test_grok():
-    """Test Grok API connection."""
+@app.route('/api/test-mistral', methods=['GET'])
+def test_mistral():
+    """Test Mistral API connection."""
     try:
-        translator = GrokTranslator()
+        translator = MistralTranslator()
         if translator.test_connection():
-            return jsonify({'success': True, 'message': 'Grok API connection successful'})
+            return jsonify({'success': True, 'message': 'Mistral API connection successful'})
         else:
-            return jsonify({'success': False, 'message': 'Failed to connect to Grok API'}), 500
+            return jsonify({'success': False, 'message': 'Failed to connect to Mistral API'}), 500
     except ValueError as e:
         return jsonify({'success': False, 'message': str(e)}), 500
     except Exception as e:
