@@ -87,6 +87,17 @@ Provide ONLY the translated recipe, maintaining the exact same markdown structur
             else:
                 raise Exception("Unexpected response format from Grok API")
 
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                raise Exception(f"Authentication failed: Invalid API key. Please check your GROK_API_KEY in .env file")
+            elif e.response.status_code == 403:
+                raise Exception(f"Access forbidden: Your API key doesn't have proper permissions or the endpoint is incorrect. Verify your API key at https://console.x.ai")
+            elif e.response.status_code == 404:
+                raise Exception(f"Endpoint not found: The API URL might be incorrect. Current URL: {self.base_url}")
+            elif e.response.status_code == 429:
+                raise Exception(f"Rate limit exceeded: Too many requests. Wait a moment and try again")
+            else:
+                raise Exception(f"Failed to translate recipe: {str(e)}")
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to translate recipe: {str(e)}")
 
