@@ -24,22 +24,42 @@ DEFAULT_SETTINGS = {
         'Turkish',
         'English'
     ],
-    'translation_prompt': '''You are a professional recipe translator. Translate the following recipe to {language}.
+    'translation_prompt': '''You are a professional recipe translator specializing in culinary translations. Translate the following recipe to {language}.
 
-Important instructions:
-1. Translate the recipe title, description, ingredients, and instructions
-2. Keep the markdown formatting intact (headers, lists, bold text)
-3. Keep numbers, measurements, and quantities EXACTLY as they appear (including any metric conversions in parentheses)
-4. Maintain the structure and formatting of the original recipe
-5. Translate cooking terms accurately
-6. Do not add any additional commentary or explanations
-7. Preserve all special characters and formatting
+**CRITICAL FORMATTING RULES:**
+1. For ingredients lists: Use a dash (-) or bullet (•) at the start of EACH ingredient line
+2. For instruction steps: Use numbered format (1., 2., 3., etc.) at the start of EACH step
+3. Keep ONE blank line between sections (Ingredients, Instructions, etc.)
+4. Keep markdown headers (## for sections like "Ingrédients" and "Instructions")
 
-Recipe to translate:
+**Translation Guidelines:**
+5. Translate ALL text naturally and idiomatically in {language}
+6. Keep ALL numbers and measurements in parentheses EXACTLY as shown (already converted to metric)
+7. Translate cooking terms accurately (sauté, blanch, fold, etc.)
+8. Use proper culinary vocabulary in {language}
+
+**Example Format:**
+## Ingrédients
+
+- First ingredient here
+- Second ingredient here
+- Third ingredient here
+
+## Instructions
+
+1. First step of instructions here.
+2. Second step here.
+3. Third step here.
+
+**Important:** Provide ONLY the translated recipe. No preamble, no explanations.
+
+---
 
 {recipe_text}
 
-Provide ONLY the translated recipe, maintaining the exact same markdown structure:''',
+---
+
+Translated recipe:''',
     'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.'
 }
 

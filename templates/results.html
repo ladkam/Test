@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Results - Recipe Translator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-brand">Recipe Translator</a>
+            <div class="nav-links">
+                {% if current_user.is_authenticated %}
+                    <span class="nav-user">👤 {{ current_user.username }}</span>
+                    {% if current_user.is_admin() %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">⚙️ Admin</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container results-page">
+        <div class="results-header-page">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">← New Translation</a>
+            <h1>{{ recipe.title }}</h1>
+            <div class="results-actions">
+                <button id="copyBtn" class="btn btn-primary" title="Copy recipe to clipboard">
+                    📋 Copy
+                </button>
+                <button id="downloadBtn" class="btn btn-primary">
+                    📥 Download
+                </button>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card recipe-display">
+            <!-- Recipe Image -->
+            {% if recipe.image %}
+            <div class="recipe-image-container">
+                <img src="{{ recipe.image }}" class="recipe-image-large" alt="{{ recipe.title }}">
+            </div>
+            {% endif %}
+
+            <!-- Recipe Content -->
+            <div id="recipeContent" class="recipe-content"></div>
+        </div>
+
+        <!-- Quick Actions Bar -->
+        <div class="card quick-actions">
+            <h3>Quick Actions</h3>
+            <div class="action-grid">
+                <button onclick="window.print()" class="action-btn">
+                    🖨️ Print Recipe
+                </button>
+                <button id="copyBtn2" class="action-btn">
+                    📋 Copy Text
+                </button>
+                <button id="downloadBtn2" class="action-btn">
+                    📥 Download MD
+                </button>
+                <a href="{{ url_for('index') }}" class="action-btn">
+                    🔄 New Translation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Recipe data from backend
+        const recipeData = {
+            content: {{ recipe.content | tojson | safe }},
+            title: {{ recipe.title | tojson | safe }}
+        };
+
+        // Convert markdown to HTML (same function as app.js)
+        function markdownToHtml(markdown) {
+            let html = markdown;
+
+            // Headers
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+
+            // Bold
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            // Lists - unordered (lines starting with -)
+            html = html.replace(/^[-•] (.+)$/gm, '<li>$1</li>');
+
+            // Lists - ordered (lines starting with number.)
+            html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+            // Wrap consecutive list items
+            const lines = html.split('\n');
+            let result = [];
+            let inList = false;
+            let listType = null;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+
+                if (line.trim().startsWith('<li>')) {
+                    if (!inList) {
+                        // Determine list type based on original line
+                        const originalLine = markdown.split('\n')[i];
+                        listType = /^\d+\./.test(originalLine) ? 'ol' : 'ul';
+                        result.push(`<${listType}>`);
+                        inList = true;
+                    }
+                    result.push(line);
+
+                    // Close list if next line is not a list item or is empty
+                    if (!nextLine.trim().startsWith('<li>') && nextLine.trim() !== '') {
+                        result.push(`</${listType}>`);
+                        inList = false;
+                    }
+                } else {
+                    if (inList && line.trim() === '') {
+                        result.push(`</${listType}>`);
+                        inList = false;
+                    }
+                    result.push(line);
+                }
+            }
+
+            if (inList) {
+                result.push(`</${listType}>`);
+            }
+
+            html = result.join('\n');
+
+            // Paragraphs
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+
+            // Clean up
+            html = html.replace(/<p>\s*<\/p>/g, '');
+            html = html.replace(/<p>(\s*<[huo])/g, '$1');
+            html = html.replace(/(<\/[huo][^>]*>)\s*<\/p>/g, '$1');
+
+            return html;
+        }
+
+        // Display recipe
+        document.getElementById('recipeContent').innerHTML = markdownToHtml(recipeData.content);
+
+        // Copy functionality
+        async function copyRecipe() {
+            try {
+                await navigator.clipboard.writeText(recipeData.content);
+                showFeedback('Copied!');
+            } catch (error) {
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = recipeData.content;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showFeedback('Copied!');
+                } catch (err) {
+                    alert('Failed to copy recipe');
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function showFeedback(message) {
+            const buttons = document.querySelectorAll('#copyBtn, #copyBtn2');
+            buttons.forEach(btn => {
+                const original = btn.innerHTML;
+                btn.innerHTML = '✓ ' + message;
+                btn.classList.add('btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = original;
+                    btn.classList.remove('btn-success');
+                }, 2000);
+            });
+        }
+
+        // Download functionality
+        async function downloadRecipe() {
+            const filename = recipeData.title
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '_')
+                .substring(0, 50);
+
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: recipeData.content,
+                        filename: filename
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to download');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename + '.md';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                alert('Failed to download recipe: ' + error.message);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('copyBtn').addEventListener('click', copyRecipe);
+        document.getElementById('copyBtn2').addEventListener('click', copyRecipe);
+        document.getElementById('downloadBtn').addEventListener('click', downloadRecipe);
+        document.getElementById('downloadBtn2').addEventListener('click', downloadRecipe);
+    </script>
+</body>
+</html>

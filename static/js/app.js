@@ -165,29 +165,10 @@ recipeForm.addEventListener('submit', async (e) => {
             throw new Error(data.error || 'Failed to translate recipe');
         }
 
-        // Display results
-        currentRecipe = {
-            content: data.recipe,
-            title: data.title,
-            image: data.image || ''
-        };
-
-        recipeTitle.textContent = data.title;
-        recipeContent.innerHTML = markdownToHtml(data.recipe);
-
-        // Display image if available
-        if (data.image) {
-            recipeImage.src = data.image;
-            recipeImageContainer.style.display = 'block';
-        } else {
-            recipeImageContainer.style.display = 'none';
+        // Redirect to results page
+        if (data.redirect) {
+            window.location.href = data.redirect;
         }
-
-        resultsSection.style.display = 'block';
-        showSuccess();
-
-        // Scroll to results
-        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch (error) {
         showError(error.message);
