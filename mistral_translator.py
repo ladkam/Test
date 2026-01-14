@@ -4,6 +4,7 @@ Mistral AI API integration for recipe translation.
 import requests
 import os
 from typing import Optional
+from settings import get_translation_prompt, get_system_prompt
 
 
 class MistralTranslator:
@@ -41,22 +42,12 @@ class MistralTranslator:
         Returns:
             Translated recipe text
         """
-        prompt = f"""You are a professional recipe translator. Translate the following recipe to {target_language}.
+        # Get prompt templates from settings
+        prompt_template = get_translation_prompt()
+        system_prompt = get_system_prompt()
 
-Important instructions:
-1. Translate the recipe title, description, ingredients, and instructions
-2. Keep the markdown formatting intact (headers, lists, bold text)
-3. Keep numbers, measurements, and quantities EXACTLY as they appear (including any metric conversions in parentheses)
-4. Maintain the structure and formatting of the original recipe
-5. Translate cooking terms accurately
-6. Do not add any additional commentary or explanations
-7. Preserve all special characters and formatting
-
-Recipe to translate:
-
-{recipe_text}
-
-Provide ONLY the translated recipe, maintaining the exact same markdown structure:"""
+        # Format the prompt with the recipe text and language
+        prompt = prompt_template.format(language=target_language, recipe_text=recipe_text)
 
         try:
             response = requests.post(
@@ -67,7 +58,7 @@ Provide ONLY the translated recipe, maintaining the exact same markdown structur
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements."
+                            "content": system_prompt
                         },
                         {
                             "role": "user",

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Flask web application for NYT Cooking Recipe Translator
+Flask web application for NYT Cooking Recipe Translator with Authentication
 """
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
 from flask_cors import CORS
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from functools import wraps
 import os
 import tempfile
 from pathlib import Path
@@ -12,22 +14,97 @@ from dotenv import load_dotenv
 from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
+from auth import User, change_password, delete_user
+import settings
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 CORS(app)
+
+# Configure Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
 
 # Configure upload folder for temporary files
 TEMP_FOLDER = Path(tempfile.gettempdir()) / 'recipe_translator'
 TEMP_FOLDER.mkdir(exist_ok=True)
 
 
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login."""
+    return User.get(user_id)
+
+
+def admin_required(f):
+    """Decorator to require admin role."""
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_admin():
+            flash('You need administrator privileges to access this page.', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @app.route('/')
 def index():
     """Render the main page."""
-    return render_template('index.html')
+    return render_template('index.html', languages=settings.get_languages())
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Handle user login."""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        user = User.verify_password(username, password)
+        if user:
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
+        else:
+            flash('Invalid username or password', 'error')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Handle user logout."""
+    logout_user()
+    flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    """Render admin dashboard."""
+    users = User.list_all()
+    languages = settings.get_languages()
+    translation_prompt = settings.get_translation_prompt()
+    system_prompt = settings.get_system_prompt()
+
+    return render_template(
+        'admin.html',
+        users=users,
+        languages=languages,
+        translation_prompt=translation_prompt,
+        system_prompt=system_prompt
+    )
 
 
 @app.route('/api/translate', methods=['POST'])
@@ -91,7 +168,8 @@ def translate_recipe():
         return jsonify({
             'success': True,
             'recipe': recipe_text,
-            'title': recipe['title']
+            'title': recipe['title'],
+            'image': recipe.get('image', '')
         })
 
     except Exception as e:
@@ -148,6 +226,114 @@ def test_mistral():
         return jsonify({'success': False, 'message': str(e)}), 500
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+# Admin API routes
+@app.route('/api/admin/languages', methods=['GET', 'POST', 'DELETE'])
+@admin_required
+def manage_languages():
+    """Manage languages list."""
+    if request.method == 'GET':
+        return jsonify({'languages': settings.get_languages()})
+
+    elif request.method == 'POST':
+        data = request.json
+        language = data.get('language', '').strip()
+        if settings.add_language(language):
+            return jsonify({'success': True, 'message': f'Added language: {language}'})
+        else:
+            return jsonify({'success': False, 'message': 'Language already exists or invalid'}), 400
+
+    elif request.method == 'DELETE':
+        data = request.json
+        language = data.get('language', '').strip()
+        if settings.remove_language(language):
+            return jsonify({'success': True, 'message': f'Removed language: {language}'})
+        else:
+            return jsonify({'success': False, 'message': 'Cannot remove language'}), 400
+
+
+@app.route('/api/admin/prompts', methods=['GET', 'POST'])
+@admin_required
+def manage_prompts():
+    """Manage translation prompts."""
+    if request.method == 'GET':
+        return jsonify({
+            'translation_prompt': settings.get_translation_prompt(),
+            'system_prompt': settings.get_system_prompt()
+        })
+
+    elif request.method == 'POST':
+        data = request.json
+        translation_prompt = data.get('translation_prompt')
+        system_prompt = data.get('system_prompt')
+
+        if translation_prompt:
+            settings.update_translation_prompt(translation_prompt)
+        if system_prompt:
+            settings.update_system_prompt(system_prompt)
+
+        return jsonify({'success': True, 'message': 'Prompts updated successfully'})
+
+
+@app.route('/api/admin/settings/reset', methods=['POST'])
+@admin_required
+def reset_settings():
+    """Reset all settings to defaults."""
+    settings.reset_to_defaults()
+    return jsonify({'success': True, 'message': 'Settings reset to defaults'})
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def list_users():
+    """List all users."""
+    return jsonify({'users': User.list_all()})
+
+
+@app.route('/api/admin/users/create', methods=['POST'])
+@admin_required
+def create_user():
+    """Create a new user."""
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    role = data.get('role', 'user')
+
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Username and password required'}), 400
+
+    user = User.create(username, password, role)
+    if user:
+        return jsonify({'success': True, 'message': f'User {username} created successfully'})
+    else:
+        return jsonify({'success': False, 'message': 'Username already exists'}), 400
+
+
+@app.route('/api/admin/users/<user_id>/delete', methods=['DELETE'])
+@admin_required
+def delete_user_route(user_id):
+    """Delete a user."""
+    if delete_user(user_id):
+        return jsonify({'success': True, 'message': 'User deleted successfully'})
+    else:
+        return jsonify({'success': False, 'message': 'Cannot delete user'}), 400
+
+
+@app.route('/api/admin/users/<user_id>/password', methods=['POST'])
+@admin_required
+def change_user_password(user_id):
+    """Change user password."""
+    data = request.json
+    new_password = data.get('password', '').strip()
+
+    if not new_password:
+        return jsonify({'success': False, 'message': 'Password required'}), 400
+
+    if change_password(user_id, new_password):
+        return jsonify({'success': True, 'message': 'Password changed successfully'})
+    else:
+        return jsonify({'success': False, 'message': 'Failed to change password'}), 400
 
 
 if __name__ == '__main__':
