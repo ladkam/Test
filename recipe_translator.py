@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
-from grok_translator import GrokTranslator
+from mistral_translator import MistralTranslator
 
 
 def main():
@@ -103,11 +103,11 @@ Examples:
     if not args.no_translate:
         print(f"🌍 Translating to {args.language}...")
         try:
-            translator = GrokTranslator()
+            translator = MistralTranslator()
 
             # Test connection first
             if not translator.test_connection():
-                print("Warning: Could not connect to Grok API. Check your API key.", file=sys.stderr)
+                print("Warning: Could not connect to Mistral AI API. Check your API key.", file=sys.stderr)
                 print("Continuing without translation...", file=sys.stderr)
             else:
                 recipe_text = translator.translate_recipe(recipe_text, args.language)
