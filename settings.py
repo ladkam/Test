@@ -60,7 +60,9 @@ DEFAULT_SETTINGS = {
 ---
 
 Translated recipe:''',
-    'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.'
+    'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.',
+    'ai_model': 'open-mistral-nemo',
+    'nyt_cookie': ''
 }
 
 
@@ -147,3 +149,29 @@ def update_system_prompt(prompt):
 def reset_to_defaults():
     """Reset all settings to defaults."""
     save_settings(DEFAULT_SETTINGS.copy())
+
+
+def get_ai_model():
+    """Get the AI model to use for translations."""
+    settings = load_settings()
+    return settings.get('ai_model', DEFAULT_SETTINGS['ai_model'])
+
+
+def update_ai_model(model):
+    """Update the AI model."""
+    settings = load_settings()
+    settings['ai_model'] = model
+    save_settings(settings)
+
+
+def get_nyt_cookie():
+    """Get the NYT cookie for recipe scraping."""
+    settings = load_settings()
+    return settings.get('nyt_cookie', DEFAULT_SETTINGS['nyt_cookie'])
+
+
+def update_nyt_cookie(cookie):
+    """Update the NYT cookie."""
+    settings = load_settings()
+    settings['nyt_cookie'] = cookie
+    save_settings(settings)

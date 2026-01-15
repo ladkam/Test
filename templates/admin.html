@@ -34,6 +34,7 @@
         <div class="tabs">
             <button class="tab-button active" data-tab="languages">🌍 Languages</button>
             <button class="tab-button" data-tab="prompts">✏️ Prompts</button>
+            <button class="tab-button" data-tab="api-settings">🔧 API Settings</button>
             <button class="tab-button" data-tab="users">👥 Users</button>
         </div>
 
@@ -103,6 +104,47 @@
                     </button>
                     <button onclick="resetSettings()" class="btn btn-danger">
                         Reset to Defaults
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Settings Tab -->
+        <div class="tab-content" id="api-settings-tab">
+            <div class="card">
+                <h2>API Configuration</h2>
+                <p>Configure the AI model and NYT cookie for recipe scraping.</p>
+
+                <div class="form-group">
+                    <label for="aiModel">AI Model</label>
+                    <select id="aiModel" class="select-full">
+                        <option value="open-mistral-nemo" {% if ai_model == 'open-mistral-nemo' %}selected{% endif %}>Open Mistral Nemo (Free)</option>
+                        <option value="mistral-small-latest" {% if ai_model == 'mistral-small-latest' %}selected{% endif %}>Mistral Small Latest</option>
+                        <option value="mistral-medium-latest" {% if ai_model == 'mistral-medium-latest' %}selected{% endif %}>Mistral Medium Latest</option>
+                        <option value="mistral-large-latest" {% if ai_model == 'mistral-large-latest' %}selected{% endif %}>Mistral Large Latest</option>
+                        <option value="open-mixtral-8x7b" {% if ai_model == 'open-mixtral-8x7b' %}selected{% endif %}>Open Mixtral 8x7B</option>
+                        <option value="open-mixtral-8x22b" {% if ai_model == 'open-mixtral-8x22b' %}selected{% endif %}>Open Mixtral 8x22B</option>
+                    </select>
+                    <small>Select the Mistral AI model to use for recipe translation. Free tier models: open-mistral-nemo, open-mixtral-8x7b.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="nytCookie">NYT Cookie (Optional)</label>
+                    <textarea
+                        id="nytCookie"
+                        rows="3"
+                        placeholder="Paste your NYT-S cookie here (optional, for premium recipes)..."
+                    >{{ nyt_cookie }}</textarea>
+                    <small>
+                        Enter your NYT-S cookie to access premium recipes. This is stored globally and will be used for all users.
+                        <br>
+                        To find your cookie: Log into cooking.nytimes.com, open browser DevTools (F12), go to Application → Cookies → find NYT-S
+                    </small>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="saveApiSettings()" class="btn btn-primary">
+                        Save API Settings
                     </button>
                 </div>
             </div>

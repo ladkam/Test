@@ -145,6 +145,33 @@ async function resetSettings() {
     }
 }
 
+// API Settings Management
+async function saveApiSettings() {
+    const aiModel = document.getElementById('aiModel').value;
+    const nytCookie = document.getElementById('nytCookie').value.trim();
+
+    try {
+        const response = await fetch('/api/admin/api-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ai_model: aiModel,
+                nyt_cookie: nytCookie
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showAlert(data.message, 'success');
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to save API settings: ' + error.message, 'error');
+    }
+}
+
 // User Management
 async function createUser() {
     const username = document.getElementById('newUsername').value.trim();
