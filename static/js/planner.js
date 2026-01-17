@@ -62,7 +62,7 @@ function displayCurrentPlan() {
 
     planList.innerHTML = currentPlan.map(recipe => `
         <div class="plan-item">
-            <div class="plan-item-content">
+            <div class="plan-item-content" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
                 ${recipe.image_url ? `<img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title_translated}">` : ''}
                 <div class="plan-item-details">
                     <h3>${escapeHtml(recipe.title_translated || recipe.title_original)}</h3>
@@ -72,7 +72,7 @@ function displayCurrentPlan() {
                     </div>
                 </div>
             </div>
-            <button onclick="removeFromPlan(${recipe.id})" class="btn-remove" title="Remove from plan">
+            <button onclick="event.stopPropagation(); removeFromPlan(${recipe.id})" class="btn-remove" title="Remove from plan">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
@@ -275,3 +275,218 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Recipe detail modal functions (shared with library.js)
+async function showRecipeDetail(recipeId) {
+    try {
+        const response = await fetch(`/api/recipes/${recipeId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const recipe = data.recipe;
+            const modal = document.getElementById('recipeModal');
+            const content = document.getElementById('modalContent');
+
+            // Store original recipe data for scaling
+            window.currentRecipeData = recipe;
+            window.originalServings = parseServings(recipe.servings);
+            window.currentServings = window.originalServings;
+            window.originalIngredients = [...(recipe.ingredients_translated || [])];
+
+            // Build ingredients section
+            let ingredientsHtml = buildIngredientsHtml(recipe, window.currentServings);
+
+            content.innerHTML = `
+                <div class="recipe-detail">
+                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title_translated}">` : ''}
+                    <h2>${escapeHtml(recipe.title_translated || recipe.title_original)}</h2>
+
+                    <div class="recipe-detail-meta">
+                        ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                        ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
+                        ${recipe.language ? `<span>🌍 ${escapeHtml(recipe.language)}</span>` : ''}
+                    </div>
+
+                    <div class="recipe-detail-actions">
+                        <button onclick="closeRecipeModal()" class="btn btn-secondary">Close</button>
+                    </div>
+
+                    ${ingredientsHtml}
+
+                    <div class="recipe-detail-content">
+                        <div class="recipe-tabs">
+                            <button class="recipe-tab active" data-lang="translated">Translated</button>
+                            <button class="recipe-tab" data-lang="original">Original</button>
+                        </div>
+
+                        <div class="recipe-tab-content active" id="translated-content">
+                            ${formatRecipeContent(recipe.content_translated || 'No translation available')}
+                        </div>
+
+                        <div class="recipe-tab-content" id="original-content" style="display: none;">
+                            ${formatRecipeContent(recipe.content_original)}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Tab switching
+            content.querySelectorAll('.recipe-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const lang = tab.dataset.lang;
+                    content.querySelectorAll('.recipe-tab').forEach(t => t.classList.remove('active'));
+                    content.querySelectorAll('.recipe-tab-content').forEach(c => c.style.display = 'none');
+                    tab.classList.add('active');
+                    document.getElementById(`${lang}-content`).style.display = 'block';
+                });
+            });
+
+            modal.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Error loading recipe:', error);
+        alert('Error loading recipe: ' + error.message);
+    }
+}
+
+function closeRecipeModal() {
+    document.getElementById('recipeModal').style.display = 'none';
+}
+
+function parseServings(servingsStr) {
+    if (!servingsStr) return 1;
+    const match = servingsStr.toString().match(/\d+/);
+    return match ? parseInt(match[0]) : 1;
+}
+
+function buildServingsAdjuster(servings) {
+    const currentServings = window.currentServings || parseServings(servings);
+    return `
+        <span class="servings-adjuster">
+            <span>🍽️</span>
+            <button class="servings-btn" onclick="adjustServings(-1)" title="Decrease servings">−</button>
+            <span id="servingsDisplay">${currentServings}</span>
+            <button class="servings-btn" onclick="adjustServings(1)" title="Increase servings">+</button>
+            <span style="color: var(--text-secondary); font-size: 0.875rem; margin-left: 0.25rem;">servings</span>
+        </span>
+    `;
+}
+
+function buildIngredientsHtml(recipe, currentServings) {
+    let html = '';
+    if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
+        const scale = currentServings / window.originalServings;
+        const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+
+        html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
+        scaledIngredients.forEach((ing) => {
+            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
+        });
+        html += '</ul></div>';
+    }
+    return html;
+}
+
+function scaleIngredients(ingredients, scale) {
+    if (scale === 1) return ingredients;
+
+    return ingredients.map(ing => {
+        return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
+            let num;
+            if (match.includes('/')) {
+                const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
+                num = numerator / denominator;
+            } else {
+                num = parseFloat(match);
+            }
+            const scaled = num * scale;
+            return parseFloat(scaled.toFixed(2)).toString();
+        });
+    });
+}
+
+function adjustServings(delta) {
+    const newServings = Math.max(1, window.currentServings + delta);
+    window.currentServings = newServings;
+
+    document.getElementById('servingsDisplay').textContent = newServings;
+
+    const scale = newServings / window.originalServings;
+    const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+
+    const ingredientsSection = document.getElementById('ingredientsSection');
+    if (ingredientsSection) {
+        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+        scaledIngredients.forEach((ing) => {
+            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
+        });
+        html += '</ul>';
+        ingredientsSection.innerHTML = html;
+    }
+}
+
+function formatRecipeContent(markdown) {
+    let html = markdown;
+
+    // Headers
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Lists
+    html = html.replace(/^[-•] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+    // Wrap list items
+    const lines = html.split('\n');
+    let result = [];
+    let inList = false;
+    let listType = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+
+        if (line.trim().startsWith('<li>')) {
+            if (!inList) {
+                const originalLine = markdown.split('\n')[i];
+                listType = /^\d+\./.test(originalLine) ? 'ol' : 'ul';
+                result.push(`<${listType}>`);
+                inList = true;
+            }
+            result.push(line);
+
+            if (!nextLine.trim().startsWith('<li>')) {
+                result.push(`</${listType}>`);
+                inList = false;
+            }
+        } else {
+            if (inList && line.trim() === '') {
+                result.push(`</${listType}>`);
+                inList = false;
+            }
+            result.push(line);
+        }
+    }
+
+    if (inList) {
+        result.push(`</${listType}>`);
+    }
+
+    html = result.join('\n');
+
+    // Paragraphs
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+
+    // Clean up
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    html = html.replace(/<p>(\s*<[huo])/g, '$1');
+    html = html.replace(/(<\/[huo][^>]*>)\s*<\/p>/g, '$1');
+
+    return html;
+}
+

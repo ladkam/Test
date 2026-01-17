@@ -161,6 +161,111 @@ function formatTime(minutes) {
     return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
 }
 
+// Helper function to parse servings from string (e.g., "4 servings" -> 4)
+function parseServings(servingsStr) {
+    if (!servingsStr) return 1;
+    const match = servingsStr.toString().match(/\d+/);
+    return match ? parseInt(match[0]) : 1;
+}
+
+// Build servings adjuster HTML
+function buildServingsAdjuster(servings) {
+    const currentServings = window.currentServings || parseServings(servings);
+    return `
+        <span class="servings-adjuster">
+            <span>🍽️</span>
+            <button class="servings-btn" onclick="adjustServings(-1)" title="Decrease servings">−</button>
+            <span id="servingsDisplay">${currentServings}</span>
+            <button class="servings-btn" onclick="adjustServings(1)" title="Increase servings">+</button>
+            <span style="color: var(--text-secondary); font-size: 0.875rem; margin-left: 0.25rem;">servings</span>
+        </span>
+    `;
+}
+
+// Build ingredients HTML with current servings scale
+function buildIngredientsHtml(recipe, currentServings) {
+    let html = '';
+    if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
+        const scale = currentServings / window.originalServings;
+        const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+
+        html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
+        scaledIngredients.forEach((ing, idx) => {
+            const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
+            html += `
+                <li class="ingredient-item">
+                    <span class="ingredient-text">${escapeHtml(ing)}</span>
+                    <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Substitute
+                    </button>
+                </li>
+            `;
+        });
+        html += '</ul></div>';
+    }
+    return html;
+}
+
+// Scale ingredients based on servings multiplier
+function scaleIngredients(ingredients, scale) {
+    if (scale === 1) return ingredients;
+
+    return ingredients.map(ing => {
+        // Match numbers (including fractions like 1/2, 1.5, etc.)
+        return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
+            let num;
+            if (match.includes('/')) {
+                // Handle fractions
+                const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
+                num = numerator / denominator;
+            } else {
+                num = parseFloat(match);
+            }
+            const scaled = num * scale;
+            // Round to 2 decimal places and remove trailing zeros
+            return parseFloat(scaled.toFixed(2)).toString();
+        });
+    });
+}
+
+// Adjust servings and update ingredients display
+function adjustServings(delta) {
+    const newServings = Math.max(1, window.currentServings + delta);
+    window.currentServings = newServings;
+
+    // Update servings display
+    document.getElementById('servingsDisplay').textContent = newServings;
+
+    // Update ingredients
+    const scale = newServings / window.originalServings;
+    const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+
+    // Rebuild ingredients list
+    const ingredientsSection = document.getElementById('ingredientsSection');
+    if (ingredientsSection) {
+        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+        scaledIngredients.forEach((ing, idx) => {
+            const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
+            html += `
+                <li class="ingredient-item">
+                    <span class="ingredient-text">${escapeHtml(ing)}</span>
+                    <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${window.currentRecipeData.id})" title="Find substitutes">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Substitute
+                    </button>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        ingredientsSection.innerHTML = html;
+    }
+}
+
 async function showRecipeDetail(recipeId) {
     try {
         const response = await fetch(`/api/recipes/${recipeId}`);
@@ -171,25 +276,14 @@ async function showRecipeDetail(recipeId) {
             const modal = document.getElementById('recipeModal');
             const content = document.getElementById('modalContent');
 
+            // Store original recipe data for scaling
+            window.currentRecipeData = recipe;
+            window.originalServings = parseServings(recipe.servings);
+            window.currentServings = window.originalServings;
+            window.originalIngredients = [...(recipe.ingredients_translated || [])];
+
             // Build ingredients section with substitution buttons
-            let ingredientsHtml = '';
-            if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
-                ingredientsHtml = '<div class="ingredients-section"><h3>Ingredients</h3><ul class="ingredients-list">';
-                recipe.ingredients_translated.forEach((ing, idx) => {
-                    ingredientsHtml += `
-                        <li class="ingredient-item">
-                            <span class="ingredient-text">${escapeHtml(ing)}</span>
-                            <button class="btn-substitute" onclick="substituteIngredient('${escapeHtml(ing)}', ${recipe.id})" title="Find substitutes">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                    <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                </svg>
-                                Substitute
-                            </button>
-                        </li>
-                    `;
-                });
-                ingredientsHtml += '</ul></div>';
-            }
+            let ingredientsHtml = buildIngredientsHtml(recipe, window.currentServings);
 
             content.innerHTML = `
                 <div class="recipe-detail">
@@ -198,7 +292,7 @@ async function showRecipeDetail(recipeId) {
 
                     <div class="recipe-detail-meta">
                         ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                        ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                        ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
                         ${recipe.language ? `<span>🌍 ${escapeHtml(recipe.language)}</span>` : ''}
                     </div>
 
