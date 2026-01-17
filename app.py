@@ -483,6 +483,12 @@ def planner():
     return render_template('planner.html')
 
 
+@app.route('/help')
+def help_view():
+    """Render simplified help view for household staff (no login required)."""
+    return render_template('help_view.html')
+
+
 @app.route('/api/recipes', methods=['GET'])
 @login_required
 def list_recipes():
