@@ -45,6 +45,7 @@ recipes/
 # Flask
 instance/
 .webassets-cache
+*.log
 
 # User data and settings
 data/
