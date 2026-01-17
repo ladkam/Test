@@ -229,8 +229,11 @@ small a:hover {
 .btn-primary {
     background: var(--primary-color);
     color: white;
-    width: 100%;
     justify-content: center;
+}
+
+.btn-primary.btn-block {
+    width: 100%;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -432,6 +435,17 @@ small a:hover {
     font-size: 1.75rem;
 }
 
+.modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.modal-actions .btn {
+    min-width: 120px;
+}
+
 .modal-body {
     line-height: 1.8;
 }
@@ -532,11 +546,32 @@ small a:hover {
     color: var(--text-primary);
     text-decoration: none;
     font-weight: 500;
-    transition: color 0.2s;
+    transition: all 0.2s;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    position: relative;
 }
 
 .nav-link:hover {
     color: var(--primary-color);
+    background: rgba(255, 90, 95, 0.05);
+}
+
+.nav-link.active {
+    color: var(--primary-color);
+    background: rgba(255, 90, 95, 0.1);
+    font-weight: 600;
+}
+
+.nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 1rem;
+    right: 1rem;
+    height: 2px;
+    background: var(--primary-color);
+    border-radius: 2px;
 }
 
 /* Login Page */
@@ -1316,6 +1351,26 @@ textarea:focus {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+    align-items: center;
+}
+
+.library-actions .btn {
+    white-space: nowrap;
+}
+
+.library-actions .btn-primary {
+    min-width: 200px;
+}
+
+.library-actions .btn-secondary {
+    border: 2px solid var(--secondary-color);
+    background: white;
+    color: var(--secondary-color);
+}
+
+.library-actions .btn-secondary:hover {
+    background: var(--secondary-color);
+    color: white;
 }
 
 .search-card {
@@ -1619,6 +1674,22 @@ textarea:focus {
     display: flex;
     gap: 0.75rem;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+.planner-actions .btn {
+    white-space: nowrap;
+}
+
+.planner-actions .btn-secondary {
+    border: 2px solid var(--secondary-color);
+    background: white;
+    color: var(--secondary-color);
+}
+
+.planner-actions .btn-secondary:hover {
+    background: var(--secondary-color);
+    color: white;
 }
 
 .plan-header {
@@ -1952,5 +2023,65 @@ textarea:focus {
 
     .btn-substitute {
         justify-content: center;
+    }
+
+    /* Navigation responsive */
+    .nav-content {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+    }
+
+    .nav-brand {
+        font-size: 1.125rem;
+    }
+
+    .nav-links {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .nav-link {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    /* Library and Planner Headers */
+    .library-header,
+    .planner-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .library-header h1,
+    .planner-header h1 {
+        font-size: 2rem;
+    }
+
+    .library-actions,
+    .planner-actions {
+        width: 100%;
+    }
+
+    .library-actions .btn,
+    .planner-actions .btn {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Modal responsive */
+    .modal-content {
+        padding: 1.5rem;
+        max-width: 95%;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
     }
 }

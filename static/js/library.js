@@ -590,11 +590,28 @@ async function saveExtractedRecipe(event) {
         return;
     }
 
+    // Format content from ingredients and instructions
+    let contentFormatted = '';
+    if (ingredients.length > 0) {
+        contentFormatted += '## Ingredients\n\n';
+        ingredients.forEach(ing => {
+            contentFormatted += `- ${ing}\n`;
+        });
+        contentFormatted += '\n';
+    }
+
+    if (instructions.length > 0) {
+        contentFormatted += '## Instructions\n\n';
+        instructions.forEach((inst, idx) => {
+            contentFormatted += `${idx + 1}. ${inst}\n`;
+        });
+    }
+
     // Prepare recipe data
     const recipeData = {
         title: title,
-        content: '', // Will be generated from ingredients and instructions
-        content_original: '',
+        content: contentFormatted,
+        content_original: contentFormatted,
         ingredients: ingredients,
         instructions: instructions,
         prep_time: prepTime ? `${prepTime} minutes` : null,
