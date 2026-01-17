@@ -15,9 +15,6 @@ const downloadBtn = document.getElementById('downloadBtn');
 const errorSection = document.getElementById('error');
 const errorMessage = document.getElementById('errorMessage');
 const successSection = document.getElementById('success');
-const cookieHelp = document.getElementById('cookieHelp');
-const cookieModal = document.getElementById('cookieModal');
-const closeModal = document.querySelector('.close');
 
 // Store the current recipe data
 let currentRecipe = null;
@@ -125,7 +122,6 @@ recipeForm.addEventListener('submit', async (e) => {
     // Get form values
     const url = document.getElementById('recipeUrl').value.trim();
     const language = document.getElementById('language').value;
-    const nytCookie = document.getElementById('nytCookie').value.trim();
     const convertUnits = document.getElementById('convertUnits').checked;
     const translate = document.getElementById('translate').checked;
 
@@ -153,7 +149,6 @@ recipeForm.addEventListener('submit', async (e) => {
             body: JSON.stringify({
                 url,
                 language,
-                nyt_cookie: nytCookie || null,
                 convert_units: convertUnits,
                 translate: translate
             })
@@ -265,23 +260,6 @@ downloadBtn.addEventListener('click', async () => {
 
     } catch (error) {
         showError(error.message);
-    }
-});
-
-// Cookie help modal
-cookieHelp.addEventListener('click', (e) => {
-    e.preventDefault();
-    cookieModal.style.display = 'flex';
-});
-
-closeModal.addEventListener('click', () => {
-    cookieModal.style.display = 'none';
-});
-
-// Close modal when clicking outside
-window.addEventListener('click', (e) => {
-    if (e.target === cookieModal) {
-        cookieModal.style.display = 'none';
     }
 });
 
