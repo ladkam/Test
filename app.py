@@ -135,7 +135,6 @@ def translate_recipe():
     {
         "url": "recipe URL",
         "language": "target language",
-        "nyt_cookie": "optional NYT-S cookie",
         "convert_units": true/false,
         "translate": true/false
     }
@@ -152,13 +151,12 @@ def translate_recipe():
             return jsonify({'error': 'Please provide a valid NYT Cooking URL'}), 400
 
         language = data.get('language', os.getenv('TARGET_LANGUAGE', 'English'))
-        nyt_cookie = data.get('nyt_cookie', '').strip() or None
         convert_units = data.get('convert_units', True)
         do_translate = data.get('translate', True)
 
-        # Step 1: Scrape the recipe
+        # Step 1: Scrape the recipe (uses global NYT cookie from settings)
         try:
-            scraper = NYTRecipeScraper(nyt_cookie=nyt_cookie)
+            scraper = NYTRecipeScraper()
             recipe = scraper.scrape_recipe(url)
             recipe_text = scraper.format_recipe(recipe)
         except Exception as e:

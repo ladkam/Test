@@ -62,20 +62,6 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label for="nytCookie">
-                            NYT Cookie (Optional)
-                            <span class="info-icon" title="Required for subscriber-only recipes. Find your NYT-S cookie in browser developer tools.">ℹ️</span>
-                        </label>
-                        <input
-                            type="text"
-                            id="nytCookie"
-                            name="nytCookie"
-                            placeholder="Your NYT-S cookie value"
-                        >
-                        <small>For subscriber-only recipes. <a href="#" id="cookieHelp">How to find this?</a></small>
-                    </div>
-
                     <div class="checkbox-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="convertUnits" name="convertUnits" checked>
@@ -128,46 +114,6 @@
                 <strong>Success!</strong> Recipe translated successfully.
             </div>
         </main>
-
-        <footer>
-            <div class="info-section">
-                <h3>How to get your NYT Cookie:</h3>
-                <ol>
-                    <li>Log in to <a href="https://cooking.nytimes.com" target="_blank">cooking.nytimes.com</a></li>
-                    <li>Open browser Developer Tools (F12 or right-click → Inspect)</li>
-                    <li>Go to the "Application" or "Storage" tab</li>
-                    <li>Click on "Cookies" → "https://cooking.nytimes.com"</li>
-                    <li>Find the cookie named "NYT-S" and copy its value</li>
-                    <li>Paste it in the "NYT Cookie" field above</li>
-                </ol>
-                <p class="note">⚠️ Keep your cookie private - it's like a password!</p>
-            </div>
-        </footer>
-    </div>
-
-    <!-- Cookie help modal -->
-    <div id="cookieModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>How to Find Your NYT Cookie</h2>
-            <div class="modal-body">
-                <p>To access subscriber-only recipes, you need to provide your NYT-S cookie:</p>
-                <ol>
-                    <li>Open <a href="https://cooking.nytimes.com" target="_blank">cooking.nytimes.com</a> in your browser</li>
-                    <li>Log in to your NYT Cooking account</li>
-                    <li>Press <kbd>F12</kbd> to open Developer Tools</li>
-                    <li>Click on the <strong>Application</strong> tab (Chrome) or <strong>Storage</strong> tab (Firefox)</li>
-                    <li>In the left sidebar, expand <strong>Cookies</strong></li>
-                    <li>Click on <code>https://cooking.nytimes.com</code></li>
-                    <li>Find the cookie named <code>NYT-S</code></li>
-                    <li>Double-click the value and copy it</li>
-                    <li>Paste it in the "NYT Cookie" field</li>
-                </ol>
-                <div class="warning">
-                    <strong>⚠️ Security Note:</strong> Your cookie is like a password. Don't share it with anyone!
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
