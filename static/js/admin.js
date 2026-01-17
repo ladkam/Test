@@ -156,11 +156,10 @@ const MODEL_OPTIONS = {
         { value: 'open-mixtral-8x22b', label: 'Open Mixtral 8x22B (Free)', free: true }
     ],
     groq: [
-        { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Fast)', free: true },
-        { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B Versatile', free: true },
+        { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Recommended)', free: true },
         { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra Fast)', free: true },
-        { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', free: true },
-        { value: 'gemma2-9b-it', label: 'Gemma 2 9B', free: true }
+        { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Highest Quality)', free: true },
+        { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)', free: true }
     ]
 };
 
