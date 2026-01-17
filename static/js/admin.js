@@ -228,6 +228,69 @@ async function deleteUser(userId, username) {
     }
 }
 
+// Password Change
+let currentUserId = null;
+
+function showChangePassword(userId, username) {
+    currentUserId = userId;
+    document.getElementById('changePasswordUsername').textContent = username;
+    document.getElementById('newUserPassword').value = '';
+    document.getElementById('confirmUserPassword').value = '';
+    document.getElementById('changePasswordModal').style.display = 'flex';
+}
+
+function closeChangePassword() {
+    document.getElementById('changePasswordModal').style.display = 'none';
+    currentUserId = null;
+}
+
+async function changePassword() {
+    const newPassword = document.getElementById('newUserPassword').value.trim();
+    const confirmPassword = document.getElementById('confirmUserPassword').value.trim();
+
+    if (!newPassword || !confirmPassword) {
+        showAlert('Both password fields are required', 'error');
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showAlert('Passwords do not match', 'error');
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        showAlert('Password must be at least 6 characters', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/users/${currentUserId}/password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: newPassword })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showAlert(data.message, 'success');
+            closeChangePassword();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (error) {
+        showAlert('Failed to change password: ' + error.message, 'error');
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+    const modal = document.getElementById('changePasswordModal');
+    if (e.target === modal) {
+        closeChangePassword();
+    }
+});
+
 // Enter key handler for language input
 document.getElementById('newLanguage')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {

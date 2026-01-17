@@ -158,26 +158,38 @@
 
                 <div class="user-form">
                     <h3>Create New User</h3>
-                    <div class="form-row">
-                        <input
-                            type="text"
-                            id="newUsername"
-                            placeholder="Username"
-                            class="input-inline"
-                        >
-                        <input
-                            type="password"
-                            id="newPassword"
-                            placeholder="Password"
-                            class="input-inline"
-                        >
-                        <select id="newRole" class="select-inline">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                        <button onclick="createUser()" class="btn btn-primary">
-                            Create User
-                        </button>
+                    <div class="create-user-grid">
+                        <div class="form-group">
+                            <label for="newUsername">Username</label>
+                            <input
+                                type="text"
+                                id="newUsername"
+                                placeholder="Enter username"
+                                class="input-full"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">Password</label>
+                            <input
+                                type="password"
+                                id="newPassword"
+                                placeholder="Enter password"
+                                class="input-full"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="newRole">Role</label>
+                            <select id="newRole" class="select-full">
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button onclick="createUser()" class="btn btn-primary">
+                                👤 Create User
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -194,21 +206,61 @@
                         <tbody id="usersTableBody">
                             {% for user in users %}
                             <tr>
-                                <td>{{ user.username }}</td>
+                                <td><strong>{{ user.username }}</strong></td>
                                 <td><span class="badge badge-{{ user.role }}">{{ user.role }}</span></td>
-                                <td>
+                                <td class="user-actions">
+                                    <button onclick="showChangePassword('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-secondary">
+                                        🔑 Change Password
+                                    </button>
                                     {% if user.id != '1' %}
                                     <button onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-danger">
-                                        Delete
+                                        🗑️ Delete
                                     </button>
                                     {% else %}
-                                    <span class="text-muted">Default admin</span>
+                                    <span class="text-muted" style="margin-left: 0.5rem;">(Default admin)</span>
                                     {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeChangePassword()">&times;</span>
+            <h2>Change Password</h2>
+            <div class="modal-body">
+                <p>Change password for user: <strong id="changePasswordUsername"></strong></p>
+                <div class="form-group">
+                    <label for="newUserPassword">New Password</label>
+                    <input
+                        type="password"
+                        id="newUserPassword"
+                        placeholder="Enter new password"
+                        class="input-full"
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="confirmUserPassword">Confirm Password</label>
+                    <input
+                        type="password"
+                        id="confirmUserPassword"
+                        placeholder="Confirm new password"
+                        class="input-full"
+                    >
+                </div>
+                <div class="button-group">
+                    <button onclick="changePassword()" class="btn btn-primary">
+                        Update Password
+                    </button>
+                    <button onclick="closeChangePassword()" class="btn btn-secondary">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
