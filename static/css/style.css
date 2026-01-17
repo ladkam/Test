@@ -6,32 +6,35 @@
 }
 
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --secondary-color: #64748b;
-    --success-color: #10b981;
-    --error-color: #ef4444;
-    --background: #f8fafc;
-    --card-background: #ffffff;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --border-color: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    /* Airbnb-inspired warm color palette */
+    --primary-color: #FF5A5F;
+    --primary-hover: #E5484D;
+    --secondary-color: #00A699;
+    --success-color: #008489;
+    --error-color: #C13515;
+    --background: #FFFFFF;
+    --card-background: #FFFFFF;
+    --text-primary: #484848;
+    --text-secondary: #767676;
+    --border-color: #EBEBEB;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    --border-radius: 12px;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: var(--background);
+    background: #F7F7F7;
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
 }
 
 .container {
-    max-width: 900px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 2.5rem 1.5rem;
 }
 
 /* Header */
@@ -86,7 +89,7 @@ header h1 {
 /* Card */
 .card {
     background: var(--card-background);
-    border-radius: 0.75rem;
+    border-radius: var(--border-radius);
     padding: 2rem;
     margin-bottom: 2rem;
     box-shadow: var(--shadow);
@@ -95,7 +98,7 @@ header h1 {
 }
 
 .card:hover {
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
 }
 
 .card h2 {
@@ -212,7 +215,7 @@ small a:hover {
 .btn {
     padding: 0.875rem 1.5rem;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius);
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
@@ -224,16 +227,16 @@ small a:hover {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+    background: var(--primary-color);
     color: white;
     width: 100%;
     justify-content: center;
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-primary:disabled {
@@ -251,7 +254,8 @@ small a:hover {
 }
 
 .btn-secondary:hover {
-    background: #475569;
+    background: #008A7D;
+    transform: translateY(-1px);
 }
 
 /* Spinner */
@@ -1074,6 +1078,180 @@ textarea:focus {
     }
 }
 
+/* Airbnb-inspired Recipe Page Redesign */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.938rem;
+    margin-bottom: 2rem;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--primary-color);
+}
+
+.recipe-hero-image {
+    width: 100%;
+    margin: 0 0 3rem 0;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.recipe-hero-image img {
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+    object-fit: cover;
+    display: block;
+}
+
+.recipe-header {
+    margin-bottom: 3rem;
+}
+
+.recipe-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    margin: 0 0 1.5rem 0;
+    letter-spacing: -0.02em;
+}
+
+.recipe-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    font-size: 0.938rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow);
+    text-decoration: none;
+}
+
+.action-btn:hover {
+    border-color: var(--text-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.action-btn svg {
+    flex-shrink: 0;
+}
+
+.action-btn.btn-success {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+.recipe-body {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.recipe-content {
+    font-size: 1.063rem;
+    line-height: 1.8;
+    color: var(--text-primary);
+}
+
+.recipe-content h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 2.5rem 0 1rem 0;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.recipe-content h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 2.5rem 0 1.25rem 0;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.recipe-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 2rem 0 1rem 0;
+    color: var(--text-primary);
+}
+
+.recipe-content p {
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+
+.recipe-content strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.recipe-content ul,
+.recipe-content ol {
+    margin: 0 0 1.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.recipe-content li {
+    margin-bottom: 0.875rem;
+    padding-left: 0.5rem;
+    line-height: 1.7;
+}
+
+.recipe-content ul li {
+    list-style-type: none;
+    position: relative;
+}
+
+.recipe-content ul li:before {
+    content: "•";
+    position: absolute;
+    left: -1.25rem;
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.recipe-content ol {
+    counter-reset: recipe-counter;
+    list-style: none;
+}
+
+.recipe-content ol li {
+    counter-increment: recipe-counter;
+    position: relative;
+}
+
+.recipe-content ol li:before {
+    content: counter(recipe-counter) ".";
+    position: absolute;
+    left: -2rem;
+    color: var(--primary-color);
+    font-weight: 700;
+    min-width: 1.5rem;
+    text-align: right;
+}
+
 /* Responsive Results Page */
 @media (max-width: 768px) {
     .results-header-page {
@@ -1097,5 +1275,22 @@ textarea:focus {
 
     .action-grid {
         grid-template-columns: 1fr;
+    }
+
+    .recipe-header h1 {
+        font-size: 2rem;
+    }
+
+    .recipe-content {
+        font-size: 1rem;
+    }
+
+    .recipe-actions {
+        justify-content: stretch;
+    }
+
+    .action-btn {
+        flex: 1;
+        justify-content: center;
     }
 }

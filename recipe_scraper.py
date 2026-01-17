@@ -148,7 +148,7 @@ class NYTRecipeScraper:
         # Extract instructions
         instructions = data.get('recipeInstructions', [])
         if isinstance(instructions, list):
-            for idx, instruction in enumerate(instructions, 1):
+            for instruction in instructions:
                 if isinstance(instruction, dict):
                     text = instruction.get('text', '')
                 elif isinstance(instruction, str):
@@ -157,7 +157,7 @@ class NYTRecipeScraper:
                     continue
 
                 if text:
-                    recipe['instructions'].append(f"{idx}. {text}")
+                    recipe['instructions'].append(text)
         elif isinstance(instructions, str):
             recipe['instructions'] = [instructions]
 
@@ -243,10 +243,10 @@ class NYTRecipeScraper:
             if instruction_tags:
                 instruction_tags = instruction_tags[0].find_all('li')
 
-        for idx, tag in enumerate(instruction_tags, 1):
+        for tag in instruction_tags:
             instruction = tag.get_text(strip=True)
             if instruction:
-                recipe['instructions'].append(f"{idx}. {instruction}")
+                recipe['instructions'].append(instruction)
 
         # Extract author
         author_tag = soup.find(class_=re.compile('author', re.I))
@@ -311,8 +311,8 @@ class NYTRecipeScraper:
 
         # Instructions
         output.append("## Instructions\n")
-        for instruction in recipe['instructions']:
-            output.append(instruction)
-            output.append("")
+        for idx, instruction in enumerate(recipe['instructions'], 1):
+            output.append(f"{idx}. {instruction}")
+        output.append("")
 
         return "\n".join(output)

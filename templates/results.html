@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recipe Results - Recipe Translator</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -23,18 +24,7 @@
     </nav>
 
     <div class="container results-page">
-        <div class="results-header-page">
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">← New Translation</a>
-            <h1>{{ recipe.title }}</h1>
-            <div class="results-actions">
-                <button id="copyBtn" class="btn btn-primary" title="Copy recipe to clipboard">
-                    📋 Copy
-                </button>
-                <button id="downloadBtn" class="btn btn-primary">
-                    📥 Download
-                </button>
-            </div>
-        </div>
+        <a href="{{ url_for('index') }}" class="back-link">← Back to Home</a>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -46,35 +36,43 @@
             {% endif %}
         {% endwith %}
 
-        <div class="card recipe-display">
-            <!-- Recipe Image -->
-            {% if recipe.image %}
-            <div class="recipe-image-container">
-                <img src="{{ recipe.image }}" class="recipe-image-large" alt="{{ recipe.title }}">
-            </div>
-            {% endif %}
+        <!-- Recipe Image -->
+        {% if recipe.image %}
+        <div class="recipe-hero-image">
+            <img src="{{ recipe.image }}" alt="{{ recipe.title }}">
+        </div>
+        {% endif %}
 
-            <!-- Recipe Content -->
-            <div id="recipeContent" class="recipe-content"></div>
+        <!-- Recipe Title & Actions -->
+        <div class="recipe-header">
+            <h1>{{ recipe.title }}</h1>
+            <div class="recipe-actions">
+                <button id="copyBtn" class="action-btn" title="Copy recipe">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M8 3C7.44772 3 7 3.44772 7 4V12C7 12.5523 7.44772 13 8 13H16C16.5523 13 17 12.5523 17 12V4C17 3.44772 16.5523 3 16 3H8Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M5 7H4C3.44772 7 3 7.44772 3 8V16C3 16.5523 3.44772 17 4 17H12C12.5523 17 13 16.5523 13 16V15" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    Copy
+                </button>
+                <button id="downloadBtn" class="action-btn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Download
+                </button>
+                <button onclick="window.print()" class="action-btn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M5 7V3H15V7M5 15H4C3.44772 15 3 14.5523 3 14V9C3 8.44772 3.44772 8 4 8H16C16.5523 8 17 8.44772 17 9V14C17 14.5523 16.5523 15 16 15H15M5 11H15V17H5V11Z" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    Print
+                </button>
+            </div>
         </div>
 
-        <!-- Quick Actions Bar -->
-        <div class="card quick-actions">
-            <h3>Quick Actions</h3>
-            <div class="action-grid">
-                <button onclick="window.print()" class="action-btn">
-                    🖨️ Print Recipe
-                </button>
-                <button id="copyBtn2" class="action-btn">
-                    📋 Copy Text
-                </button>
-                <button id="downloadBtn2" class="action-btn">
-                    📥 Download MD
-                </button>
-                <a href="{{ url_for('index') }}" class="action-btn">
-                    🔄 New Translation
-                </a>
-            </div>
+        <!-- Recipe Content -->
+        <div class="recipe-body">
+            <div id="recipeContent" class="recipe-content"></div>
         </div>
     </div>
 
@@ -182,16 +180,14 @@
         }
 
         function showFeedback(message) {
-            const buttons = document.querySelectorAll('#copyBtn, #copyBtn2');
-            buttons.forEach(btn => {
-                const original = btn.innerHTML;
-                btn.innerHTML = '✓ ' + message;
-                btn.classList.add('btn-success');
-                setTimeout(() => {
-                    btn.innerHTML = original;
-                    btn.classList.remove('btn-success');
-                }, 2000);
-            });
+            const btn = document.getElementById('copyBtn');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10L9 14L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Copied!';
+            btn.classList.add('btn-success');
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.classList.remove('btn-success');
+            }, 2000);
         }
 
         // Download functionality
@@ -230,9 +226,7 @@
 
         // Event listeners
         document.getElementById('copyBtn').addEventListener('click', copyRecipe);
-        document.getElementById('copyBtn2').addEventListener('click', copyRecipe);
         document.getElementById('downloadBtn').addEventListener('click', downloadRecipe);
-        document.getElementById('downloadBtn2').addEventListener('click', downloadRecipe);
     </script>
 </body>
 </html>
