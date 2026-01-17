@@ -117,11 +117,25 @@ function displayAvailableRecipes() {
 }
 
 async function addToPlan(recipeId) {
+    // Find recipe to get default servings
+    const recipe = availableRecipes.find(r => r.id === recipeId);
+    const defaultServings = recipe && recipe.servings ? parseInt(recipe.servings.toString().match(/\d+/)?.[0] || 1) : 1;
+
+    // Prompt for servings
+    const servingsInput = prompt(`How many servings? (Default: ${defaultServings})`, defaultServings);
+
+    if (servingsInput === null) return; // User cancelled
+
+    const servings = parseInt(servingsInput) || defaultServings;
+
     try {
         const response = await fetch('/api/planner/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipe_id: recipeId })
+            body: JSON.stringify({
+                recipe_id: recipeId,
+                servings: servings
+            })
         });
 
         const data = await response.json();
@@ -291,7 +305,9 @@ async function showRecipeDetail(recipeId) {
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredients = [...(recipe.ingredients_translated || [])];
+            window.originalIngredientsTranslated = [...(recipe.ingredients_translated || [])];
+            window.originalIngredientsOriginal = [...(recipe.ingredients_original || [])];
+            window.activeLanguageTab = 'translated'; // Track which tab is active
 
             // Build ingredients section
             let ingredientsHtml = buildIngredientsHtml(recipe, window.currentServings);
@@ -334,10 +350,29 @@ async function showRecipeDetail(recipeId) {
             content.querySelectorAll('.recipe-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     const lang = tab.dataset.lang;
+                    window.activeLanguageTab = lang; // Track active tab
+
                     content.querySelectorAll('.recipe-tab').forEach(t => t.classList.remove('active'));
                     content.querySelectorAll('.recipe-tab-content').forEach(c => c.style.display = 'none');
                     tab.classList.add('active');
                     document.getElementById(`${lang}-content`).style.display = 'block';
+
+                    // Update ingredients to match the active tab
+                    const useOriginal = lang === 'original';
+                    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
+                    const scale = window.currentServings / window.originalServings;
+                    const scaledIngredients = scaleIngredients(originalIngredients, scale);
+
+                    // Rebuild ingredients list
+                    const ingredientsSection = document.getElementById('ingredientsSection');
+                    if (ingredientsSection) {
+                        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+                        scaledIngredients.forEach((ing) => {
+                            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
+                        });
+                        html += '</ul>';
+                        ingredientsSection.innerHTML = html;
+                    }
                 });
             });
 
@@ -372,11 +407,14 @@ function buildServingsAdjuster(servings) {
     `;
 }
 
-function buildIngredientsHtml(recipe, currentServings) {
+function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
     let html = '';
-    if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
+    const ingredientsList = useOriginal ? recipe.ingredients_original : recipe.ingredients_translated;
+
+    if (ingredientsList && ingredientsList.length > 0) {
+        const originalList = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
         const scale = currentServings / window.originalServings;
-        const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+        const scaledIngredients = scaleIngredients(originalList, scale);
 
         html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
         scaledIngredients.forEach((ing) => {
@@ -411,8 +449,12 @@ function adjustServings(delta) {
 
     document.getElementById('servingsDisplay').textContent = newServings;
 
+    // Determine which ingredient list to use based on active tab
+    const useOriginal = window.activeLanguageTab === 'original';
+    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
+
     const scale = newServings / window.originalServings;
-    const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+    const scaledIngredients = scaleIngredients(originalIngredients, scale);
 
     const ingredientsSection = document.getElementById('ingredientsSection');
     if (ingredientsSection) {

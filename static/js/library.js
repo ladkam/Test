@@ -183,11 +183,14 @@ function buildServingsAdjuster(servings) {
 }
 
 // Build ingredients HTML with current servings scale
-function buildIngredientsHtml(recipe, currentServings) {
+function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
     let html = '';
-    if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
+    const ingredientsList = useOriginal ? recipe.ingredients_original : recipe.ingredients_translated;
+
+    if (ingredientsList && ingredientsList.length > 0) {
+        const originalList = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
         const scale = currentServings / window.originalServings;
-        const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+        const scaledIngredients = scaleIngredients(originalList, scale);
 
         html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
         scaledIngredients.forEach((ing, idx) => {
@@ -239,9 +242,13 @@ function adjustServings(delta) {
     // Update servings display
     document.getElementById('servingsDisplay').textContent = newServings;
 
+    // Determine which ingredient list to use based on active tab
+    const useOriginal = window.activeLanguageTab === 'original';
+    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
+
     // Update ingredients
     const scale = newServings / window.originalServings;
-    const scaledIngredients = scaleIngredients(window.originalIngredients, scale);
+    const scaledIngredients = scaleIngredients(originalIngredients, scale);
 
     // Rebuild ingredients list
     const ingredientsSection = document.getElementById('ingredientsSection');
@@ -280,7 +287,9 @@ async function showRecipeDetail(recipeId) {
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredients = [...(recipe.ingredients_translated || [])];
+            window.originalIngredientsTranslated = [...(recipe.ingredients_translated || [])];
+            window.originalIngredientsOriginal = [...(recipe.ingredients_original || [])];
+            window.activeLanguageTab = 'translated'; // Track which tab is active
 
             // Build ingredients section with substitution buttons
             let ingredientsHtml = buildIngredientsHtml(recipe, window.currentServings);
@@ -329,10 +338,40 @@ async function showRecipeDetail(recipeId) {
             content.querySelectorAll('.recipe-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     const lang = tab.dataset.lang;
+                    window.activeLanguageTab = lang; // Track active tab
+
                     content.querySelectorAll('.recipe-tab').forEach(t => t.classList.remove('active'));
                     content.querySelectorAll('.recipe-tab-content').forEach(c => c.style.display = 'none');
                     tab.classList.add('active');
                     document.getElementById(`${lang}-content`).style.display = 'block';
+
+                    // Update ingredients to match the active tab
+                    const useOriginal = lang === 'original';
+                    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
+                    const scale = window.currentServings / window.originalServings;
+                    const scaledIngredients = scaleIngredients(originalIngredients, scale);
+
+                    // Rebuild ingredients list
+                    const ingredientsSection = document.getElementById('ingredientsSection');
+                    if (ingredientsSection) {
+                        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+                        scaledIngredients.forEach((ing, idx) => {
+                            const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
+                            html += `
+                                <li class="ingredient-item">
+                                    <span class="ingredient-text">${escapeHtml(ing)}</span>
+                                    <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        </svg>
+                                        Substitute
+                                    </button>
+                                </li>
+                            `;
+                        });
+                        html += '</ul>';
+                        ingredientsSection.innerHTML = html;
+                    }
                 });
             });
 
@@ -417,8 +456,36 @@ function editRecipe(recipeId) {
     window.location.href = `/recipe/edit/${recipeId}`;
 }
 
-function addToWeeklyPlan(recipeId) {
-    window.location.href = `/planner?add=${recipeId}`;
+async function addToWeeklyPlan(recipeId) {
+    // Use current servings if adjusted, otherwise use original servings
+    const servings = window.currentServings || window.originalServings || 1;
+
+    // Show confirmation with servings
+    const confirmed = confirm(`Add "${window.currentRecipeData.title_translated || window.currentRecipeData.title_original}" to weekly plan with ${servings} servings?`);
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch('/api/planner/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipe_id: recipeId,
+                servings: servings
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Recipe added to weekly plan!');
+            window.location.href = '/planner';
+        } else {
+            alert('Failed to add recipe: ' + (data.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error adding recipe: ' + error.message);
+    }
 }
 
 async function deleteRecipe(recipeId) {

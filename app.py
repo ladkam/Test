@@ -833,6 +833,7 @@ def add_to_plan():
     try:
         data = request.json
         recipe_id = data.get('recipe_id')
+        servings = data.get('servings', 1)  # Default to 1 if not provided
 
         # Get Monday of current week
         today = date.today()
@@ -850,12 +851,13 @@ def add_to_plan():
         if existing:
             return jsonify({'success': False, 'message': 'Recipe already in plan'}), 400
 
-        # Add recipe to plan
+        # Add recipe to plan with servings
         plan_recipe = PlanRecipe(
             plan_id=plan.id,
             recipe_id=recipe_id,
             day_of_week=1,  # Not used, but required
-            meal_order=0
+            meal_order=0,
+            servings=servings
         )
         db.session.add(plan_recipe)
         db.session.commit()

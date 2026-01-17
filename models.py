@@ -136,6 +136,7 @@ class PlanRecipe(db.Model):
     recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 1=Monday, 7=Sunday
     meal_order = db.Column(db.Integer, default=0)  # Order within the day
+    servings = db.Column(db.Integer, default=1)  # Number of servings for this meal
     notes = db.Column(db.Text)
 
     # Relationships
@@ -150,6 +151,7 @@ class PlanRecipe(db.Model):
             'recipe_id': self.recipe_id,
             'day_of_week': self.day_of_week,
             'meal_order': self.meal_order,
+            'servings': self.servings,
             'notes': self.notes,
             'recipe': self.recipe.to_dict() if self.recipe else None
         }
