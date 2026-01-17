@@ -122,8 +122,6 @@ recipeForm.addEventListener('submit', async (e) => {
     // Get form values
     const url = document.getElementById('recipeUrl').value.trim();
     const language = document.getElementById('language').value;
-    const convertUnits = document.getElementById('convertUnits').checked;
-    const translate = document.getElementById('translate').checked;
 
     // Validate
     if (!url) {
@@ -140,7 +138,7 @@ recipeForm.addEventListener('submit', async (e) => {
     setLoading(true);
 
     try {
-        // Call API
+        // Call API (always convert to metric and translate)
         const response = await fetch('/api/translate', {
             method: 'POST',
             headers: {
@@ -149,8 +147,8 @@ recipeForm.addEventListener('submit', async (e) => {
             body: JSON.stringify({
                 url,
                 language,
-                convert_units: convertUnits,
-                translate: translate
+                convert_units: true,
+                translate: true
             })
         });
 
@@ -260,15 +258,5 @@ downloadBtn.addEventListener('click', async () => {
 
     } catch (error) {
         showError(error.message);
-    }
-});
-
-// Auto-update translate checkbox when language is English
-document.getElementById('language').addEventListener('change', (e) => {
-    const translateCheckbox = document.getElementById('translate');
-    if (e.target.value === 'English') {
-        translateCheckbox.checked = false;
-    } else {
-        translateCheckbox.checked = true;
     }
 });

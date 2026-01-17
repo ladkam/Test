@@ -60,17 +60,7 @@
                                 <option value="{{ lang }}">{{ lang }}</option>
                             {% endfor %}
                         </select>
-                    </div>
-
-                    <div class="checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="convertUnits" name="convertUnits" checked>
-                            <span>Convert measurements to metric</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="translate" name="translate" checked>
-                            <span>Translate recipe</span>
-                        </label>
+                        <small>Recipes are automatically converted to metric and translated</small>
                     </div>
 
                     <button type="submit" id="submitBtn" class="btn btn-primary">

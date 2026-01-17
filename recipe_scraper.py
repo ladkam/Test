@@ -122,7 +122,8 @@ class NYTRecipeScraper:
             'instructions': [],
             'author': '',
             'url': data.get('url', ''),
-            'image': ''
+            'image': '',
+            'nutrition': {}
         }
 
         # Extract image
@@ -169,6 +170,23 @@ class NYTRecipeScraper:
         else:
             recipe['author'] = str(author) if author else ''
 
+        # Extract nutrition information
+        nutrition_data = data.get('nutrition', {})
+        if isinstance(nutrition_data, dict):
+            recipe['nutrition'] = {
+                'calories': nutrition_data.get('calories', ''),
+                'protein': nutrition_data.get('proteinContent', ''),
+                'fat': nutrition_data.get('fatContent', ''),
+                'saturated_fat': nutrition_data.get('saturatedFatContent', ''),
+                'carbohydrates': nutrition_data.get('carbohydrateContent', ''),
+                'fiber': nutrition_data.get('fiberContent', ''),
+                'sugar': nutrition_data.get('sugarContent', ''),
+                'sodium': nutrition_data.get('sodiumContent', ''),
+                'cholesterol': nutrition_data.get('cholesterolContent', '')
+            }
+            # Remove empty values
+            recipe['nutrition'] = {k: v for k, v in recipe['nutrition'].items() if v}
+
         return recipe
 
     def _extract_from_html(self, soup: BeautifulSoup) -> Dict:
@@ -182,7 +200,8 @@ class NYTRecipeScraper:
             'instructions': [],
             'author': '',
             'url': '',
-            'image': ''
+            'image': '',
+            'nutrition': {}
         }
 
         # Extract image
@@ -263,6 +282,26 @@ class NYTRecipeScraper:
 
         if time_info:
             output.append(f"**Time:** {', '.join(time_info)}\n")
+
+        # Nutrition information
+        nutrition = recipe.get('nutrition', {})
+        if nutrition:
+            output.append("## Nutrition (per serving)\n")
+            nutrition_labels = {
+                'calories': 'Calories',
+                'protein': 'Protein',
+                'fat': 'Total Fat',
+                'saturated_fat': 'Saturated Fat',
+                'carbohydrates': 'Carbohydrates',
+                'fiber': 'Fiber',
+                'sugar': 'Sugar',
+                'sodium': 'Sodium',
+                'cholesterol': 'Cholesterol'
+            }
+            for key, label in nutrition_labels.items():
+                if key in nutrition and nutrition[key]:
+                    output.append(f"- **{label}:** {nutrition[key]}")
+            output.append("")
 
         # Ingredients
         output.append("## Ingredients\n")
