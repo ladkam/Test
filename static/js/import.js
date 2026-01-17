@@ -3,6 +3,7 @@
  */
 
 let currentImageData = null;
+let cameraStream = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Tab switching
@@ -29,6 +30,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     photoInput.addEventListener('change', handleFileSelect);
+
+    // Camera buttons
+    document.getElementById('useCameraBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCamera();
+    });
+
+    document.getElementById('capturePhotoBtn')?.addEventListener('click', capturePhoto);
+
+    document.getElementById('closeCameraBtn')?.addEventListener('click', closeCamera);
 
     // Change image button
     document.getElementById('changeImageBtn')?.addEventListener('click', (e) => {
@@ -448,4 +459,71 @@ function showError(message) {
     errorMessage.textContent = message;
     errorDiv.style.display = 'block';
     errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ============= Camera Functions =============
+
+async function openCamera() {
+    try {
+        // Request camera access
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: 'environment', // Use back camera on mobile
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            }
+        });
+
+        cameraStream = stream;
+        const videoElement = document.getElementById('cameraPreview');
+        videoElement.srcObject = stream;
+
+        // Hide upload prompt and show camera view
+        document.querySelector('.upload-prompt').style.display = 'none';
+        document.getElementById('cameraView').style.display = 'block';
+    } catch (error) {
+        console.error('Error accessing camera:', error);
+        if (error.name === 'NotAllowedError') {
+            alert('Camera access was denied. Please allow camera access to use this feature.');
+        } else if (error.name === 'NotFoundError') {
+            alert('No camera found on this device.');
+        } else {
+            alert('Error accessing camera: ' + error.message);
+        }
+    }
+}
+
+function capturePhoto() {
+    const video = document.getElementById('cameraPreview');
+    const canvas = document.getElementById('photoCanvas');
+    const context = canvas.getContext('2d');
+
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw current video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert canvas to base64
+    currentImageData = canvas.toDataURL('image/jpeg', 0.9);
+
+    // Close camera and show preview
+    closeCamera();
+
+    // Show preview
+    document.getElementById('previewImage').src = currentImageData;
+    document.getElementById('imagePreview').style.display = 'block';
+}
+
+function closeCamera() {
+    // Stop all camera tracks
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+
+    // Hide camera view and show upload prompt
+    document.getElementById('cameraView').style.display = 'none';
+    document.querySelector('.upload-prompt').style.display = 'block';
 }
