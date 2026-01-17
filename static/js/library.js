@@ -457,15 +457,27 @@ function editRecipe(recipeId) {
 }
 
 async function addToWeeklyPlan(recipeId) {
-    // Use current servings if adjusted, otherwise use original servings
-    const servings = window.currentServings || window.originalServings || 1;
-
-    // Show confirmation with servings
-    const confirmed = confirm(`Add "${window.currentRecipeData.title_translated || window.currentRecipeData.title_original}" to weekly plan with ${servings} servings?`);
-
-    if (!confirmed) return;
-
     try {
+        // Fetch recipe data if not already loaded
+        let recipe = window.currentRecipeData;
+        if (!recipe || recipe.id !== recipeId) {
+            const response = await fetch(`/api/recipes/${recipeId}`);
+            const data = await response.json();
+            if (!data.success) {
+                alert('Failed to load recipe');
+                return;
+            }
+            recipe = data.recipe;
+        }
+
+        // Use current servings if adjusted, otherwise use original servings
+        const servings = window.currentServings || window.originalServings || parseServings(recipe.servings) || 1;
+
+        // Show confirmation with servings
+        const confirmed = confirm(`Add "${recipe.title_translated || recipe.title_original}" to weekly plan with ${servings} servings?`);
+
+        if (!confirmed) return;
+
         const response = await fetch('/api/planner/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

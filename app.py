@@ -757,19 +757,39 @@ For each substitute:
 
 Keep suggestions practical and commonly available. Format as a numbered list."""
 
+        # Check if API keys are configured
+        groq_api_key = os.getenv('GROQ_API_KEY')
+        mistral_api_key = os.getenv('MISTRAL_API_KEY')
+
+        if not groq_api_key and not mistral_api_key:
+            return jsonify({
+                'success': False,
+                'message': 'AI service not configured. Please set GROQ_API_KEY or MISTRAL_API_KEY environment variable.'
+            }), 503
+
         # Get AI provider from settings
         ai_provider = settings.get_ai_provider()
 
+        # Use available provider
+        if ai_provider == 'groq' and groq_api_key:
+            use_groq = True
+        elif ai_provider == 'mistral' and mistral_api_key:
+            use_groq = False
+        elif groq_api_key:
+            use_groq = True
+        elif mistral_api_key:
+            use_groq = False
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No AI service available. Please configure GROQ_API_KEY or MISTRAL_API_KEY.'
+            }), 503
+
         # Call AI
         try:
-            if ai_provider == 'groq':
-                translator = GroqTranslator()
-            else:
-                translator = MistralTranslator()
-
-            # Use the translator's client to make a simple completion
-            if ai_provider == 'groq':
+            if use_groq:
                 from groq import Groq
+                translator = GroqTranslator()
                 client = Groq(api_key=translator.api_key, base_url=translator.base_url)
                 response = client.chat.completions.create(
                     model=translator.model,
@@ -783,6 +803,7 @@ Keep suggestions practical and commonly available. Format as a numbered list."""
                 suggestions = response.choices[0].message.content
             else:
                 from mistralai import Mistral
+                translator = MistralTranslator()
                 client = Mistral(api_key=translator.api_key)
                 response = client.chat.complete(
                     model=translator.model,
