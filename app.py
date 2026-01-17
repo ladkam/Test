@@ -483,6 +483,12 @@ def planner():
     return render_template('planner.html')
 
 
+@app.route('/help')
+def help_view():
+    """Render simplified help view for household staff (no login required)."""
+    return render_template('help_view.html')
+
+
 @app.route('/api/recipes', methods=['GET'])
 @login_required
 def list_recipes():
@@ -582,6 +588,239 @@ def save_recipe():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error saving recipe: {str(e)}'}), 500
+
+
+# AI Ingredient Substitution
+@app.route('/api/ingredients/substitute', methods=['POST'])
+@login_required
+def get_ingredient_substitute():
+    """Get AI-powered ingredient substitutions."""
+    try:
+        data = request.json
+        ingredient = data.get('ingredient', '')
+        recipe_context = data.get('recipe_context', {})
+        recipe_name = recipe_context.get('title', '')
+        recipe_type = recipe_context.get('type', '')
+
+        if not ingredient:
+            return jsonify({'success': False, 'message': 'Ingredient required'}), 400
+
+        # Build prompt for AI
+        prompt = f"""Suggest 3-5 practical substitutes for the ingredient "{ingredient}" """
+        if recipe_name:
+            prompt += f"""in the recipe "{recipe_name}" """
+
+        prompt += """.
+
+For each substitute:
+1. Name the substitute ingredient
+2. Explain why it works
+3. Note any adjustments needed (amount, cooking time, etc.)
+
+Keep suggestions practical and commonly available. Format as a numbered list."""
+
+        # Get AI provider from settings
+        ai_provider = settings.get_ai_provider()
+
+        # Call AI
+        try:
+            if ai_provider == 'groq':
+                translator = GroqTranslator()
+            else:
+                translator = MistralTranslator()
+
+            # Use the translator's client to make a simple completion
+            if ai_provider == 'groq':
+                from groq import Groq
+                client = Groq(api_key=translator.api_key, base_url=translator.base_url)
+                response = client.chat.completions.create(
+                    model=translator.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful cooking assistant providing ingredient substitution advice."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                suggestions = response.choices[0].message.content
+            else:
+                from mistralai import Mistral
+                client = Mistral(api_key=translator.api_key)
+                response = client.chat.complete(
+                    model=translator.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful cooking assistant providing ingredient substitution advice."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                suggestions = response.choices[0].message.content
+
+            return jsonify({
+                'success': True,
+                'ingredient': ingredient,
+                'suggestions': suggestions
+            })
+
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'AI error: {str(e)}'}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+# Weekly Planner Routes
+@app.route('/api/planner/current', methods=['GET'])
+@login_required
+def get_current_plan():
+    """Get current week's plan."""
+    from datetime import date, timedelta
+
+    # Get Monday of current week
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+
+    # Find or create plan for this week
+    plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+
+    if not plan:
+        return jsonify({'success': True, 'recipes': []})
+
+    # Get all recipes in the plan
+    plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
+    recipes = [pr.recipe.to_dict() for pr in plan_recipes if pr.recipe]
+
+    return jsonify({'success': True, 'recipes': recipes})
+
+
+@app.route('/api/planner/add', methods=['POST'])
+@login_required
+def add_to_plan():
+    """Add a recipe to current week's plan."""
+    from datetime import date, timedelta
+
+    try:
+        data = request.json
+        recipe_id = data.get('recipe_id')
+
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find or create plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if not plan:
+            plan = WeeklyPlan(week_start_date=monday)
+            db.session.add(plan)
+            db.session.flush()
+
+        # Check if recipe already in plan
+        existing = PlanRecipe.query.filter_by(plan_id=plan.id, recipe_id=recipe_id).first()
+        if existing:
+            return jsonify({'success': False, 'message': 'Recipe already in plan'}), 400
+
+        # Add recipe to plan
+        plan_recipe = PlanRecipe(
+            plan_id=plan.id,
+            recipe_id=recipe_id,
+            day_of_week=1,  # Not used, but required
+            meal_order=0
+        )
+        db.session.add(plan_recipe)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Recipe added to plan'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error adding recipe: {str(e)}'}), 500
+
+
+@app.route('/api/planner/remove', methods=['POST'])
+@login_required
+def remove_from_plan():
+    """Remove a recipe from current week's plan."""
+    from datetime import date, timedelta
+
+    try:
+        data = request.json
+        recipe_id = data.get('recipe_id')
+
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if not plan:
+            return jsonify({'success': False, 'message': 'No plan found'}), 404
+
+        # Remove recipe from plan
+        plan_recipe = PlanRecipe.query.filter_by(plan_id=plan.id, recipe_id=recipe_id).first()
+        if plan_recipe:
+            db.session.delete(plan_recipe)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Recipe removed from plan'})
+        else:
+            return jsonify({'success': False, 'message': 'Recipe not in plan'}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error removing recipe: {str(e)}'}), 500
+
+
+@app.route('/api/planner/clear', methods=['POST'])
+@login_required
+def clear_plan():
+    """Clear all recipes from current week's plan."""
+    from datetime import date, timedelta
+
+    try:
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if plan:
+            PlanRecipe.query.filter_by(plan_id=plan.id).delete()
+            db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Plan cleared'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error clearing plan: {str(e)}'}), 500
+
+
+@app.route('/api/planner/shopping-list', methods=['GET'])
+@login_required
+def get_shopping_list():
+    """Generate shopping list from current week's plan."""
+    from datetime import date, timedelta
+
+    try:
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if not plan:
+            return jsonify({'success': True, 'shopping_list': []})
+
+        # Get all recipes in the plan
+        plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
+
+        shopping_list = []
+        for pr in plan_recipes:
+            if pr.recipe and pr.recipe.ingredients_translated:
+                shopping_list.append({
+                    'recipe': pr.recipe.title_translated or pr.recipe.title_original,
+                    'ingredients': pr.recipe.ingredients_translated
+                })
+
+        return jsonify({'success': True, 'shopping_list': shopping_list})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error generating shopping list: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

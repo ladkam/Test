@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Recipes</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Help View Specific Styles - Large, Clean, Simple */
+        body {
+            font-size: 1.125rem;
+            background: white;
+        }
+
+        .help-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .help-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .help-header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .help-header p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+        }
+
+        .recipe-card-simple {
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: var(--background);
+            border-radius: var(--border-radius);
+            break-inside: avoid;
+        }
+
+        .recipe-card-simple h2 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .recipe-meta-simple {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+        }
+
+        .recipe-section {
+            margin-bottom: 2rem;
+        }
+
+        .recipe-section h3 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .ingredients-simple {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ingredients-simple li {
+            padding: 0.75rem 0 0.75rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            font-size: 1.125rem;
+        }
+
+        .ingredients-simple li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .instructions-simple {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+
+        .instructions-simple li {
+            counter-increment: step-counter;
+            padding: 1.5rem 0 1.5rem 3.5rem;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            font-size: 1.125rem;
+            line-height: 1.7;
+        }
+
+        .instructions-simple li:before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .empty-help {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-help h2 {
+            font-size: 2rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        @media print {
+            .help-header {
+                border-bottom: 2px solid black;
+            }
+
+            .recipe-card-simple {
+                page-break-inside: avoid;
+                border: 1px solid #ddd;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .help-header h1 {
+                font-size: 2rem;
+            }
+
+            .recipe-card-simple h2 {
+                font-size: 1.5rem;
+            }
+
+            .recipe-meta-simple {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="help-container">
+        <div class="help-header">
+            <h1>📖 This Week's Recipes</h1>
+            <p id="weekDate"></p>
+        </div>
+
+        <div id="recipesList"></div>
+
+        <div id="emptyState" class="empty-help" style="display: none;">
+            <h2>No recipes planned for this week</h2>
+            <p>Please check back later</p>
+        </div>
+    </div>
+
+    <script>
+        // Get week date range
+        function getWeekDateRange() {
+            const today = new Date();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - today.getDay() + 1);
+
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+
+            const options = { month: 'long', day: 'numeric', year: 'numeric' };
+            return `${monday.toLocaleDateString(undefined, options)} - ${sunday.toLocaleDateString(undefined, options)}`;
+        }
+
+        document.getElementById('weekDate').textContent = getWeekDateRange();
+
+        // Load recipes
+        async function loadRecipes() {
+            try {
+                const response = await fetch('/api/planner/current');
+                const data = await response.json();
+
+                if (data.success && data.recipes && data.recipes.length > 0) {
+                    displayRecipes(data.recipes);
+                } else {
+                    document.getElementById('emptyState').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading recipes:', error);
+                document.getElementById('emptyState').style.display = 'block';
+            }
+        }
+
+        function displayRecipes(recipes) {
+            const container = document.getElementById('recipesList');
+
+            container.innerHTML = recipes.map(recipe => {
+                const ingredients = recipe.ingredients_translated || [];
+                const instructions = recipe.instructions_translated || [];
+
+                return `
+                    <div class="recipe-card-simple">
+                        <h2>${escapeHtml(recipe.title_translated || recipe.title_original)}</h2>
+
+                        <div class="recipe-meta-simple">
+                            ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                            ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                        </div>
+
+                        ${ingredients.length > 0 ? `
+                            <div class="recipe-section">
+                                <h3>Ingredients</h3>
+                                <ul class="ingredients-simple">
+                                    ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+
+                        ${instructions.length > 0 ? `
+                            <div class="recipe-section">
+                                <h3>Instructions</h3>
+                                <ol class="instructions-simple">
+                                    ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
+                                </ol>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatTime(minutes) {
+            if (!minutes) return '';
+            if (minutes < 60) return `${minutes} minutes`;
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return mins > 0 ? `${hours} hour${hours > 1 ? 's' : ''} ${mins} minutes` : `${hours} hour${hours > 1 ? 's' : ''}`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load on page load
+        loadRecipes();
+    </script>
+</body>
+</html>
