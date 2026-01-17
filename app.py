@@ -10,6 +10,9 @@ import os
 import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
+import requests
+import json
+import re
 
 from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
@@ -529,6 +532,115 @@ def delete_recipe(recipe_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error deleting recipe: {str(e)}'}), 500
+
+
+@app.route('/api/recipes/ocr', methods=['POST'])
+@login_required
+def extract_recipe_from_image():
+    """Extract recipe from image using Groq vision API."""
+    try:
+        data = request.json
+        image_data = data.get('image')  # base64 encoded image
+
+        if not image_data:
+            return jsonify({'success': False, 'message': 'No image provided'}), 400
+
+        # Ensure we have Groq API key
+        groq_api_key = os.getenv('GROQ_API_KEY')
+        if not groq_api_key:
+            return jsonify({'success': False, 'message': 'Groq API key not configured'}), 500
+
+        # Prepare the prompt for recipe extraction
+        prompt = """Extract the recipe from this image. Please provide:
+1. Recipe Title
+2. Prep Time (if mentioned)
+3. Cook Time (if mentioned)
+4. Ingredients (list each ingredient on a separate line)
+5. Instructions (list each step on a separate line)
+
+Format your response as JSON with this structure:
+{
+    "title": "Recipe Name",
+    "prep_time": "15 minutes",
+    "cook_time": "30 minutes",
+    "ingredients": ["ingredient 1", "ingredient 2", ...],
+    "instructions": ["step 1", "step 2", ...]
+}
+
+If any field is not visible in the image, omit it or leave it empty."""
+
+        # Call Groq vision API
+        headers = {
+            'Authorization': f'Bearer {groq_api_key}',
+            'Content-Type': 'application/json'
+        }
+
+        # Use vision model
+        vision_model = 'meta-llama/llama-4-scout-17b-16e-instruct'
+
+        payload = {
+            'model': vision_model,
+            'messages': [{
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'text',
+                        'text': prompt
+                    },
+                    {
+                        'type': 'image_url',
+                        'image_url': {
+                            'url': image_data  # base64 data URL
+                        }
+                    }
+                ]
+            }],
+            'temperature': 0.2,
+            'max_tokens': 2000
+        }
+
+        response = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        if 'choices' in result and len(result['choices']) > 0:
+            content = result['choices'][0]['message']['content'].strip()
+
+            # Try to parse JSON from the response
+            # Find JSON in the response (it might be wrapped in markdown code blocks)
+            json_match = re.search(r'\{[\s\S]*\}', content)
+            if json_match:
+                recipe_data = json.loads(json_match.group())
+            else:
+                # If no JSON found, return raw content for manual parsing
+                return jsonify({
+                    'success': False,
+                    'message': 'Could not parse recipe data from image',
+                    'raw_content': content
+                }), 400
+
+            return jsonify({
+                'success': True,
+                'recipe': recipe_data
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Unexpected response from vision API'}), 500
+
+    except requests.exceptions.HTTPError as e:
+        error_msg = f'Vision API error: {str(e)}'
+        if e.response.status_code == 401:
+            error_msg = 'Invalid Groq API key'
+        elif e.response.status_code == 429:
+            error_msg = 'Rate limit exceeded. Please try again in a moment.'
+        return jsonify({'success': False, 'message': error_msg}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error processing image: {str(e)}'}), 500
 
 
 @app.route('/api/recipes/save', methods=['POST'])

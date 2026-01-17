@@ -5,6 +5,9 @@
 let allRecipes = [];
 let filteredRecipes = [];
 
+// Current image data for OCR
+let currentImageData = null;
+
 // Load recipes on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadRecipes();
@@ -18,13 +21,56 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear filters
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
 
-    // Modal close
-    document.querySelector('.close').addEventListener('click', closeModal);
-    window.addEventListener('click', (e) => {
-        const modal = document.getElementById('recipeModal');
-        if (e.target === modal) {
-            closeModal();
+    // Upload photo button
+    document.getElementById('uploadPhotoBtn').addEventListener('click', openUploadModal);
+
+    // Photo input
+    document.getElementById('photoInput').addEventListener('change', handleFileSelect);
+
+    // Upload area click
+    document.getElementById('uploadArea').addEventListener('click', () => {
+        if (!currentImageData) {
+            document.getElementById('photoInput').click();
         }
+    });
+
+    // Change image button
+    document.getElementById('changeImageBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentImageData = null;
+        document.getElementById('photoInput').value = '';
+        document.getElementById('uploadPrompt').style.display = 'block';
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('processImage').disabled = true;
+    });
+
+    // Process image button
+    document.getElementById('processImage').addEventListener('click', processImage);
+
+    // Cancel upload
+    document.getElementById('cancelUpload').addEventListener('click', closeUploadModal);
+
+    // Review form
+    document.getElementById('reviewForm').addEventListener('submit', saveExtractedRecipe);
+
+    // Cancel review
+    document.getElementById('cancelReview').addEventListener('click', closeReviewModal);
+
+    // Modal close buttons
+    const closeButtons = document.querySelectorAll('.close');
+    closeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.modal').style.display = 'none';
+        });
+    });
+
+    window.addEventListener('click', (e) => {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
     });
 });
 
@@ -401,4 +447,194 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ============= Photo Upload & OCR Functions =============
+
+function openUploadModal() {
+    document.getElementById('uploadModal').style.display = 'flex';
+    // Reset state
+    currentImageData = null;
+    document.getElementById('photoInput').value = '';
+    document.querySelector('.upload-prompt').style.display = 'block';
+    document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById('processImage').disabled = true;
+    document.getElementById('processingStatus').style.display = 'none';
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadModal').style.display = 'none';
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        alert('Please select an image file (JPG, PNG, etc.)');
+        return;
+    }
+
+    // Validate file size (4MB for base64)
+    if (file.size > 4 * 1024 * 1024) {
+        alert('Image size must be less than 4MB. Please choose a smaller image.');
+        return;
+    }
+
+    // Read file as base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        currentImageData = e.target.result; // This is the base64 data URL
+
+        // Show preview
+        document.getElementById('previewImage').src = currentImageData;
+        document.querySelector('.upload-prompt').style.display = 'none';
+        document.getElementById('imagePreview').style.display = 'block';
+        document.getElementById('processImage').disabled = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function processImage() {
+    if (!currentImageData) return;
+
+    // Hide upload UI, show processing
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('processingStatus').style.display = 'block';
+    document.getElementById('processImage').disabled = true;
+    document.getElementById('cancelUpload').disabled = true;
+
+    try {
+        const response = await fetch('/api/recipes/ocr', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image: currentImageData
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.recipe) {
+            // Close upload modal
+            closeUploadModal();
+
+            // Open review modal with extracted data
+            openReviewModal(data.recipe);
+        } else {
+            alert('Error extracting recipe: ' + (data.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error processing image: ' + error.message);
+    } finally {
+        // Reset UI
+        document.getElementById('uploadArea').style.display = 'block';
+        document.getElementById('processingStatus').style.display = 'none';
+        document.getElementById('processImage').disabled = false;
+        document.getElementById('cancelUpload').disabled = false;
+    }
+}
+
+function openReviewModal(recipeData) {
+    // Populate form with extracted data
+    document.getElementById('reviewTitle').value = recipeData.title || '';
+
+    // Parse times (convert "15 minutes" to number 15)
+    const parseTime = (timeStr) => {
+        if (!timeStr) return '';
+        const match = timeStr.match(/\d+/);
+        return match ? match[0] : '';
+    };
+
+    document.getElementById('reviewPrepTime').value = parseTime(recipeData.prep_time);
+    document.getElementById('reviewCookTime').value = parseTime(recipeData.cook_time);
+
+    // Join ingredients and instructions as multiline text
+    const ingredients = Array.isArray(recipeData.ingredients)
+        ? recipeData.ingredients.join('\n')
+        : (recipeData.ingredients || '');
+    document.getElementById('reviewIngredients').value = ingredients;
+
+    const instructions = Array.isArray(recipeData.instructions)
+        ? recipeData.instructions.join('\n')
+        : (recipeData.instructions || '');
+    document.getElementById('reviewInstructions').value = instructions;
+
+    // Show modal
+    document.getElementById('reviewModal').style.display = 'flex';
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').style.display = 'none';
+}
+
+async function saveExtractedRecipe(event) {
+    event.preventDefault();
+
+    const title = document.getElementById('reviewTitle').value.trim();
+    const prepTime = document.getElementById('reviewPrepTime').value;
+    const cookTime = document.getElementById('reviewCookTime').value;
+    const ingredientsText = document.getElementById('reviewIngredients').value;
+    const instructionsText = document.getElementById('reviewInstructions').value;
+    const shouldTranslate = document.getElementById('translateAfterSave').checked;
+
+    // Parse multiline text to arrays
+    const ingredients = ingredientsText.split('\n').map(i => i.trim()).filter(i => i);
+    const instructions = instructionsText.split('\n').map(i => i.trim()).filter(i => i);
+
+    if (!title || ingredients.length === 0 || instructions.length === 0) {
+        alert('Please fill in the required fields: title, ingredients, and instructions');
+        return;
+    }
+
+    // Prepare recipe data
+    const recipeData = {
+        title: title,
+        content: '', // Will be generated from ingredients and instructions
+        content_original: '',
+        ingredients: ingredients,
+        instructions: instructions,
+        prep_time: prepTime ? `${prepTime} minutes` : null,
+        cook_time: cookTime ? `${cookTime} minutes` : null,
+        total_time: (prepTime && cookTime) ? `${parseInt(prepTime) + parseInt(cookTime)} minutes` : null,
+        servings: '',
+        image: '',
+        url: '',
+        author: 'Imported from photo',
+        language: 'Original'
+    };
+
+    try {
+        // Save to library
+        const response = await fetch('/api/recipes/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ recipeData })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeReviewModal();
+
+            if (shouldTranslate) {
+                // Redirect to translator with pre-filled data
+                alert('Recipe saved! Redirecting to translator...');
+                // TODO: Add translation functionality
+                window.location.reload();
+            } else {
+                alert('Recipe saved successfully!');
+                loadRecipes(); // Reload the recipes list
+            }
+        } else {
+            alert('Error saving recipe: ' + (data.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error saving recipe: ' + error.message);
+    }
 }

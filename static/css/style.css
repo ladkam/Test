@@ -1297,8 +1297,12 @@ textarea:focus {
 
 /* Recipe Library Styles */
 .library-header {
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 2.5rem;
+    gap: 2rem;
+    flex-wrap: wrap;
 }
 
 .library-header h1 {
@@ -1306,6 +1310,12 @@ textarea:focus {
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 0.5rem;
+}
+
+.library-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .search-card {
@@ -1453,6 +1463,39 @@ textarea:focus {
 .loading {
     text-align: center;
     padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+/* Photo Upload Styles */
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #FAFAFA;
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background: #FFF5F5;
+}
+
+.upload-prompt {
+    color: var(--text-secondary);
+}
+
+.upload-prompt p {
+    margin-bottom: 0.5rem;
+}
+
+.upload-prompt strong {
+    color: var(--primary-color);
+}
+
+.upload-prompt small {
+    font-size: 0.875rem;
     color: var(--text-secondary);
 }
 

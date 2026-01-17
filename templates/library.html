@@ -27,8 +27,22 @@
 
     <div class="container">
         <header class="library-header">
-            <h1>Recipe Library</h1>
-            <p class="subtitle">Browse and search your saved recipes</p>
+            <div>
+                <h1>Recipe Library</h1>
+                <p class="subtitle">Import, browse and search your saved recipes</p>
+            </div>
+            <div class="library-actions">
+                <button id="uploadPhotoBtn" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="vertical-align: middle; margin-right: 6px;">
+                        <path d="M10 5v10m-5-5h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                    Upload Recipe Photo
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                    Import from NYT
+                </a>
+            </div>
         </header>
 
         <!-- Search and Filters -->
@@ -73,6 +87,89 @@
         <div class="modal-content modal-large">
             <span class="close">&times;</span>
             <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- Photo Upload Modal -->
+    <div id="uploadModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Upload Recipe Photo</h2>
+            <p class="subtitle">Take a photo or upload an image of a recipe from a cookbook, magazine, or printed page</p>
+
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="photoInput" accept="image/*" style="display: none;">
+                <div class="upload-prompt">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style="margin-bottom: 1rem;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p><strong>Click to upload</strong> or drag and drop</p>
+                    <small>Supports JPG, PNG (max 4MB)</small>
+                </div>
+                <div id="imagePreview" style="display: none;">
+                    <img id="previewImage" style="max-width: 100%; border-radius: 8px; margin-bottom: 1rem;">
+                    <button id="changeImageBtn" class="btn btn-secondary btn-sm">Change Image</button>
+                </div>
+            </div>
+
+            <div id="processingStatus" style="display: none; text-align: center; padding: 2rem;">
+                <div class="spinner" style="margin: 0 auto 1rem;"></div>
+                <p>Extracting recipe from image...</p>
+            </div>
+
+            <div style="margin-top: 1.5rem; text-align: right;">
+                <button id="cancelUpload" class="btn btn-secondary" style="margin-right: 0.5rem;">Cancel</button>
+                <button id="processImage" class="btn btn-primary" disabled>Extract Recipe</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipe Review Modal (for OCR results) -->
+    <div id="reviewModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <h2>Review Extracted Recipe</h2>
+            <p class="subtitle">Review and edit the recipe before saving to your library</p>
+
+            <form id="reviewForm">
+                <div class="form-group">
+                    <label for="reviewTitle">Recipe Title *</label>
+                    <input type="text" id="reviewTitle" class="input-full" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reviewPrepTime">Prep Time (minutes)</label>
+                        <input type="number" id="reviewPrepTime" class="input-full" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="reviewCookTime">Cook Time (minutes)</label>
+                        <input type="number" id="reviewCookTime" class="input-full" min="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reviewIngredients">Ingredients (one per line) *</label>
+                    <textarea id="reviewIngredients" rows="10" class="input-full" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="reviewInstructions">Instructions (one step per line) *</label>
+                    <textarea id="reviewInstructions" rows="12" class="input-full" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="translateAfterSave">
+                        Translate this recipe after saving
+                    </label>
+                </div>
+
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button type="button" id="cancelReview" class="btn btn-secondary" style="margin-right: 0.5rem;">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save to Library</button>
+                </div>
+            </form>
         </div>
     </div>
 
