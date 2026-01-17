@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
+from groq_translator import GroqTranslator
 from auth import User, change_password, delete_user
 import settings
 
@@ -111,6 +112,7 @@ def admin_dashboard():
     languages = settings.get_languages()
     translation_prompt = settings.get_translation_prompt()
     system_prompt = settings.get_system_prompt()
+    ai_provider = settings.get_ai_provider()
     ai_model = settings.get_ai_model()
     nyt_cookie = settings.get_nyt_cookie()
 
@@ -120,6 +122,7 @@ def admin_dashboard():
         languages=languages,
         translation_prompt=translation_prompt,
         system_prompt=system_prompt,
+        ai_provider=ai_provider,
         ai_model=ai_model,
         nyt_cookie=nyt_cookie
     )
@@ -174,10 +177,18 @@ def translate_recipe():
         # Step 3: Translate the recipe
         if do_translate:
             try:
-                translator = MistralTranslator()
+                # Get the selected AI provider from settings
+                ai_provider = settings.get_ai_provider()
+
+                # Initialize the appropriate translator
+                if ai_provider == 'groq':
+                    translator = GroqTranslator()
+                else:  # Default to Mistral
+                    translator = MistralTranslator()
+
                 recipe_text = translator.translate_recipe(recipe_text, language)
             except ValueError as e:
-                return jsonify({'error': f'Mistral API error: {str(e)}'}), 500
+                return jsonify({'error': f'AI API error: {str(e)}'}), 500
             except Exception as e:
                 return jsonify({'error': f'Translation failed: {str(e)}'}), 500
 
@@ -306,18 +317,22 @@ def manage_prompts():
 @app.route('/api/admin/api-settings', methods=['GET', 'POST'])
 @admin_required
 def manage_api_settings():
-    """Manage API settings (model and cookie)."""
+    """Manage API settings (provider, model, and cookie)."""
     if request.method == 'GET':
         return jsonify({
+            'ai_provider': settings.get_ai_provider(),
             'ai_model': settings.get_ai_model(),
             'nyt_cookie': settings.get_nyt_cookie()
         })
 
     elif request.method == 'POST':
         data = request.json
+        ai_provider = data.get('ai_provider')
         ai_model = data.get('ai_model')
         nyt_cookie = data.get('nyt_cookie')
 
+        if ai_provider is not None:
+            settings.update_ai_provider(ai_provider)
         if ai_model is not None:
             settings.update_ai_model(ai_model)
         if nyt_cookie is not None:

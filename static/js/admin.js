@@ -146,7 +146,57 @@ async function resetSettings() {
 }
 
 // API Settings Management
+const MODEL_OPTIONS = {
+    mistral: [
+        { value: 'open-mistral-nemo', label: 'Open Mistral Nemo (Free)', free: true },
+        { value: 'mistral-small-latest', label: 'Mistral Small Latest', free: false },
+        { value: 'mistral-medium-latest', label: 'Mistral Medium Latest', free: false },
+        { value: 'mistral-large-latest', label: 'Mistral Large Latest', free: false },
+        { value: 'open-mixtral-8x7b', label: 'Open Mixtral 8x7B (Free)', free: true },
+        { value: 'open-mixtral-8x22b', label: 'Open Mixtral 8x22B (Free)', free: true }
+    ],
+    groq: [
+        { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Fast)', free: true },
+        { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B Versatile', free: true },
+        { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra Fast)', free: true },
+        { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', free: true },
+        { value: 'gemma2-9b-it', label: 'Gemma 2 9B', free: true }
+    ]
+};
+
+function updateModelOptions() {
+    const provider = document.getElementById('aiProvider').value;
+    const modelSelect = document.getElementById('aiModel');
+    const modelHelp = document.getElementById('modelHelp');
+    const currentModel = modelSelect.value;
+
+    // Clear existing options
+    modelSelect.innerHTML = '';
+
+    // Add options for the selected provider
+    const options = MODEL_OPTIONS[provider];
+    options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.label;
+        modelSelect.appendChild(optionElement);
+    });
+
+    // Try to keep the same model if it exists in the new provider
+    if (currentModel && Array.from(modelSelect.options).some(opt => opt.value === currentModel)) {
+        modelSelect.value = currentModel;
+    }
+
+    // Update help text
+    if (provider === 'mistral') {
+        modelHelp.textContent = 'Mistral AI models. Free tier: open-mistral-nemo, open-mixtral-8x7b, open-mixtral-8x22b';
+    } else {
+        modelHelp.textContent = 'Groq models (All free with generous limits). Llama 3.3 70B Versatile recommended for best quality.';
+    }
+}
+
 async function saveApiSettings() {
+    const aiProvider = document.getElementById('aiProvider').value;
     const aiModel = document.getElementById('aiModel').value;
     const nytCookie = document.getElementById('nytCookie').value.trim();
 
@@ -155,6 +205,7 @@ async function saveApiSettings() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                ai_provider: aiProvider,
                 ai_model: aiModel,
                 nyt_cookie: nytCookie
             })
@@ -296,5 +347,18 @@ document.getElementById('newLanguage')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
         addLanguage();
+    }
+});
+
+// Initialize model options on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we're on the admin page with API settings
+    if (document.getElementById('aiProvider') && document.getElementById('aiModel')) {
+        updateModelOptions();
+
+        // Set the current model after options are populated
+        if (window.currentAiModel) {
+            document.getElementById('aiModel').value = window.currentAiModel;
+        }
     }
 });
