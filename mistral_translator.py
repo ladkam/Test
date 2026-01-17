@@ -4,7 +4,7 @@ Mistral AI API integration for recipe translation.
 import requests
 import os
 from typing import Optional
-from settings import get_translation_prompt, get_system_prompt
+from settings import get_translation_prompt, get_system_prompt, get_ai_model
 
 
 class MistralTranslator:
@@ -17,11 +17,11 @@ class MistralTranslator:
         Args:
             api_key: Mistral API key (defaults to MISTRAL_API_KEY env var)
             base_url: Mistral API base URL (defaults to MISTRAL_API_BASE_URL env var)
-            model: Model to use (defaults to MISTRAL_MODEL env var or open-mistral-nemo)
+            model: Model to use (defaults to settings, then MISTRAL_MODEL env var, or open-mistral-nemo)
         """
         self.api_key = api_key or os.getenv('MISTRAL_API_KEY')
         self.base_url = base_url or os.getenv('MISTRAL_API_BASE_URL', 'https://api.mistral.ai/v1')
-        self.model = model or os.getenv('MISTRAL_MODEL', 'open-mistral-nemo')
+        self.model = model or os.getenv('MISTRAL_MODEL') or get_ai_model()
 
         if not self.api_key:
             raise ValueError("Mistral API key not provided. Set MISTRAL_API_KEY environment variable or pass it to the constructor.")

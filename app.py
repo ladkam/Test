@@ -111,13 +111,17 @@ def admin_dashboard():
     languages = settings.get_languages()
     translation_prompt = settings.get_translation_prompt()
     system_prompt = settings.get_system_prompt()
+    ai_model = settings.get_ai_model()
+    nyt_cookie = settings.get_nyt_cookie()
 
     return render_template(
         'admin.html',
         users=users,
         languages=languages,
         translation_prompt=translation_prompt,
-        system_prompt=system_prompt
+        system_prompt=system_prompt,
+        ai_model=ai_model,
+        nyt_cookie=nyt_cookie
     )
 
 
@@ -299,6 +303,29 @@ def manage_prompts():
             settings.update_system_prompt(system_prompt)
 
         return jsonify({'success': True, 'message': 'Prompts updated successfully'})
+
+
+@app.route('/api/admin/api-settings', methods=['GET', 'POST'])
+@admin_required
+def manage_api_settings():
+    """Manage API settings (model and cookie)."""
+    if request.method == 'GET':
+        return jsonify({
+            'ai_model': settings.get_ai_model(),
+            'nyt_cookie': settings.get_nyt_cookie()
+        })
+
+    elif request.method == 'POST':
+        data = request.json
+        ai_model = data.get('ai_model')
+        nyt_cookie = data.get('nyt_cookie')
+
+        if ai_model is not None:
+            settings.update_ai_model(ai_model)
+        if nyt_cookie is not None:
+            settings.update_nyt_cookie(nyt_cookie)
+
+        return jsonify({'success': True, 'message': 'API settings updated successfully'})
 
 
 @app.route('/api/admin/settings/reset', methods=['POST'])
