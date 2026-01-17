@@ -250,10 +250,22 @@ def translate_recipe():
 
         return jsonify({
             'success': True,
-            'recipe': recipe_text,
-            'title': recipe['title'],
-            'image': recipe.get('image', ''),
-            'redirect': url_for('show_results')
+            'recipe': {
+                'content': recipe_text,
+                'content_original': original_formatted,
+                'title': recipe['title'],
+                'image': recipe.get('image', ''),
+                'url': url,
+                'language': language,
+                'ingredients': recipe.get('ingredients', []),
+                'instructions': recipe.get('instructions', []),
+                'prep_time': recipe.get('time', {}).get('prep', ''),
+                'cook_time': recipe.get('time', {}).get('cook', ''),
+                'total_time': recipe.get('time', {}).get('total', ''),
+                'servings': recipe.get('yield', ''),
+                'author': recipe.get('author', ''),
+                'nutrition': recipe.get('nutrition', {})
+            }
         })
 
     except Exception as e:
