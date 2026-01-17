@@ -61,6 +61,7 @@ DEFAULT_SETTINGS = {
 
 Translated recipe:''',
     'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.',
+    'ai_provider': 'mistral',  # 'mistral' or 'groq'
     'ai_model': 'open-mistral-nemo',
     'nyt_cookie': ''
 }
@@ -174,4 +175,17 @@ def update_nyt_cookie(cookie):
     """Update the NYT cookie."""
     settings = load_settings()
     settings['nyt_cookie'] = cookie
+    save_settings(settings)
+
+
+def get_ai_provider():
+    """Get the AI provider to use (mistral or groq)."""
+    settings = load_settings()
+    return settings.get('ai_provider', DEFAULT_SETTINGS['ai_provider'])
+
+
+def update_ai_provider(provider):
+    """Update the AI provider."""
+    settings = load_settings()
+    settings['ai_provider'] = provider
     save_settings(settings)
