@@ -37,6 +37,8 @@ config.ini
 # Output
 recipes/
 *.json
+!railway.json
+!render.yaml
 *.txt
 !requirements.txt
 
