@@ -5,9 +5,6 @@
 let allRecipes = [];
 let filteredRecipes = [];
 
-// Current image data for OCR
-let currentImageData = null;
-
 // Load recipes on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadRecipes();
@@ -21,42 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear filters
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
 
-    // Upload photo button
-    document.getElementById('uploadPhotoBtn').addEventListener('click', openUploadModal);
-
-    // Photo input
-    document.getElementById('photoInput').addEventListener('change', handleFileSelect);
-
-    // Upload area click
-    document.getElementById('uploadArea').addEventListener('click', () => {
-        if (!currentImageData) {
-            document.getElementById('photoInput').click();
-        }
-    });
-
-    // Change image button
-    document.getElementById('changeImageBtn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        currentImageData = null;
-        document.getElementById('photoInput').value = '';
-        document.getElementById('uploadPrompt').style.display = 'block';
-        document.getElementById('imagePreview').style.display = 'none';
-        document.getElementById('processImage').disabled = true;
-    });
-
-    // Process image button
-    document.getElementById('processImage').addEventListener('click', processImage);
-
-    // Cancel upload
-    document.getElementById('cancelUpload').addEventListener('click', closeUploadModal);
-
-    // Review form
-    document.getElementById('reviewForm').addEventListener('submit', saveExtractedRecipe);
-
-    // Cancel review
-    document.getElementById('cancelReview').addEventListener('click', closeReviewModal);
-
-    // Modal close buttons
+    // Modal close
     const closeButtons = document.querySelectorAll('.close');
     closeButtons.forEach(btn => {
         btn.addEventListener('click', function() {

@@ -86,8 +86,14 @@ def admin_required(f):
 @app.route('/')
 @login_required
 def index():
-    """Render the main page."""
-    return render_template('index.html', languages=settings.get_languages())
+    """Dashboard - Weekly Planner (Home Page)."""
+    return render_template('planner.html')
+
+@app.route('/import')
+@login_required
+def import_recipe():
+    """Import recipes from NYT or photo upload."""
+    return render_template('import.html', languages=settings.get_languages())
 
 
 @app.route('/login', methods=['GET', 'POST'])
