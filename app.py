@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flask web application for NYT Cooking Recipe Translator with Authentication
+Flask web application for Recipe Management System with Translation
 """
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
 from flask_cors import CORS
@@ -15,7 +15,7 @@ from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
-from auth import User, change_password, delete_user
+from models import db, User, Recipe, WeeklyPlan, PlanRecipe
 import settings
 
 # Load environment variables
@@ -23,7 +23,12 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///recipes.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app)
+
+# Initialize database
+db.init_app(app)
 
 # Configure Flask-Login
 login_manager = LoginManager()
@@ -39,7 +44,7 @@ TEMP_FOLDER.mkdir(exist_ok=True)
 @login_manager.user_loader
 def load_user(user_id):
     """Load user by ID for Flask-Login."""
-    return User.get(user_id)
+    return User.query.get(int(user_id))
 
 
 def admin_required(f):
@@ -71,8 +76,8 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        user = User.verify_password(username, password)
-        if user:
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
             login_user(user)
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
@@ -108,7 +113,8 @@ def show_results():
 @admin_required
 def admin_dashboard():
     """Render admin dashboard."""
-    users = User.list_all()
+    all_users = User.query.all()
+    users = [{'id': str(u.id), 'username': u.username, 'role': u.role} for u in all_users]
     languages = settings.get_languages()
     translation_prompt = settings.get_translation_prompt()
     system_prompt = settings.get_system_prompt()
@@ -193,12 +199,23 @@ def translate_recipe():
                 return jsonify({'error': f'Translation failed: {str(e)}'}), 500
 
         # Return the processed recipe
-        # Store in session for the results page
+        # Store in session for the results page with complete data
+        original_formatted = scraper.format_recipe(recipe)
         session['current_recipe'] = {
             'content': recipe_text,
+            'content_original': original_formatted,
             'title': recipe['title'],
             'image': recipe.get('image', ''),
-            'url': url
+            'url': url,
+            'language': language,
+            'ingredients': recipe.get('ingredients', []),
+            'instructions': recipe.get('instructions', []),
+            'prep_time': recipe.get('time', {}).get('prep', ''),
+            'cook_time': recipe.get('time', {}).get('cook', ''),
+            'total_time': recipe.get('time', {}).get('total', ''),
+            'servings': recipe.get('yield', ''),
+            'author': recipe.get('author', ''),
+            'nutrition': recipe.get('nutrition', {})
         }
 
         return jsonify({
@@ -353,7 +370,9 @@ def reset_settings():
 @admin_required
 def list_users():
     """List all users."""
-    return jsonify({'users': User.list_all()})
+    all_users = User.query.all()
+    users = [{'id': str(u.id), 'username': u.username, 'role': u.role} for u in all_users]
+    return jsonify({'users': users})
 
 
 @app.route('/api/admin/users/create', methods=['POST'])
@@ -368,21 +387,41 @@ def create_user():
     if not username or not password:
         return jsonify({'success': False, 'message': 'Username and password required'}), 400
 
-    user = User.create(username, password, role)
-    if user:
-        return jsonify({'success': True, 'message': f'User {username} created successfully'})
-    else:
+    # Check if user already exists
+    existing_user = User.query.filter_by(username=username).first()
+    if existing_user:
         return jsonify({'success': False, 'message': 'Username already exists'}), 400
+
+    # Create new user
+    new_user = User(username=username, role=role)
+    new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': f'User {username} created successfully'})
 
 
 @app.route('/api/admin/users/<user_id>/delete', methods=['DELETE'])
 @admin_required
 def delete_user_route(user_id):
     """Delete a user."""
-    if delete_user(user_id):
+    try:
+        user = User.query.get(int(user_id))
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Don't allow deleting the last admin
+        if user.role == 'admin':
+            admin_count = User.query.filter_by(role='admin').count()
+            if admin_count <= 1:
+                return jsonify({'success': False, 'message': 'Cannot delete the last admin user'}), 400
+
+        db.session.delete(user)
+        db.session.commit()
         return jsonify({'success': True, 'message': 'User deleted successfully'})
-    else:
-        return jsonify({'success': False, 'message': 'Cannot delete user'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'}), 400
 
 
 @app.route('/api/admin/users/<user_id>/password', methods=['POST'])
@@ -395,10 +434,133 @@ def change_user_password(user_id):
     if not new_password:
         return jsonify({'success': False, 'message': 'Password required'}), 400
 
-    if change_password(user_id, new_password):
+    try:
+        user = User.query.get(int(user_id))
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        user.set_password(new_password)
+        db.session.commit()
         return jsonify({'success': True, 'message': 'Password changed successfully'})
-    else:
-        return jsonify({'success': False, 'message': 'Failed to change password'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error changing password: {str(e)}'}), 400
+
+
+# Recipe Library Routes
+@app.route('/library')
+@login_required
+def library():
+    """Render recipe library page."""
+    return render_template('library.html')
+
+
+@app.route('/planner')
+@login_required
+def planner():
+    """Render weekly planner page."""
+    return render_template('planner.html')
+
+
+@app.route('/api/recipes', methods=['GET'])
+@login_required
+def list_recipes():
+    """List all recipes."""
+    recipes = Recipe.query.order_by(Recipe.created_at.desc()).all()
+    return jsonify({
+        'success': True,
+        'recipes': [r.to_dict() for r in recipes]
+    })
+
+
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
+@login_required
+def get_recipe(recipe_id):
+    """Get a specific recipe."""
+    recipe = Recipe.query.get(recipe_id)
+    if not recipe:
+        return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'recipe': recipe.to_dict()
+    })
+
+
+@app.route('/api/recipes/<int:recipe_id>', methods=['DELETE'])
+@login_required
+def delete_recipe(recipe_id):
+    """Delete a recipe."""
+    try:
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+        db.session.delete(recipe)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Recipe deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting recipe: {str(e)}'}), 500
+
+
+@app.route('/api/recipes/save', methods=['POST'])
+@login_required
+def save_recipe():
+    """Save a recipe to the library."""
+    try:
+        data = request.json.get('recipeData', {})
+
+        # Helper function to parse time string to minutes
+        def parse_time_to_minutes(time_str):
+            if not time_str or not isinstance(time_str, str):
+                return None
+            time_str = time_str.lower().strip()
+            total_mins = 0
+            # Extract hours
+            if 'hour' in time_str:
+                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
+                total_mins += hours * 60
+            # Extract minutes
+            if 'minute' in time_str:
+                parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
+                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
+                total_mins += minutes
+            return total_mins if total_mins > 0 else None
+
+        # Create new recipe
+        new_recipe = Recipe(
+            title_original=data.get('title', ''),
+            title_translated=data.get('title', ''),
+            content_original=data.get('content_original', ''),
+            content_translated=data.get('content', ''),
+            ingredients_original=data.get('ingredients', []),
+            ingredients_translated=data.get('ingredients', []),
+            instructions_original=data.get('instructions', []),
+            instructions_translated=data.get('instructions', []),
+            prep_time=parse_time_to_minutes(data.get('prep_time')),
+            cook_time=parse_time_to_minutes(data.get('cook_time')),
+            total_time=parse_time_to_minutes(data.get('total_time')),
+            servings=data.get('servings', ''),
+            image_url=data.get('image', ''),
+            author=data.get('author', ''),
+            source_url=data.get('url', ''),
+            nutrition=data.get('nutrition', {}),
+            language=data.get('language', ''),
+            tags=[]
+        )
+
+        db.session.add(new_recipe)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Recipe saved successfully',
+            'recipe_id': new_recipe.id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error saving recipe: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

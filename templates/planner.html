@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Planner - Recipe Management</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-brand">Recipe Manager</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}" class="nav-link">Translator</a>
+                <a href="{{ url_for('library') }}" class="nav-link">Library</a>
+                <a href="{{ url_for('planner') }}" class="nav-link active">Weekly Planner</a>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.is_admin() %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Admin</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="library-header">
+            <h1>Weekly Meal Planner</h1>
+            <p class="subtitle">Plan your meals for the week ahead</p>
+        </header>
+
+        <div class="card">
+            <p style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                Weekly planner feature coming soon!<br>
+                For now, use the <a href="{{ url_for('library') }}" style="color: var(--primary-color);">Recipe Library</a> to browse and manage your recipes.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

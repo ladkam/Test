@@ -47,6 +47,9 @@
         <div class="recipe-header">
             <h1>{{ recipe.title }}</h1>
             <div class="recipe-actions">
+                <button id="saveToLibraryBtn" class="btn btn-primary" style="min-width: 180px;">
+                    Save to Library
+                </button>
                 <button id="copyBtn" class="action-btn" title="Copy recipe">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <path d="M8 3C7.44772 3 7 3.44772 7 4V12C7 12.5523 7.44772 13 8 13H16C16.5523 13 17 12.5523 17 12V4C17 3.44772 16.5523 3 16 3H8Z" stroke="currentColor" stroke-width="2"/>
@@ -224,9 +227,47 @@
             }
         }
 
+        // Save to Library functionality
+        async function saveToLibrary() {
+            const btn = document.getElementById('saveToLibraryBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = 'Saving...';
+
+            try {
+                const response = await fetch('/api/recipes/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        recipeData: {{ recipe | tojson | safe }}
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.innerHTML = '✓ Saved!';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-success');
+                    setTimeout(() => {
+                        window.location.href = '/library';
+                    }, 1000);
+                } else {
+                    alert('Failed to save recipe: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (error) {
+                alert('Error saving recipe: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
         // Event listeners
         document.getElementById('copyBtn').addEventListener('click', copyRecipe);
         document.getElementById('downloadBtn').addEventListener('click', downloadRecipe);
+        document.getElementById('saveToLibraryBtn').addEventListener('click', saveToLibrary);
     </script>
 </body>
 </html>
