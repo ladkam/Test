@@ -50,7 +50,8 @@ instance/
 # User data and settings
 # Keep data/ folder structure but ignore database files
 data/*.db
-data/*.backup
+data/*.db.*
+data/*.backup*
 *.backup
 
 # OS
