@@ -53,3 +53,7 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Database
+recipes.db
+*.db

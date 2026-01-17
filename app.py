@@ -30,6 +30,27 @@ CORS(app)
 # Initialize database
 db.init_app(app)
 
+# Create tables on first run
+with app.app_context():
+    try:
+        # Check if tables exist by trying a simple query
+        User.query.first()
+    except Exception:
+        # Tables don't exist, create them
+        print("Creating database tables...")
+        db.create_all()
+
+        # Create default admin user
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(username='admin', role='admin')
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+            print("✓ Created default admin user (username: admin, password: admin123)")
+
+        print("✓ Database initialized")
+
 # Configure Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
