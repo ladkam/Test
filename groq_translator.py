@@ -4,7 +4,7 @@ Groq API integration for recipe translation.
 import requests
 import os
 from typing import Optional
-from settings import get_translation_prompt, get_system_prompt
+from settings import get_translation_prompt, get_system_prompt, get_ai_model
 
 
 class GroqTranslator:
@@ -17,11 +17,11 @@ class GroqTranslator:
         Args:
             api_key: Groq API key (defaults to GROQ_API_KEY env var)
             base_url: Groq API base URL (defaults to https://api.groq.com/openai/v1)
-            model: Model to use (defaults to llama-3.1-70b-versatile)
+            model: Model to use (defaults to settings, then GROQ_MODEL env var, or llama-3.3-70b-versatile)
         """
         self.api_key = api_key or os.getenv('GROQ_API_KEY')
         self.base_url = base_url or os.getenv('GROQ_API_BASE_URL', 'https://api.groq.com/openai/v1')
-        self.model = model or os.getenv('GROQ_MODEL', 'llama-3.1-70b-versatile')
+        self.model = model or os.getenv('GROQ_MODEL') or get_ai_model()
 
         if not self.api_key:
             raise ValueError("Groq API key not provided. Set GROQ_API_KEY environment variable or pass it to the constructor.")
