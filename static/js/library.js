@@ -163,6 +163,26 @@ async function showRecipeDetail(recipeId) {
             const modal = document.getElementById('recipeModal');
             const content = document.getElementById('modalContent');
 
+            // Build ingredients section with substitution buttons
+            let ingredientsHtml = '';
+            if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
+                ingredientsHtml = '<div class="ingredients-section"><h3>Ingredients</h3><ul class="ingredients-list">';
+                recipe.ingredients_translated.forEach((ing, idx) => {
+                    ingredientsHtml += `
+                        <li class="ingredient-item">
+                            <span class="ingredient-text">${escapeHtml(ing)}</span>
+                            <button class="btn-substitute" onclick="substituteIngredient('${escapeHtml(ing)}', ${recipe.id})" title="Find substitutes">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                Substitute
+                            </button>
+                        </li>
+                    `;
+                });
+                ingredientsHtml += '</ul></div>';
+            }
+
             content.innerHTML = `
                 <div class="recipe-detail">
                     ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title_translated}">` : ''}
@@ -179,6 +199,8 @@ async function showRecipeDetail(recipeId) {
                         <button onclick="addToWeeklyPlan(${recipe.id})" class="btn btn-primary">Add to Weekly Plan</button>
                     </div>
 
+                    ${ingredientsHtml}
+
                     <div class="recipe-detail-content">
                         <div class="recipe-tabs">
                             <button class="recipe-tab active" data-lang="translated">Translated</button>
@@ -193,8 +215,13 @@ async function showRecipeDetail(recipeId) {
                             ${formatRecipeContent(recipe.content_original)}
                         </div>
                     </div>
+
+                    <div id="substitutionResult" class="substitution-result" style="display: none;"></div>
                 </div>
             `;
+
+            // Store recipe data for substitutions
+            window.currentRecipeData = recipe;
 
             // Tab switching
             content.querySelectorAll('.recipe-tab').forEach(tab => {
@@ -312,6 +339,58 @@ async function deleteRecipe(recipeId) {
     } catch (error) {
         showError('Error deleting recipe: ' + error.message);
     }
+}
+
+async function substituteIngredient(ingredient, recipeId) {
+    const resultDiv = document.getElementById('substitutionResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="loading">Finding substitutes...</div>';
+
+    try {
+        const recipe = window.currentRecipeData;
+        const response = await fetch('/api/ingredients/substitute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ingredient: ingredient,
+                recipe_context: {
+                    title: recipe.title_translated || recipe.title_original,
+                    type: recipe.tags ? recipe.tags.join(', ') : ''
+                }
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="substitution-box">
+                    <h3>Substitutes for: ${escapeHtml(data.ingredient)}</h3>
+                    <div class="substitution-suggestions">
+                        ${formatSuggestions(data.suggestions)}
+                    </div>
+                    <button onclick="closeSubstitution()" class="btn btn-secondary btn-sm" style="margin-top: 1rem;">Close</button>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-error">${escapeHtml(data.message)}</div>`;
+            setTimeout(() => resultDiv.style.display = 'none', 3000);
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(error.message)}</div>`;
+        setTimeout(() => resultDiv.style.display = 'none', 3000);
+    }
+}
+
+function formatSuggestions(text) {
+    // Convert markdown-style numbered list to HTML
+    let html = text.replace(/\n/g, '<br>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return `<div class="suggestion-text">${html}</div>`;
+}
+
+function closeSubstitution() {
+    document.getElementById('substitutionResult').style.display = 'none';
 }
 
 function showError(message) {

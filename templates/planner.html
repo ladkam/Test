@@ -26,17 +26,64 @@
     </nav>
 
     <div class="container">
-        <header class="library-header">
-            <h1>Weekly Meal Planner</h1>
-            <p class="subtitle">Plan your meals for the week ahead</p>
+        <header class="planner-header">
+            <div>
+                <h1>Weekly Meal Planner</h1>
+                <p class="subtitle">Plan your meals for the week</p>
+            </div>
+            <div class="planner-actions">
+                <button id="generateShoppingList" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 5m2-5h10m0 0l2 5m-2-5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Shopping List
+                </button>
+                <button id="clearPlan" class="btn btn-secondary">Clear Plan</button>
+            </div>
         </header>
 
+        <!-- Current Plan -->
         <div class="card">
-            <p style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                Weekly planner feature coming soon!<br>
-                For now, use the <a href="{{ url_for('library') }}" style="color: var(--primary-color);">Recipe Library</a> to browse and manage your recipes.
-            </p>
+            <div class="plan-header">
+                <h2>This Week's Recipes</h2>
+                <span id="recipeCount" class="recipe-count">0 recipes</span>
+            </div>
+
+            <div id="planList" class="plan-list">
+                <div class="empty-plan">
+                    <p>No recipes in your plan yet</p>
+                    <a href="{{ url_for('library') }}" class="btn btn-primary">Browse Library</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Recipes Section -->
+        <div class="card">
+            <h2>Add Recipes to Plan</h2>
+            <div class="search-box" style="margin-bottom: 1.5rem;">
+                <input type="text" id="searchRecipes" placeholder="Search your library..." class="input-full">
+            </div>
+            <div id="availableRecipes" class="available-recipes-grid">
+                <div class="loading">Loading recipes...</div>
+            </div>
         </div>
     </div>
+
+    <!-- Shopping List Modal -->
+    <div id="shoppingListModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <div class="shopping-list-content">
+                <h2>Shopping List</h2>
+                <div id="shoppingListContent"></div>
+                <div class="modal-actions">
+                    <button onclick="printShoppingList()" class="btn btn-secondary">Print</button>
+                    <button onclick="copyShoppingList()" class="btn btn-primary">Copy to Clipboard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/planner.js') }}"></script>
 </body>
 </html>
