@@ -26,7 +26,15 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///recipes.db')
+
+# Database configuration with absolute path to persist data
+# Use absolute path to avoid losing data when instance/ folder is gitignored
+basedir = os.path.abspath(os.path.dirname(__file__))
+data_dir = os.path.join(basedir, 'data')
+os.makedirs(data_dir, exist_ok=True)  # Ensure data directory exists
+
+default_db_path = f"sqlite:///{os.path.join(data_dir, 'recipes.db')}"
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', default_db_path)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app)
 
