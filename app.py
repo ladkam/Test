@@ -199,12 +199,23 @@ def translate_recipe():
                 return jsonify({'error': f'Translation failed: {str(e)}'}), 500
 
         # Return the processed recipe
-        # Store in session for the results page
+        # Store in session for the results page with complete data
+        original_formatted = scraper.format_recipe(recipe)
         session['current_recipe'] = {
             'content': recipe_text,
+            'content_original': original_formatted,
             'title': recipe['title'],
             'image': recipe.get('image', ''),
-            'url': url
+            'url': url,
+            'language': language,
+            'ingredients': recipe.get('ingredients', []),
+            'instructions': recipe.get('instructions', []),
+            'prep_time': recipe.get('time', {}).get('prep', ''),
+            'cook_time': recipe.get('time', {}).get('cook', ''),
+            'total_time': recipe.get('time', {}).get('total', ''),
+            'servings': recipe.get('yield', ''),
+            'author': recipe.get('author', ''),
+            'nutrition': recipe.get('nutrition', {})
         }
 
         return jsonify({
@@ -434,6 +445,122 @@ def change_user_password(user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error changing password: {str(e)}'}), 400
+
+
+# Recipe Library Routes
+@app.route('/library')
+@login_required
+def library():
+    """Render recipe library page."""
+    return render_template('library.html')
+
+
+@app.route('/planner')
+@login_required
+def planner():
+    """Render weekly planner page."""
+    return render_template('planner.html')
+
+
+@app.route('/api/recipes', methods=['GET'])
+@login_required
+def list_recipes():
+    """List all recipes."""
+    recipes = Recipe.query.order_by(Recipe.created_at.desc()).all()
+    return jsonify({
+        'success': True,
+        'recipes': [r.to_dict() for r in recipes]
+    })
+
+
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
+@login_required
+def get_recipe(recipe_id):
+    """Get a specific recipe."""
+    recipe = Recipe.query.get(recipe_id)
+    if not recipe:
+        return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'recipe': recipe.to_dict()
+    })
+
+
+@app.route('/api/recipes/<int:recipe_id>', methods=['DELETE'])
+@login_required
+def delete_recipe(recipe_id):
+    """Delete a recipe."""
+    try:
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+        db.session.delete(recipe)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Recipe deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting recipe: {str(e)}'}), 500
+
+
+@app.route('/api/recipes/save', methods=['POST'])
+@login_required
+def save_recipe():
+    """Save a recipe to the library."""
+    try:
+        data = request.json.get('recipeData', {})
+
+        # Helper function to parse time string to minutes
+        def parse_time_to_minutes(time_str):
+            if not time_str or not isinstance(time_str, str):
+                return None
+            time_str = time_str.lower().strip()
+            total_mins = 0
+            # Extract hours
+            if 'hour' in time_str:
+                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
+                total_mins += hours * 60
+            # Extract minutes
+            if 'minute' in time_str:
+                parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
+                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
+                total_mins += minutes
+            return total_mins if total_mins > 0 else None
+
+        # Create new recipe
+        new_recipe = Recipe(
+            title_original=data.get('title', ''),
+            title_translated=data.get('title', ''),
+            content_original=data.get('content_original', ''),
+            content_translated=data.get('content', ''),
+            ingredients_original=data.get('ingredients', []),
+            ingredients_translated=data.get('ingredients', []),
+            instructions_original=data.get('instructions', []),
+            instructions_translated=data.get('instructions', []),
+            prep_time=parse_time_to_minutes(data.get('prep_time')),
+            cook_time=parse_time_to_minutes(data.get('cook_time')),
+            total_time=parse_time_to_minutes(data.get('total_time')),
+            servings=data.get('servings', ''),
+            image_url=data.get('image', ''),
+            author=data.get('author', ''),
+            source_url=data.get('url', ''),
+            nutrition=data.get('nutrition', {}),
+            language=data.get('language', ''),
+            tags=[]
+        )
+
+        db.session.add(new_recipe)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Recipe saved successfully',
+            'recipe_id': new_recipe.id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error saving recipe: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

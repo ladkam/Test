@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Library - Recipe Management</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-brand">Recipe Manager</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}" class="nav-link">Translator</a>
+                <a href="{{ url_for('library') }}" class="nav-link active">Library</a>
+                <a href="{{ url_for('planner') }}" class="nav-link">Weekly Planner</a>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.is_admin() %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Admin</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="library-header">
+            <h1>Recipe Library</h1>
+            <p class="subtitle">Browse and search your saved recipes</p>
+        </header>
+
+        <!-- Search and Filters -->
+        <div class="card search-card">
+            <div class="search-filters">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search recipes, ingredients..." class="input-full">
+                </div>
+                <div class="filter-group">
+                    <label>Duration:</label>
+                    <select id="durationFilter" class="select-inline">
+                        <option value="">All</option>
+                        <option value="0-30">Under 30 min</option>
+                        <option value="30-60">30-60 min</option>
+                        <option value="60+">Over 1 hour</option>
+                    </select>
+                </div>
+                <button id="clearFilters" class="btn btn-secondary btn-sm">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Recipe Count -->
+        <div class="results-count">
+            <span id="recipeCount">0 recipes</span>
+        </div>
+
+        <!-- Recipe Grid -->
+        <div id="recipeGrid" class="recipe-grid">
+            <div class="loading">Loading recipes...</div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h3>No recipes found</h3>
+            <p>Start by translating and saving recipes from the translator page</p>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Go to Translator</a>
+        </div>
+    </div>
+
+    <!-- Recipe Detail Modal -->
+    <div id="recipeModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/library.js') }}"></script>
+</body>
+</html>
