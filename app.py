@@ -74,14 +74,15 @@ TEMP_FOLDER.mkdir(exist_ok=True)
 
 # Helper function to get API keys from database with fallback to environment
 def get_api_key(key_name):
-    """Get API key from database, fallback to environment variable."""
+    """Get API key from database, fallback to environment variable. Returns None if not set."""
     with app.app_context():
         db_value = SettingsModel.get(key_name, '')
-        if db_value:
+        if db_value and db_value.strip():  # Check for non-empty value
             return db_value
         # Fallback to environment variable
         env_var_name = key_name.upper()
-        return os.getenv(env_var_name, '')
+        env_value = os.getenv(env_var_name, '')
+        return env_value if env_value and env_value.strip() else None
 
 
 @login_manager.user_loader
@@ -241,12 +242,16 @@ def translate_recipe():
                 # Get the selected AI provider from settings
                 ai_provider = settings.get_ai_provider()
 
-                # Initialize the appropriate translator
+                # Get API key and check if configured
                 if ai_provider == 'groq':
                     api_key = get_api_key('groq_api_key')
+                    if not api_key:
+                        return jsonify({'error': 'Groq API key not configured. Please add it in the admin panel.'}), 500
                     translator = GroqTranslator(api_key=api_key)
                 else:  # Default to Mistral
                     api_key = get_api_key('mistral_api_key')
+                    if not api_key:
+                        return jsonify({'error': 'Mistral API key not configured. Please add it in the admin panel.'}), 500
                     translator = MistralTranslator(api_key=api_key)
 
                 recipe_text = translator.translate_recipe(recipe_text, language)
@@ -342,6 +347,8 @@ def test_mistral():
     """Test Mistral API connection."""
     try:
         api_key = get_api_key('mistral_api_key')
+        if not api_key:
+            return jsonify({'success': False, 'message': 'Mistral API key not configured. Please add it in the admin panel.'}), 400
         translator = MistralTranslator(api_key=api_key)
         if translator.test_connection():
             return jsonify({'success': True, 'message': 'Mistral API connection successful'})
@@ -1055,9 +1062,13 @@ def create_recipe_translation(recipe_id):
         ai_provider = settings.get_ai_provider()
         if ai_provider == 'groq':
             api_key = get_api_key('groq_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Groq API key not configured. Please add it in the admin panel.'}), 500
             translator = GroqTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Mistral API key not configured. Please add it in the admin panel.'}), 500
             translator = MistralTranslator(api_key=api_key)
         
         # Translate title
