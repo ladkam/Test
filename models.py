@@ -70,6 +70,16 @@ class Recipe(db.Model):
 
     def to_dict(self, include_translations=True):
         """Convert recipe to dictionary."""
+        # Calculate health score from nutrition data
+        health_score = None
+        if self.nutrition:
+            # Import here to avoid circular imports
+            from app import calculate_health_score
+            try:
+                health_score = calculate_health_score(self.nutrition)
+            except:
+                health_score = None
+
         result = {
             'id': self.id,
             'title': self.title,
@@ -85,6 +95,7 @@ class Recipe(db.Model):
             'source_url': self.source_url,
             'source_language': self.source_language,
             'nutrition': self.nutrition,
+            'health_score': health_score,
             'tags': self.tags,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

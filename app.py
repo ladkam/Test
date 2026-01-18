@@ -85,6 +85,147 @@ def get_api_key(key_name):
         return env_value if env_value and env_value.strip() else None
 
 
+def calculate_health_score(nutrition_data):
+    """
+    Calculate a health score (0-100) based on nutritional macros.
+
+    Scoring criteria:
+    - Balanced macros (protein, carbs, fats)
+    - Reasonable calorie density
+    - High protein relative to calories
+    - Low saturated fat
+    - High fiber
+    - Reasonable sodium
+
+    Args:
+        nutrition_data: Dictionary with keys like calories, protein, carbs, fat, fiber, sodium
+
+    Returns:
+        Dictionary with 'score' (0-100), 'grade' (A-F), and 'details'
+    """
+    if not nutrition_data or not isinstance(nutrition_data, dict):
+        return {'score': None, 'grade': None, 'details': 'No nutrition data available'}
+
+    score = 100
+    details = []
+
+    # Extract nutrition values (handle various formats)
+    calories = nutrition_data.get('calories', 0)
+    protein = nutrition_data.get('protein', 0)
+    carbs = nutrition_data.get('carbohydrates', nutrition_data.get('carbs', 0))
+    fat = nutrition_data.get('fat', nutrition_data.get('totalFat', 0))
+    saturated_fat = nutrition_data.get('saturatedFat', 0)
+    fiber = nutrition_data.get('fiber', nutrition_data.get('dietaryFiber', 0))
+    sodium = nutrition_data.get('sodium', 0)
+
+    # Convert string values to numbers if needed
+    def to_number(value):
+        if isinstance(value, str):
+            # Remove units and convert
+            value = re.sub(r'[^\d.]', '', value)
+            try:
+                return float(value) if value else 0
+            except:
+                return 0
+        return float(value) if value else 0
+
+    calories = to_number(calories)
+    protein = to_number(protein)
+    carbs = to_number(carbs)
+    fat = to_number(fat)
+    saturated_fat = to_number(saturated_fat)
+    fiber = to_number(fiber)
+    sodium = to_number(sodium)
+
+    # 1. Calorie density check (prefer 200-600 calories per serving)
+    if calories > 0:
+        if calories < 150:
+            score -= 5
+            details.append('Very low in calories')
+        elif calories > 800:
+            score -= 15
+            details.append('High in calories')
+        elif calories > 600:
+            score -= 5
+            details.append('Moderately high in calories')
+
+    # 2. Protein quality (protein should be 15-35% of calories)
+    if calories > 0 and protein > 0:
+        protein_calories = protein * 4  # 4 calories per gram
+        protein_percentage = (protein_calories / calories) * 100
+        if protein_percentage >= 20:
+            score += 5
+            details.append('Good protein content')
+        elif protein_percentage < 10:
+            score -= 10
+            details.append('Low in protein')
+
+    # 3. Fat quality (20-35% of calories, penalize high saturated fat)
+    if calories > 0 and fat > 0:
+        fat_calories = fat * 9  # 9 calories per gram
+        fat_percentage = (fat_calories / calories) * 100
+        if fat_percentage > 45:
+            score -= 15
+            details.append('High in fat')
+        elif fat_percentage > 35:
+            score -= 5
+
+        # Check saturated fat
+        if saturated_fat > 0 and fat > 0:
+            sat_fat_ratio = saturated_fat / fat
+            if sat_fat_ratio > 0.5:
+                score -= 10
+                details.append('High in saturated fat')
+
+    # 4. Fiber bonus (5g+ is good)
+    if fiber >= 5:
+        score += 10
+        details.append('High in fiber')
+    elif fiber >= 3:
+        score += 5
+        details.append('Good fiber content')
+
+    # 5. Sodium check (per serving)
+    if sodium > 0:
+        if sodium > 800:
+            score -= 15
+            details.append('High in sodium')
+        elif sodium > 600:
+            score -= 8
+            details.append('Moderately high in sodium')
+        elif sodium < 200:
+            score += 5
+            details.append('Low in sodium')
+
+    # 6. Carb quality (prefer complex carbs with fiber)
+    if carbs > 0 and fiber > 0:
+        fiber_to_carb_ratio = fiber / carbs
+        if fiber_to_carb_ratio >= 0.1:  # 10% fiber to carbs
+            score += 5
+            details.append('Good fiber-to-carb ratio')
+
+    # Ensure score is within bounds
+    score = max(0, min(100, score))
+
+    # Determine grade
+    if score >= 90:
+        grade = 'A'
+    elif score >= 80:
+        grade = 'B'
+    elif score >= 70:
+        grade = 'C'
+    elif score >= 60:
+        grade = 'D'
+    else:
+        grade = 'F'
+
+    return {
+        'score': round(score),
+        'grade': grade,
+        'details': ' | '.join(details) if details else 'Balanced nutrition'
+    }
+
+
 @login_manager.user_loader
 def load_user(user_id):
     """Load user by ID for Flask-Login."""

@@ -45,6 +45,14 @@
             break-inside: avoid;
         }
 
+        .recipe-image-simple {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+        }
+
         .recipe-card-simple h2 {
             font-size: 2rem;
             color: var(--primary-color);
@@ -238,6 +246,7 @@
 
                 return `
                     <div class="recipe-card-simple">
+                        ${recipe.image_url ? `<img src="${escapeHtml(recipe.image_url)}" alt="${escapeHtml(recipe.title)}" class="recipe-image-simple">` : ''}
                         <h2>${escapeHtml(recipe.title)}</h2>
 
                         <div class="recipe-meta-simple">

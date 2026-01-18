@@ -103,16 +103,45 @@ function displayAvailableRecipes() {
         return;
     }
 
-    grid.innerHTML = filtered.map(recipe => `
-        <div class="available-recipe-card">
-            ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title}">` : '<div class="available-recipe-placeholder">No Image</div>'}
-            <div class="available-recipe-content">
-                <h4>${escapeHtml(recipe.title)}</h4>
-                ${recipe.total_time ? `<span class="recipe-time">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+    grid.innerHTML = filtered.map(recipe => {
+        const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
+        return `
+            <div class="available-recipe-card">
+                ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title}">` : '<div class="available-recipe-placeholder">No Image</div>'}
+                <div class="available-recipe-content">
+                    <h4>${escapeHtml(recipe.title)}</h4>
+                    ${recipe.total_time ? `<span class="recipe-time">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                    ${healthScoreHtml}
+                </div>
+                <button onclick="addToPlan(${recipe.id})" class="btn btn-primary btn-sm">Add to Plan</button>
             </div>
-            <button onclick="addToPlan(${recipe.id})" class="btn btn-primary btn-sm">Add to Plan</button>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+}
+
+function getHealthScoreBadge(healthScore) {
+    if (!healthScore || !healthScore.grade || !healthScore.score) {
+        return '';
+    }
+
+    const gradeClass = `grade-${healthScore.grade.toLowerCase()}`;
+    const icon = getHealthScoreIcon(healthScore.grade);
+
+    return `<span class="health-score-badge ${gradeClass}" title="${healthScore.details || ''}" style="margin-top: 0.5rem;">
+        <span class="health-score-icon">${icon}</span>
+        <span>${healthScore.grade} ${healthScore.score}</span>
+    </span>`;
+}
+
+function getHealthScoreIcon(grade) {
+    const icons = {
+        'A': '🥗',
+        'B': '🥙',
+        'C': '🍔',
+        'D': '🍕',
+        'F': '🍰'
+    };
+    return icons[grade] || '🍽️';
 }
 
 async function addToPlan(recipeId) {

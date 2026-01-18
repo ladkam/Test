@@ -130,6 +130,7 @@ function createRecipeCard(recipe) {
     const imageUrl = recipe.image_url || '';
     const title = recipe.title;
     const time = formatTime(recipe.total_time);
+    const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
 
     return `
         <div class="recipe-card" data-recipe-id="${recipe.id}">
@@ -138,7 +139,10 @@ function createRecipeCard(recipe) {
                 <div class="recipe-card-content">
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
                     ${time ? `<p class="recipe-card-time">⏱️ ${time}</p>` : ''}
-                    ${recipe.source_language ? `<span class="recipe-card-lang">${escapeHtml(recipe.source_language)}</span>` : ''}
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        ${recipe.source_language ? `<span class="recipe-card-lang">${escapeHtml(recipe.source_language)}</span>` : ''}
+                        ${healthScoreHtml}
+                    </div>
                 </div>
             </div>
             <div class="recipe-card-actions">
@@ -150,6 +154,31 @@ function createRecipeCard(recipe) {
             </div>
         </div>
     `;
+}
+
+function getHealthScoreBadge(healthScore) {
+    if (!healthScore || !healthScore.grade || !healthScore.score) {
+        return '';
+    }
+
+    const gradeClass = `grade-${healthScore.grade.toLowerCase()}`;
+    const icon = getHealthScoreIcon(healthScore.grade);
+
+    return `<span class="health-score-badge ${gradeClass}" title="${healthScore.details || ''}">
+        <span class="health-score-icon">${icon}</span>
+        <span>${healthScore.grade} ${healthScore.score}</span>
+    </span>`;
+}
+
+function getHealthScoreIcon(grade) {
+    const icons = {
+        'A': '🥗',
+        'B': '🥙',
+        'C': '🍔',
+        'D': '🍕',
+        'F': '🍰'
+    };
+    return icons[grade] || '🍽️';
 }
 
 function formatTime(minutes) {
