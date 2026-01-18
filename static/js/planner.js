@@ -289,6 +289,27 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Helper function to get translated content from recipe
+function getTranslatedContent(recipe) {
+    if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
+        return null; // No translations available
+    }
+
+    // Try to get Spanish translation first, then French
+    const translation = recipe.translations['es'] || recipe.translations['fr'];
+    return translation ? translation.content : null;
+}
+
+// Helper function to get translated ingredients
+function getTranslatedIngredients(recipe) {
+    if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
+        return recipe.ingredients || [];
+    }
+
+    const translation = recipe.translations['es'] || recipe.translations['fr'];
+    return translation && translation.ingredients ? translation.ingredients : (recipe.ingredients || []);
+}
+
 // Recipe detail modal functions (shared with library.js)
 async function showRecipeDetail(recipeId) {
     try {
@@ -304,7 +325,7 @@ async function showRecipeDetail(recipeId) {
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredientsTranslated = [...(recipe.ingredients || [])];
+            window.originalIngredientsTranslated = [...getTranslatedIngredients(recipe)];
             window.originalIngredientsOriginal = [...(recipe.ingredients || [])];
             window.activeLanguageTab = 'translated'; // Track which tab is active
 
@@ -335,11 +356,11 @@ async function showRecipeDetail(recipeId) {
                         </div>
 
                         <div class="recipe-tab-content active" id="translated-content">
-                            ${formatRecipeContent(recipe.content || 'No translation available')}
+                            ${formatRecipeContent(getTranslatedContent(recipe) || recipe.content || 'No translation available')}
                         </div>
 
                         <div class="recipe-tab-content" id="original-content" style="display: none;">
-                            ${formatRecipeContent(recipe.content)}
+                            ${formatRecipeContent(recipe.content || 'No content available')}
                         </div>
                     </div>
                 </div>
