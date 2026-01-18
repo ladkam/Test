@@ -798,6 +798,106 @@ def get_family_plan():
     return jsonify({'success': True, 'recipes': recipes})
 
 
+@app.route('/api/family/translate', methods=['POST'])
+def translate_recipe_family():
+    """Translate a NYT recipe with metric conversion (requires PIN verification)."""
+    # Check if PIN is verified
+    if not session.get('family_pin_verified', False):
+        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
+
+    try:
+        data = request.json
+        url = data.get('url', '')
+        target_language_code = data.get('language', 'es')
+
+        # Validate URL is from NYT
+        if 'nytimes.com' not in url.lower():
+            return jsonify({'success': False, 'message': 'Only NYT Cooking recipes are supported'}), 400
+
+        # Map language codes to names
+        language_map = {
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'ja': 'Japanese',
+            'zh': 'Chinese',
+            'ko': 'Korean'
+        }
+        target_language = language_map.get(target_language_code, 'Spanish')
+
+        # Scrape recipe
+        cookie = settings.get_nyt_cookie()
+        scraper = NYTRecipeScraper(cookie)
+        recipe_data = scraper.scrape_recipe(url)
+
+        if not recipe_data:
+            return jsonify({'success': False, 'message': 'Failed to fetch recipe'}), 400
+
+        # Initialize unit converter for metric conversion
+        from unit_converter import UnitConverter
+        converter = UnitConverter()
+
+        # Convert ingredients to metric
+        metric_ingredients = []
+        for ing in recipe_data.get('ingredients', []):
+            metric_ing = converter.convert_text(ing)
+            metric_ingredients.append(metric_ing)
+
+        # Convert any measurements in instructions to metric
+        metric_instructions = []
+        for inst in recipe_data.get('instructions', []):
+            metric_inst = converter.convert_text(inst)
+            metric_instructions.append(metric_inst)
+
+        # Get AI translator
+        ai_provider = settings.get_ai_provider()
+        if ai_provider == 'groq':
+            api_key = get_api_key('groq_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = GroqTranslator(api_key=api_key)
+        else:
+            api_key = get_api_key('mistral_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = MistralTranslator(api_key=api_key)
+
+        # Translate title, ingredients (with metric), and instructions (with metric)
+        translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
+        translated_ingredients = [translator.translate_text(ing, target_language) for ing in metric_ingredients]
+        translated_instructions = [translator.translate_text(inst, target_language) for inst in metric_instructions]
+
+        # Get time info
+        time_info = recipe_data.get('time', {})
+        total_time = time_info.get('total', '') if isinstance(time_info, dict) else ''
+
+        return jsonify({
+            'success': True,
+            'recipe': {
+                'title': recipe_data.get('title', ''),
+                'translated_title': translated_title,
+                'ingredients': metric_ingredients,
+                'translated_ingredients': translated_ingredients,
+                'instructions': metric_instructions,
+                'translated_instructions': translated_instructions,
+                'image_url': recipe_data.get('image', ''),
+                'prep_time': time_info.get('prep', '') if isinstance(time_info, dict) else '',
+                'cook_time': time_info.get('cook', '') if isinstance(time_info, dict) else '',
+                'total_time': total_time,
+                'servings': recipe_data.get('yield', ''),
+                'author': recipe_data.get('author', '')
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
 @app.route('/translator')
 @app.route('/translator/<language>')
 def translator_view(language='es'):
