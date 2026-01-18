@@ -131,6 +131,7 @@ function createRecipeCard(recipe) {
     const title = recipe.title;
     const time = formatTime(recipe.total_time);
     const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
+    const ratingHtml = recipe.average_rating ? renderStarRating(recipe.average_rating, true, recipe.rating_count) : '';
 
     return `
         <div class="recipe-card" data-recipe-id="${recipe.id}">
@@ -139,6 +140,7 @@ function createRecipeCard(recipe) {
                 <div class="recipe-card-content">
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
                     ${time ? `<p class="recipe-card-time">⏱️ ${time}</p>` : ''}
+                    ${ratingHtml ? `<div class="recipe-card-rating">${ratingHtml}</div>` : ''}
                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         ${recipe.source_language ? `<span class="recipe-card-lang">${escapeHtml(recipe.source_language)}</span>` : ''}
                         ${healthScoreHtml}
@@ -322,6 +324,11 @@ function getTranslatedIngredients(recipe) {
     return translation && translation.ingredients ? translation.ingredients : (recipe.ingredients || []);
 }
 
+// Helper function for rating.js to reload recipe details
+function loadRecipeDetails(recipeId) {
+    showRecipeDetail(recipeId);
+}
+
 async function showRecipeDetail(recipeId) {
     try {
         const response = await fetch(`/api/recipes/${recipeId}`);
@@ -375,6 +382,8 @@ async function showRecipeDetail(recipeId) {
                             ${formatRecipeContent(recipe.content || 'No content available')}
                         </div>
                     </div>
+
+                    ${buildRatingSection(recipe)}
 
                     <div id="substitutionResult" class="substitution-result" style="display: none;"></div>
                 </div>
