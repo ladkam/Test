@@ -49,29 +49,138 @@ Complete step-by-step guide to deploy your Recipe Manager app on Railway with Po
 - Sets the `DATABASE_URL` environment variable
 - Connects your app to the database
 
-### Step 4: Set Environment Variables
+### Step 4: Set Environment Variables (IMPORTANT!)
 
-Your app needs these environment variables:
+Environment variables are secret values your app needs to run. Think of them like passwords for your app.
 
-1. Click on your **web service** (not the database)
-2. Go to the **"Variables"** tab
-3. Click **"+ New Variable"** and add:
+#### Understanding What You'll See:
+
+After deploying, your Railway project has **TWO services**:
+1. **Web Service** (your Flask app) - This is where you set variables
+2. **PostgreSQL** (your database) - Don't touch this one
+
+#### How to Set Variables:
+
+**A. Navigate to the Right Place:**
+
+1. Look at your Railway dashboard - you'll see **two boxes/cards**:
+   ```
+   ┌─────────────────────┐    ┌─────────────────────┐
+   │  Your-Repo-Name     │    │  PostgreSQL         │
+   │  (Web Service)      │    │  (Database)         │
+   │  ← Click this one!  │    │  ← NOT this one     │
+   └─────────────────────┘    └─────────────────────┘
+   ```
+
+2. Click on your **web service** (the one with your repository name, NOT "PostgreSQL")
+
+3. You'll see several tabs at the top:
+   - Deployments
+   - **Variables** ← Click this tab
+   - Settings
+   - Metrics
+   - Logs
+
+**B. Generate Your SECRET_KEY:**
+
+Before adding variables, you need to generate a secure secret key.
+
+1. Open your **local terminal** (on your computer, not Railway)
+
+2. Run this command:
+   ```bash
+   python -c "import secrets; print(secrets.token_hex(32))"
+   ```
+
+3. You'll get a long random string like:
+   ```
+   a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
+   ```
+
+4. **Copy this entire string** - you'll need it in the next step
+
+**C. Add the SECRET_KEY Variable:**
+
+1. In Railway's "Variables" tab, click the **"New Variable"** button (or "+ Variable")
+
+2. You'll see two input fields:
+
+   ```
+   ┌─────────────────────────────────────┐
+   │ Variable Name                       │
+   │ [Type here]                         │
+   └─────────────────────────────────────┘
+
+   ┌─────────────────────────────────────┐
+   │ Variable Value                      │
+   │ [Type here]                         │
+   └─────────────────────────────────────┘
+   ```
+
+3. Fill them in:
+   - **Variable Name**: Type `SECRET_KEY` (exactly like this, all caps)
+   - **Variable Value**: Paste the long random string you generated in step B
+
+4. Click **"Add"** button
+
+**D. Add API Keys (Optional - Can Skip for Now):**
+
+You can set these now OR set them later via the Admin panel in your app.
+
+**Option 1: Set them now in Railway**
+
+Repeat the process above for each API key:
+
+1. Click **"New Variable"**
+2. Add **GROQ_API_KEY**:
+   - Variable Name: `GROQ_API_KEY`
+   - Variable Value: `gsk_your_actual_groq_key_here`
+   - Click "Add"
+
+3. Click **"New Variable"** again
+4. Add **MISTRAL_API_KEY**:
+   - Variable Name: `MISTRAL_API_KEY`
+   - Variable Value: `your_actual_mistral_key_here`
+   - Click "Add"
+
+**Option 2: Set them later via Admin panel**
+1. Skip this for now
+2. After your app is deployed, login and go to Admin → API Settings
+3. Enter your API keys there
+
+**E. Verify Your Variables:**
+
+After adding variables, you should see them listed in the Variables tab:
 
 ```
-SECRET_KEY
-```
-Value: Generate with this command locally:
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-**Optional but recommended** (or set via Admin panel later):
-```
-GROQ_API_KEY = your-groq-key-here
-MISTRAL_API_KEY = your-mistral-key-here
+DATABASE_URL          postgresql://postgres:***@***.railway.app... (Auto-set ✓)
+SECRET_KEY            ******************************************* (Your value)
+GROQ_API_KEY          ******************************************* (Optional)
+MISTRAL_API_KEY       ******************************************* (Optional)
 ```
 
-4. Click **"Add"** for each variable
+**Important Notes:**
+- ⚠️ `DATABASE_URL` appears automatically - don't add it manually!
+- ⚠️ Values are hidden with *** for security
+- ✅ Adding/changing variables triggers automatic redeployment
+- ✅ You can edit variables anytime by clicking the "•••" menu next to each one
+
+#### Common Questions:
+
+**Q: I don't see DATABASE_URL!**
+A: Make sure you added the PostgreSQL database (Step 3). The DATABASE_URL appears automatically when both services are in the same project.
+
+**Q: What if I make a typo in the variable name?**
+A: Click the "•••" menu next to the variable → Delete → Add it again with correct spelling
+
+**Q: Can I change these later?**
+A: Yes! Just click the variable, edit it, and save. Your app will redeploy automatically.
+
+**Q: Where do I get GROQ_API_KEY?**
+A: Sign up at https://console.groq.com/ → Create an API key. Or skip it and set it later in your app's Admin panel.
+
+**Q: Do I need both GROQ and MISTRAL keys?**
+A: No, you only need ONE of them. Pick whichever AI service you prefer. You can change this later in Admin panel.
 
 ### Step 5: Deploy!
 
