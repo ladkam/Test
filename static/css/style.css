@@ -3079,3 +3079,222 @@ textarea:focus {
     outline: none;
     border-color: var(--primary-color);
 }
+
+/* Reorganized Recipe Detail Modal Styles */
+.recipe-detail-new {
+    padding: 1rem 0;
+}
+
+.recipe-header {
+    margin-bottom: 1.5rem;
+}
+
+.recipe-header h2 {
+    margin-bottom: 0.5rem;
+}
+
+.recipe-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.recipe-actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--background);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.language-selector-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+}
+
+.language-selector-inline label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.language-selector-inline select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--card-background);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Main Tabs */
+.recipe-main-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+}
+
+.main-tab {
+    padding: 0.75rem 1.25rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.main-tab:hover {
+    color: var(--text-primary);
+    background: var(--background);
+}
+
+.main-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* Tab Panels */
+.tab-panel {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.servings-adjuster-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--background);
+    border-radius: var(--border-radius);
+    display: flex;
+    justify-content: center;
+}
+
+.ingredients-section {
+    margin-bottom: 2rem;
+}
+
+.ingredients-section h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.ingredients-list {
+    list-style: none;
+    padding: 0;
+}
+
+.ingredients-list .ingredient-item {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.instructions-section {
+    margin-bottom: 2rem;
+}
+
+.instructions-section h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.instructions-list {
+    list-style: none;
+    counter-reset: step-counter;
+    padding: 0;
+}
+
+.instructions-list li {
+    counter-increment: step-counter;
+    padding: 1rem 1rem 1rem 3rem;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    line-height: 1.6;
+}
+
+.instructions-list li:before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 0;
+    top: 1rem;
+    background: var(--primary-color);
+    color: white;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.health-score-display {
+    padding: 1.5rem;
+    background: var(--background);
+    border-radius: var(--border-radius);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .recipe-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .language-selector-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .language-selector-inline select {
+        width: 100%;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .recipe-main-tabs {
+        gap: 0;
+    }
+
+    .main-tab {
+        flex: 1;
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+}

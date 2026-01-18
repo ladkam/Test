@@ -272,34 +272,10 @@ function adjustServings(delta) {
     // Update servings display
     document.getElementById('servingsDisplay').textContent = newServings;
 
-    // Determine which ingredient list to use based on active tab
-    const useOriginal = window.activeLanguageTab === 'original';
-    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
-
-    // Update ingredients
-    const scale = newServings / window.originalServings;
-    const scaledIngredients = scaleIngredients(originalIngredients, scale);
-
-    // Rebuild ingredients list
+    // Rebuild ingredients list with new servings
     const ingredientsSection = document.getElementById('ingredientsSection');
-    if (ingredientsSection) {
-        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
-        scaledIngredients.forEach((ing, idx) => {
-            const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
-            html += `
-                <li class="ingredient-item">
-                    <span class="ingredient-text">${escapeHtml(ing)}</span>
-                    <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${window.currentRecipeData.id})" title="Find substitutes">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Substitute
-                    </button>
-                </li>
-            `;
-        });
-        html += '</ul>';
-        ingredientsSection.innerHTML = html;
+    if (ingredientsSection && window.currentRecipeData) {
+        ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, newServings);
     }
 }
 
@@ -339,107 +315,223 @@ async function showRecipeDetail(recipeId) {
             const modal = document.getElementById('recipeModal');
             const content = document.getElementById('modalContent');
 
-            // Store original recipe data for scaling
+            // Store recipe data
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredientsTranslated = [...getTranslatedIngredients(recipe)];
-            window.originalIngredientsOriginal = [...(recipe.ingredients || [])];
-            window.activeLanguageTab = 'translated'; // Track which tab is active
+            window.selectedLanguage = 'original'; // Default to original
 
-            // Build ingredients section with substitution buttons
-            let ingredientsHtml = buildIngredientsHtml(recipe, window.currentServings);
+            // Get available translations
+            const availableLanguages = getAvailableLanguages(recipe);
+            const languageOptions = buildLanguageSelector(availableLanguages);
+
+            // Build health score display
+            const healthScoreHtml = recipe.health_score ? `
+                <div class="health-score-display">
+                    <span class="health-score-badge grade-${recipe.health_score.grade.toLowerCase()}">
+                        ${getHealthScoreIcon(recipe.health_score.grade)} ${recipe.health_score.grade} ${recipe.health_score.score}
+                    </span>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${recipe.health_score.details || ''}</p>
+                </div>
+            ` : '<p style="color: var(--text-secondary);">No nutrition information available</p>';
 
             content.innerHTML = `
-                <div class="recipe-detail">
+                <div class="recipe-detail-new">
                     ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title}">` : ''}
-                    <h2>${escapeHtml(recipe.title)}</h2>
 
-                    <div class="recipe-detail-meta">
-                        ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                        ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
-                        ${recipe.source_language ? `<span>🌍 ${escapeHtml(recipe.source_language)}</span>` : ''}
-                    </div>
-
-                    <div class="recipe-detail-actions">
-                        <button onclick="editRecipe(${recipe.id})" class="btn btn-secondary">✏️ Edit Recipe</button>
-                        <button onclick="addToWeeklyPlan(${recipe.id})" class="btn btn-primary">Add to Weekly Plan</button>
-                    </div>
-
-                    ${ingredientsHtml}
-
-                    <div class="recipe-detail-content">
-                        <div class="recipe-tabs">
-                            <button class="recipe-tab active" data-lang="translated">Translated</button>
-                            <button class="recipe-tab" data-lang="original">Original</button>
-                        </div>
-
-                        <div class="recipe-tab-content active" id="translated-content">
-                            ${formatRecipeContent(getTranslatedContent(recipe) || recipe.content || 'No translation available')}
-                        </div>
-
-                        <div class="recipe-tab-content" id="original-content" style="display: none;">
-                            ${formatRecipeContent(recipe.content || 'No content available')}
+                    <div class="recipe-header">
+                        <h2>${escapeHtml(recipe.title)}</h2>
+                        <div class="recipe-meta-row">
+                            ${recipe.total_time ? `<span class="meta-item">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                            ${recipe.servings ? `<span class="meta-item">🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                            ${recipe.average_rating ? `<span class="meta-item">${renderStarRating(recipe.average_rating, true, recipe.rating_count)}</span>` : ''}
                         </div>
                     </div>
 
-                    ${buildRatingSection(recipe)}
+                    <div class="recipe-actions-bar">
+                        <div class="language-selector-inline">
+                            <label for="recipeLanguageSelect">🌍 Language:</label>
+                            <select id="recipeLanguageSelect" onchange="switchRecipeLanguage()">
+                                ${languageOptions}
+                            </select>
+                        </div>
+                        <div class="action-buttons">
+                            <button onclick="addToWeeklyPlan(${recipe.id})" class="btn btn-primary btn-sm">📅 Add to Plan</button>
+                            <button onclick="editRecipe(${recipe.id})" class="btn btn-secondary btn-sm">✏️ Edit</button>
+                        </div>
+                    </div>
 
-                    ${buildTranslationsSection(recipe)}
+                    <div class="recipe-main-tabs">
+                        <button class="main-tab active" data-tab="recipe" onclick="switchMainTab('recipe')">📖 Recipe</button>
+                        <button class="main-tab" data-tab="rating" onclick="switchMainTab('rating')">⭐ Rating & Notes</button>
+                        <button class="main-tab" data-tab="nutrition" onclick="switchMainTab('nutrition')">🥗 Nutrition</button>
+                        <button class="main-tab" data-tab="translations" onclick="switchMainTab('translations')">🌍 Translations</button>
+                    </div>
 
-                    <div id="substitutionResult" class="substitution-result" style="display: none;"></div>
+                    <div class="tab-panel active" id="recipe-panel">
+                        <div class="servings-adjuster-section">
+                            ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
+                        </div>
+
+                        <div id="ingredientsSection" class="ingredients-section">
+                            ${buildIngredientsListHtml(recipe, window.currentServings)}
+                        </div>
+
+                        <div id="instructionsSection" class="instructions-section">
+                            ${buildInstructionsHtml(recipe)}
+                        </div>
+
+                        <div id="substitutionResult" class="substitution-result" style="display: none;"></div>
+                    </div>
+
+                    <div class="tab-panel" id="rating-panel" style="display: none;">
+                        ${buildRatingSection(recipe)}
+                    </div>
+
+                    <div class="tab-panel" id="nutrition-panel" style="display: none;">
+                        <h3>Health Score</h3>
+                        ${healthScoreHtml}
+                    </div>
+
+                    <div class="tab-panel" id="translations-panel" style="display: none;">
+                        ${buildTranslationsSection(recipe)}
+                    </div>
                 </div>
             `;
-
-            // Store recipe data for substitutions
-            window.currentRecipeData = recipe;
-
-            // Tab switching
-            content.querySelectorAll('.recipe-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const lang = tab.dataset.lang;
-                    window.activeLanguageTab = lang; // Track active tab
-
-                    content.querySelectorAll('.recipe-tab').forEach(t => t.classList.remove('active'));
-                    content.querySelectorAll('.recipe-tab-content').forEach(c => c.style.display = 'none');
-                    tab.classList.add('active');
-                    document.getElementById(`${lang}-content`).style.display = 'block';
-
-                    // Update ingredients to match the active tab
-                    const useOriginal = lang === 'original';
-                    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
-                    const scale = window.currentServings / window.originalServings;
-                    const scaledIngredients = scaleIngredients(originalIngredients, scale);
-
-                    // Rebuild ingredients list
-                    const ingredientsSection = document.getElementById('ingredientsSection');
-                    if (ingredientsSection) {
-                        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
-                        scaledIngredients.forEach((ing, idx) => {
-                            const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
-                            html += `
-                                <li class="ingredient-item">
-                                    <span class="ingredient-text">${escapeHtml(ing)}</span>
-                                    <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                        </svg>
-                                        Substitute
-                                    </button>
-                                </li>
-                            `;
-                        });
-                        html += '</ul>';
-                        ingredientsSection.innerHTML = html;
-                    }
-                });
-            });
 
             modal.style.display = 'flex';
         }
     } catch (error) {
         showError('Error loading recipe: ' + error.message);
     }
+}
+
+function getAvailableLanguages(recipe) {
+    const languages = [{ code: 'original', name: 'Original (English)' }];
+
+    if (recipe.translations) {
+        const languageMap = {
+            'es': 'Spanish 🇪🇸',
+            'fr': 'French 🇫🇷',
+            'de': 'German 🇩🇪',
+            'it': 'Italian 🇮🇹',
+            'pt': 'Portuguese 🇵🇹',
+            'nl': 'Dutch 🇳🇱',
+            'ja': 'Japanese 🇯🇵',
+            'zh': 'Chinese 🇨🇳',
+            'ko': 'Korean 🇰🇷'
+        };
+
+        Object.keys(recipe.translations).forEach(code => {
+            languages.push({
+                code: code,
+                name: languageMap[code] || code.toUpperCase()
+            });
+        });
+    }
+
+    return languages;
+}
+
+function buildLanguageSelector(languages) {
+    return languages.map(lang =>
+        `<option value="${lang.code}">${lang.name}</option>`
+    ).join('');
+}
+
+function buildIngredientsListHtml(recipe, servings) {
+    const scale = servings / window.originalServings;
+    const ingredients = getIngredientsForLanguage(recipe, window.selectedLanguage);
+    const scaledIngredients = scaleIngredients(ingredients, scale);
+
+    let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+    scaledIngredients.forEach(ing => {
+        const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
+        html += `
+            <li class="ingredient-item">
+                <span class="ingredient-text">${escapeHtml(ing)}</span>
+                <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Substitute
+                </button>
+            </li>
+        `;
+    });
+    html += '</ul>';
+    return html;
+}
+
+function buildInstructionsHtml(recipe) {
+    const instructions = getInstructionsForLanguage(recipe, window.selectedLanguage);
+
+    let html = '<h3>Instructions</h3>';
+    if (instructions && instructions.length > 0) {
+        html += '<ol class="instructions-list">';
+        instructions.forEach(inst => {
+            html += `<li>${escapeHtml(inst)}</li>`;
+        });
+        html += '</ol>';
+    } else {
+        html += '<p style="color: var(--text-secondary);">No instructions available</p>';
+    }
+    return html;
+}
+
+function getIngredientsForLanguage(recipe, language) {
+    if (language === 'original' || !language) {
+        return recipe.ingredients || [];
+    }
+
+    if (recipe.translations && recipe.translations[language]) {
+        return recipe.translations[language].ingredients || recipe.ingredients || [];
+    }
+
+    return recipe.ingredients || [];
+}
+
+function getInstructionsForLanguage(recipe, language) {
+    if (language === 'original' || !language) {
+        return recipe.instructions || [];
+    }
+
+    if (recipe.translations && recipe.translations[language]) {
+        return recipe.translations[language].instructions || recipe.instructions || [];
+    }
+
+    return recipe.instructions || [];
+}
+
+function switchRecipeLanguage() {
+    const language = document.getElementById('recipeLanguageSelect').value;
+    window.selectedLanguage = language;
+
+    // Update ingredients
+    const ingredientsSection = document.getElementById('ingredientsSection');
+    if (ingredientsSection) {
+        ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, window.currentServings);
+    }
+
+    // Update instructions
+    const instructionsSection = document.getElementById('instructionsSection');
+    if (instructionsSection) {
+        instructionsSection.innerHTML = buildInstructionsHtml(window.currentRecipeData);
+    }
+}
+
+function switchMainTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.main-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    // Update panels
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.style.display = 'none';
+    });
+    document.getElementById(`${tabName}-panel`).style.display = 'block';
 }
 
 function formatRecipeContent(markdown) {
