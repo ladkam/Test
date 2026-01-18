@@ -18,7 +18,7 @@ from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
-from models import db, User, Recipe, WeeklyPlan, PlanRecipe
+from models import db, User, Recipe, WeeklyPlan, PlanRecipe, Settings as SettingsModel
 import settings
 
 # Load environment variables
@@ -71,6 +71,17 @@ login_manager.login_message = 'Please log in to access this page.'
 # Configure upload folder for temporary files
 TEMP_FOLDER = Path(tempfile.gettempdir()) / 'recipe_translator'
 TEMP_FOLDER.mkdir(exist_ok=True)
+
+# Helper function to get API keys from database with fallback to environment
+def get_api_key(key_name):
+    """Get API key from database, fallback to environment variable."""
+    with app.app_context():
+        db_value = SettingsModel.get(key_name, '')
+        if db_value:
+            return db_value
+        # Fallback to environment variable
+        env_var_name = key_name.upper()
+        return os.getenv(env_var_name, '')
 
 
 @login_manager.user_loader
@@ -160,6 +171,10 @@ def admin_dashboard():
     ai_model = settings.get_ai_model()
     nyt_cookie = settings.get_nyt_cookie()
 
+    # Get API keys from database
+    groq_api_key = SettingsModel.get('groq_api_key', '')
+    mistral_api_key = SettingsModel.get('mistral_api_key', '')
+
     return render_template(
         'admin.html',
         users=users,
@@ -168,7 +183,9 @@ def admin_dashboard():
         system_prompt=system_prompt,
         ai_provider=ai_provider,
         ai_model=ai_model,
-        nyt_cookie=nyt_cookie
+        nyt_cookie=nyt_cookie,
+        groq_api_key=groq_api_key,
+        mistral_api_key=mistral_api_key
     )
 
 
@@ -226,9 +243,11 @@ def translate_recipe():
 
                 # Initialize the appropriate translator
                 if ai_provider == 'groq':
-                    translator = GroqTranslator()
+                    api_key = get_api_key('groq_api_key')
+                    translator = GroqTranslator(api_key=api_key)
                 else:  # Default to Mistral
-                    translator = MistralTranslator()
+                    api_key = get_api_key('mistral_api_key')
+                    translator = MistralTranslator(api_key=api_key)
 
                 recipe_text = translator.translate_recipe(recipe_text, language)
             except ValueError as e:
@@ -322,7 +341,8 @@ def download_recipe():
 def test_mistral():
     """Test Mistral API connection."""
     try:
-        translator = MistralTranslator()
+        api_key = get_api_key('mistral_api_key')
+        translator = MistralTranslator(api_key=api_key)
         if translator.test_connection():
             return jsonify({'success': True, 'message': 'Mistral API connection successful'})
         else:
@@ -384,16 +404,29 @@ def manage_prompts():
 @app.route('/api/admin/api-settings', methods=['GET', 'POST'])
 @admin_required
 def manage_api_settings():
-    """Manage API settings (provider, model, and cookie)."""
+    """Manage API settings (provider, model, API keys, and cookie)."""
     if request.method == 'GET':
         return jsonify({
             'ai_provider': settings.get_ai_provider(),
             'ai_model': settings.get_ai_model(),
-            'nyt_cookie': settings.get_nyt_cookie()
+            'nyt_cookie': settings.get_nyt_cookie(),
+            'groq_api_key': SettingsModel.get('groq_api_key', ''),
+            'mistral_api_key': SettingsModel.get('mistral_api_key', '')
         })
 
     elif request.method == 'POST':
         data = request.json
+
+        # Handle API keys
+        groq_api_key = data.get('groq_api_key')
+        mistral_api_key = data.get('mistral_api_key')
+
+        if groq_api_key is not None:
+            SettingsModel.set('groq_api_key', groq_api_key)
+        if mistral_api_key is not None:
+            SettingsModel.set('mistral_api_key', mistral_api_key)
+
+        # Handle other settings
         ai_provider = data.get('ai_provider')
         ai_model = data.get('ai_model')
         nyt_cookie = data.get('nyt_cookie')
@@ -572,9 +605,9 @@ def extract_recipe_from_image():
             return jsonify({'success': False, 'message': 'No image provided'}), 400
 
         # Ensure we have Groq API key
-        groq_api_key = os.getenv('GROQ_API_KEY')
+        groq_api_key = get_api_key('groq_api_key')
         if not groq_api_key:
-            return jsonify({'success': False, 'message': 'Groq API key not configured'}), 500
+            return jsonify({'success': False, 'message': 'Groq API key not configured. Please set it in the admin panel.'}), 500
 
         # Prepare the prompt for recipe extraction
         prompt = """Extract the recipe from this image. Please provide:
@@ -754,13 +787,13 @@ For each substitute:
 Keep suggestions practical and commonly available. Format as a numbered list."""
 
         # Check if API keys are configured
-        groq_api_key = os.getenv('GROQ_API_KEY')
-        mistral_api_key = os.getenv('MISTRAL_API_KEY')
+        groq_api_key = get_api_key('groq_api_key')
+        mistral_api_key = get_api_key('mistral_api_key')
 
         if not groq_api_key and not mistral_api_key:
             return jsonify({
                 'success': False,
-                'message': 'AI service not configured. Please set GROQ_API_KEY or MISTRAL_API_KEY environment variable.'
+                'message': 'AI service not configured. Please set API keys in the admin panel.'
             }), 503
 
         # Get AI provider from settings
@@ -778,14 +811,14 @@ Keep suggestions practical and commonly available. Format as a numbered list."""
         else:
             return jsonify({
                 'success': False,
-                'message': 'No AI service available. Please configure GROQ_API_KEY or MISTRAL_API_KEY.'
+                'message': 'No AI service available. Please set API keys in the admin panel.'
             }), 503
 
         # Call AI
         try:
             if use_groq:
                 from groq import Groq
-                translator = GroqTranslator()
+                translator = GroqTranslator(api_key=groq_api_key)
                 client = Groq(api_key=translator.api_key, base_url=translator.base_url)
                 response = client.chat.completions.create(
                     model=translator.model,
@@ -799,7 +832,7 @@ Keep suggestions practical and commonly available. Format as a numbered list."""
                 suggestions = response.choices[0].message.content
             else:
                 from mistralai import Mistral
-                translator = MistralTranslator()
+                translator = MistralTranslator(api_key=mistral_api_key)
                 client = Mistral(api_key=translator.api_key)
                 response = client.chat.complete(
                     model=translator.model,
@@ -1018,9 +1051,14 @@ def create_recipe_translation(recipe_id):
         from groq_translator import GroqTranslator
         from mistral_translator import MistralTranslator
         import settings
-        
+
         ai_provider = settings.get_ai_provider()
-        translator = GroqTranslator() if ai_provider == 'groq' else MistralTranslator()
+        if ai_provider == 'groq':
+            api_key = get_api_key('groq_api_key')
+            translator = GroqTranslator(api_key=api_key)
+        else:
+            api_key = get_api_key('mistral_api_key')
+            translator = MistralTranslator(api_key=api_key)
         
         # Translate title
         title_translation = translator.translate_text(recipe.title, language_name)

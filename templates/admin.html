@@ -114,7 +114,39 @@
         <div class="tab-content" id="api-settings-tab">
             <div class="card">
                 <h2>API Configuration</h2>
-                <p>Configure the AI provider, model, and NYT cookie for recipe scraping.</p>
+                <p>Configure API keys, AI provider, model, and NYT cookie for recipe scraping.</p>
+
+                <div class="form-group">
+                    <label for="groqApiKey">Groq API Key</label>
+                    <input
+                        type="password"
+                        id="groqApiKey"
+                        placeholder="Enter your Groq API key..."
+                        class="input-full"
+                        value="{{ groq_api_key or '' }}"
+                    >
+                    <small>
+                        Your Groq API key for AI translation and ingredient substitution.
+                        Get one at <a href="https://console.groq.com/" target="_blank">console.groq.com</a>
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="mistralApiKey">Mistral API Key</label>
+                    <input
+                        type="password"
+                        id="mistralApiKey"
+                        placeholder="Enter your Mistral API key..."
+                        class="input-full"
+                        value="{{ mistral_api_key or '' }}"
+                    >
+                    <small>
+                        Your Mistral API key for AI translation and ingredient substitution.
+                        Get one at <a href="https://console.mistral.ai/" target="_blank">console.mistral.ai</a>
+                    </small>
+                </div>
+
+                <hr style="margin: 2rem 0;">
 
                 <div class="form-group">
                     <label for="aiProvider">AI Provider</label>

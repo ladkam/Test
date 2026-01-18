@@ -204,3 +204,35 @@ class PlanRecipe(db.Model):
             'notes': self.notes,
             'recipe': self.recipe.to_dict() if self.recipe else None
         }
+
+
+class Settings(db.Model):
+    """Application settings and configuration."""
+    __tablename__ = 'settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def get(key, default=None):
+        """Get a setting value by key."""
+        setting = Settings.query.filter_by(key=key).first()
+        return setting.value if setting else default
+
+    @staticmethod
+    def set(key, value):
+        """Set a setting value by key."""
+        setting = Settings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+            setting.updated_at = datetime.utcnow()
+        else:
+            setting = Settings(key=key, value=value)
+            db.session.add(setting)
+        db.session.commit()
+        return setting

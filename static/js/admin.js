@@ -195,6 +195,8 @@ function updateModelOptions() {
 }
 
 async function saveApiSettings() {
+    const groqApiKey = document.getElementById('groqApiKey').value.trim();
+    const mistralApiKey = document.getElementById('mistralApiKey').value.trim();
     const aiProvider = document.getElementById('aiProvider').value;
     const aiModel = document.getElementById('aiModel').value;
     const nytCookie = document.getElementById('nytCookie').value.trim();
@@ -204,6 +206,8 @@ async function saveApiSettings() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                groq_api_key: groqApiKey,
+                mistral_api_key: mistralApiKey,
                 ai_provider: aiProvider,
                 ai_model: aiModel,
                 nyt_cookie: nytCookie
