@@ -1,5 +1,15 @@
+<!-- Mobile Menu Button -->
+<button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12h18M3 6h18M3 18h18" stroke-linecap="round"/>
+    </svg>
+</button>
+
+<!-- Mobile Backdrop -->
+<div class="mobile-backdrop" id="mobile-backdrop"></div>
+
 <!-- Sidebar Navigation -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
         <h1>Recipe Manager</h1>
     </div>
@@ -76,5 +86,43 @@
     </div>
 </aside>
 
-<!-- Theme toggle script -->
+<!-- Theme toggle and mobile menu scripts -->
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script>
+// Mobile menu toggle
+(function() {
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobile-backdrop');
+
+    function toggleMenu() {
+        sidebar.classList.toggle('open');
+        backdrop.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    }
+
+    function closeMenu() {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', toggleMenu);
+    }
+
+    if (backdrop) {
+        backdrop.addEventListener('click', closeMenu);
+    }
+
+    // Close menu when clicking a nav link on mobile
+    const navLinks = document.querySelectorAll('.sidebar-nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                closeMenu();
+            }
+        });
+    });
+})();
+</script>

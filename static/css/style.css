@@ -292,14 +292,69 @@ body {
     gap: 0.5rem;
 }
 
+/* Mobile Menu Button */
+.mobile-menu-btn {
+    display: none;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 150;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.mobile-menu-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-menu-btn svg {
+    display: block;
+    color: var(--text-primary);
+}
+
+/* Mobile Backdrop */
+.mobile-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
     body {
         margin-left: 0;
     }
 
+    .mobile-menu-btn {
+        display: block;
+    }
+
+    .mobile-backdrop {
+        display: block;
+    }
+
     .sidebar {
         transform: translateX(-100%);
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
     }
 
     .sidebar.open {
