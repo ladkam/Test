@@ -1282,6 +1282,35 @@ def clear_plan():
 def get_shopping_list():
     """Generate shopping list from current week's plan."""
     from datetime import date, timedelta
+    import re
+
+    def scale_ingredient(ingredient, scale):
+        """Scale ingredient amounts by a multiplier."""
+        if scale == 1:
+            return ingredient
+
+        # Match numbers (including fractions and decimals)
+        def scale_match(match):
+            num_str = match.group(0)
+            try:
+                # Handle fractions
+                if '/' in num_str:
+                    parts = num_str.split('/')
+                    num = float(parts[0]) / float(parts[1])
+                else:
+                    num = float(num_str)
+
+                scaled = num * scale
+                # Format nicely
+                if scaled == int(scaled):
+                    return str(int(scaled))
+                else:
+                    return f"{scaled:.1f}".rstrip('0').rstrip('.')
+            except:
+                return num_str
+
+        # Replace numbers in the ingredient string
+        return re.sub(r'\d+\.?\d*(?:/\d+)?', scale_match, ingredient)
 
     try:
         # Get Monday of current week
@@ -1298,11 +1327,29 @@ def get_shopping_list():
 
         shopping_list = []
         for pr in plan_recipes:
-            if pr.recipe and pr.recipe.ingredients_translated:
-                shopping_list.append({
-                    'recipe': pr.recipe.title_translated or pr.recipe.title_original,
-                    'ingredients': pr.recipe.ingredients_translated
-                })
+            if pr.recipe:
+                # Get the ingredients (prefer translated)
+                ingredients = pr.recipe.ingredients_translated or pr.recipe.ingredients_original or []
+                title = pr.recipe.title_translated or pr.recipe.title_original
+
+                if ingredients:
+                    # Get original servings from recipe
+                    recipe_servings = 1
+                    if pr.recipe.servings:
+                        match = re.search(r'\d+', str(pr.recipe.servings))
+                        if match:
+                            recipe_servings = int(match.group(0))
+
+                    # Calculate scale factor
+                    scale = pr.servings / recipe_servings if recipe_servings > 0 else 1
+
+                    # Scale ingredients
+                    scaled_ingredients = [scale_ingredient(ing, scale) for ing in ingredients]
+
+                    shopping_list.append({
+                        'recipe': f"{title} ({pr.servings} servings)" if pr.servings != recipe_servings else title,
+                        'ingredients': scaled_ingredients
+                    })
 
         return jsonify({'success': True, 'shopping_list': shopping_list})
     except Exception as e:

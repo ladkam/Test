@@ -179,6 +179,7 @@ function getHealthScoreIcon(grade) {
 
 // Store current recipe being added
 let pendingRecipeId = null;
+let currentShoppingList = []; // Store shopping list data for copy/print
 
 async function addToPlan(recipeId) {
     // Find recipe to get default servings
@@ -298,29 +299,81 @@ async function generateShoppingList() {
     }
 }
 
+function convertToMetric(ingredient) {
+    let converted = ingredient;
+
+    // Cup conversions
+    converted = converted.replace(/(\d+\.?\d*)\s*cups?\s+/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 240);
+        return `${ml}ml `;
+    });
+
+    // Tablespoon conversions
+    converted = converted.replace(/(\d+\.?\d*)\s*(tbsp?|tablespoons?)\s+/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 15);
+        return `${ml}ml `;
+    });
+
+    // Teaspoon conversions
+    converted = converted.replace(/(\d+\.?\d*)\s*(tsp?|teaspoons?)\s+/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 5);
+        return `${ml}ml `;
+    });
+
+    // Ounce (fluid) conversions
+    converted = converted.replace(/(\d+\.?\d*)\s*(fl\.?\s*oz|fluid ounces?)\s+/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 30);
+        return `${ml}ml `;
+    });
+
+    // Ounce (weight) conversions
+    converted = converted.replace(/(\d+\.?\d*)\s*oz\s+/gi, (match, amount) => {
+        const g = Math.round(parseFloat(amount) * 28);
+        return `${g}g `;
+    });
+
+    // Pound conversions
+    converted = converted.replace(/(\d+\.?\d*)\s*(lbs?|pounds?)\s+/gi, (match, amount) => {
+        const g = Math.round(parseFloat(amount) * 454);
+        if (g >= 1000) {
+            return `${(g / 1000).toFixed(1)}kg `;
+        }
+        return `${g}g `;
+    });
+
+    // Fahrenheit to Celsius (for temperatures)
+    converted = converted.replace(/(\d+)\s*°?\s*F\b/gi, (match, temp) => {
+        const celsius = Math.round((parseFloat(temp) - 32) * 5 / 9);
+        return `${celsius}°C`;
+    });
+
+    return converted;
+}
+
 function displayShoppingList(shoppingList) {
     const content = document.getElementById('shoppingListContent');
 
+    // Store for copy/print functionality
+    currentShoppingList = shoppingList;
+
+    if (!shoppingList || shoppingList.length === 0) {
+        content.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-secondary);">No ingredients in your plan yet.</p>';
+        document.getElementById('shoppingListModal').style.display = 'flex';
+        return;
+    }
+
     let html = '<div class="shopping-list">';
 
-    // Group by recipe if needed, or just list all ingredients
-    const allIngredients = [];
-    currentPlan.forEach(recipe => {
-        if (recipe.ingredients && recipe.ingredients.length > 0) {
-            allIngredients.push({
-                recipe: recipe.title,
-                ingredients: recipe.ingredients
-            });
-        }
-    });
-
-    allIngredients.forEach(item => {
+    shoppingList.forEach(item => {
         html += `<div class="shopping-list-section">`;
         html += `<h3>${escapeHtml(item.recipe)}</h3>`;
         html += `<ul class="shopping-list-items">`;
+
         item.ingredients.forEach(ing => {
-            html += `<li><label><input type="checkbox"> ${escapeHtml(ing)}</label></li>`;
+            const metricIng = convertToMetric(ing);
+            html += `<li><label><input type="checkbox"> ${escapeHtml(metricIng)}</label></li>`;
         });
+
         html += `</ul></div>`;
     });
 
@@ -345,11 +398,12 @@ function printShoppingList() {
 async function copyShoppingList() {
     let text = 'SHOPPING LIST\n\n';
 
-    currentPlan.forEach(recipe => {
-        if (recipe.ingredients && recipe.ingredients.length > 0) {
-            text += `${recipe.title}\n`;
-            recipe.ingredients.forEach(ing => {
-                text += `  • ${ing}\n`;
+    currentShoppingList.forEach(item => {
+        if (item.ingredients && item.ingredients.length > 0) {
+            text += `${item.recipe}\n`;
+            item.ingredients.forEach(ing => {
+                const metricIng = convertToMetric(ing);
+                text += `  ☐ ${metricIng}\n`;
             });
             text += '\n';
         }
