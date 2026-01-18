@@ -3,61 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Recipes</title>
+    <title>Recipe Translator</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Family View Specific Styles - Large, Clean, Print-Friendly */
+        /* Family Recipe Translator Styles */
         body {
             font-size: 1.125rem;
             background: var(--background);
+            margin: 0;
+            padding: 0;
         }
 
-        .family-container {
+        .translator-container {
             max-width: 900px;
             margin: 0 auto;
             padding: 2rem 1.5rem;
         }
 
-        .family-header {
+        .translator-header {
             text-align: center;
             margin-bottom: 3rem;
             padding-bottom: 2rem;
             border-bottom: 3px solid var(--primary-color);
         }
 
-        .family-header h1 {
+        .translator-header h1 {
             font-size: 2.5rem;
             color: var(--primary-color);
             margin-bottom: 0.5rem;
         }
 
-        .family-header p {
-            font-size: 1.25rem;
+        .translator-header p {
+            font-size: 1.125rem;
             color: var(--text-secondary);
         }
 
-        .language-selector {
-            margin-top: 1.5rem;
+        .feature-badges {
             display: flex;
-            align-items: center;
             justify-content: center;
             gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
         }
 
-        .language-selector label {
-            font-size: 1rem;
-            color: var(--text-secondary);
-        }
-
-        .language-selector select {
-            font-size: 1rem;
-            padding: 0.5rem 1rem;
-            border: 2px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background: var(--background);
-            color: var(--text-primary);
-            cursor: pointer;
+        .feature-badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
 
         /* PIN Access Modal */
@@ -67,7 +63,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -103,6 +99,8 @@
             border: 2px solid var(--border-color);
             border-radius: var(--border-radius);
             margin-bottom: 1.5rem;
+            background: var(--background);
+            color: var(--text-primary);
         }
 
         .pin-error {
@@ -111,61 +109,122 @@
             display: none;
         }
 
-        /* Recipe Card Styles */
-        .recipe-card-family {
-            margin-bottom: 3rem;
-            padding: 2rem;
+        /* Translation Form */
+        .translation-form {
             background: var(--card-background);
+            padding: 2rem;
             border-radius: var(--border-radius);
-            break-inside: avoid;
-            position: relative;
+            margin-bottom: 2rem;
         }
 
-        .recipe-actions {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
+        .form-row {
             display: flex;
-            gap: 0.5rem;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
 
-        .recipe-actions button {
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--background);
+            color: var(--text-primary);
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .translate-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.125rem;
+            font-weight: 600;
             background: var(--primary-color);
             color: white;
             border: none;
-            padding: 0.5rem 1rem;
             border-radius: var(--border-radius);
             cursor: pointer;
-            font-size: 0.875rem;
             transition: background 0.2s;
         }
 
-        .recipe-actions button:hover {
+        .translate-btn:hover {
             background: var(--primary-hover);
         }
 
-        .recipe-image-family {
+        .translate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Recipe Display */
+        .recipe-display {
+            background: var(--card-background);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            display: none;
+        }
+
+        .recipe-actions-top {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            justify-content: flex-end;
+        }
+
+        .recipe-actions-top button {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .recipe-actions-top button:hover {
+            background: var(--primary-hover);
+        }
+
+        .recipe-image {
             width: 100%;
             max-height: 400px;
             object-fit: cover;
             border-radius: var(--border-radius);
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        .recipe-card-family h2 {
+        .recipe-title {
             font-size: 2rem;
             color: var(--primary-color);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--border-color);
         }
 
-        .recipe-meta-family {
+        .recipe-meta {
             display: flex;
             gap: 2rem;
             margin-bottom: 2rem;
             font-size: 1.125rem;
             color: var(--text-secondary);
+            flex-wrap: wrap;
         }
 
         .recipe-section {
@@ -179,19 +238,19 @@
             font-weight: 600;
         }
 
-        .ingredients-family {
+        .ingredients-list {
             list-style: none;
             padding: 0;
         }
 
-        .ingredients-family li {
+        .ingredients-list li {
             padding: 0.75rem 0 0.75rem 2rem;
             border-bottom: 1px solid var(--border-color);
             position: relative;
             font-size: 1.125rem;
         }
 
-        .ingredients-family li:before {
+        .ingredients-list li:before {
             content: "✓";
             position: absolute;
             left: 0;
@@ -200,13 +259,13 @@
             font-size: 1.25rem;
         }
 
-        .instructions-family {
+        .instructions-list {
             counter-reset: step-counter;
             list-style: none;
             padding: 0;
         }
 
-        .instructions-family li {
+        .instructions-list li {
             counter-increment: step-counter;
             padding: 1.5rem 0 1.5rem 3.5rem;
             border-bottom: 1px solid var(--border-color);
@@ -215,7 +274,7 @@
             line-height: 1.7;
         }
 
-        .instructions-family li:before {
+        .instructions-list li:before {
             content: counter(step-counter);
             position: absolute;
             left: 0;
@@ -232,15 +291,43 @@
             font-size: 1.25rem;
         }
 
-        .empty-family {
+        .loading-message {
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 1.125rem;
         }
 
-        .empty-family h2 {
-            font-size: 2rem;
-            color: var(--text-secondary);
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee;
+            border: 2px solid #fcc;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            color: #c00;
             margin-bottom: 1rem;
+            display: none;
+        }
+
+        .metric-note {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 0.5rem;
         }
 
         /* Print Styles */
@@ -249,47 +336,38 @@
                 background: white;
             }
 
-            .family-header {
-                border-bottom: 2px solid black;
-            }
-
-            .recipe-card-family {
-                page-break-inside: avoid;
-                border: 1px solid #ddd;
-                margin-bottom: 2rem;
-            }
-
-            .recipe-actions {
+            .translator-header, .translation-form, .recipe-actions-top {
                 display: none !important;
             }
 
-            .language-selector {
-                display: none !important;
-            }
-
-            .sidebar {
-                display: none !important;
+            .recipe-display {
+                border: none;
+                box-shadow: none;
             }
         }
 
         /* Mobile Responsive */
         @media (max-width: 768px) {
-            .family-header h1 {
+            .translator-header h1 {
                 font-size: 2rem;
             }
 
-            .recipe-card-family h2 {
-                font-size: 1.5rem;
+            .form-row {
+                flex-direction: column;
             }
 
-            .recipe-meta-family {
+            .recipe-meta {
                 flex-direction: column;
                 gap: 0.5rem;
             }
 
-            .recipe-actions {
-                position: static;
-                margin-bottom: 1rem;
+            .recipe-actions-top {
+                flex-direction: column;
+            }
+
+            .feature-badges {
+                flex-direction: column;
+                align-items: center;
             }
         }
     </style>
@@ -298,63 +376,88 @@
     {% if not pin_verified %}
     <div class="pin-modal" id="pinModal">
         <div class="pin-modal-content">
-            <h2>🔒 Family Access</h2>
-            <p>Please enter the PIN to view family recipes</p>
-            <input type="password" id="pinInput" class="pin-input" maxlength="6" placeholder="••••" autocomplete="off">
+            <h2>Recipe Translator Access</h2>
+            <p>Enter PIN to access the recipe translator</p>
+            <input type="password" id="pinInput" class="pin-input" maxlength="6" placeholder="****" autocomplete="off">
             <p class="pin-error" id="pinError">Incorrect PIN. Please try again.</p>
-            <button onclick="verifyPin()" class="btn btn-primary">Access Recipes</button>
+            <button onclick="verifyPin()" class="btn btn-primary">Access Translator</button>
         </div>
     </div>
     {% endif %}
 
-    <div class="family-container">
-        <div class="family-header">
-            <h1>👨‍👩‍👧‍👦 Family Recipes</h1>
-            <p id="weekDate"></p>
-            <div class="language-selector">
-                <label for="languageSelect">🌍 Language:</label>
-                <select id="languageSelect" onchange="changeLanguage()">
-                    <option value="en" {% if language == 'en' %}selected{% endif %}>English (Original)</option>
-                    <option value="es" {% if language == 'es' %}selected{% endif %}>Spanish 🇪🇸</option>
-                    <option value="fr" {% if language == 'fr' %}selected{% endif %}>French 🇫🇷</option>
-                    <option value="de" {% if language == 'de' %}selected{% endif %}>German 🇩🇪</option>
-                    <option value="it" {% if language == 'it' %}selected{% endif %}>Italian 🇮🇹</option>
-                    <option value="pt" {% if language == 'pt' %}selected{% endif %}>Portuguese 🇵🇹</option>
-                    <option value="nl" {% if language == 'nl' %}selected{% endif %}>Dutch 🇳🇱</option>
-                    <option value="ja" {% if language == 'ja' %}selected{% endif %}>Japanese 🇯🇵</option>
-                    <option value="zh" {% if language == 'zh' %}selected{% endif %}>Chinese 🇨🇳</option>
-                    <option value="ko" {% if language == 'ko' %}selected{% endif %}>Korean 🇰🇷</option>
-                </select>
+    <div class="translator-container">
+        <div class="translator-header">
+            <h1>NYT Recipe Translator</h1>
+            <p>Translate NYT Cooking recipes to your language with metric measurements</p>
+            <div class="feature-badges">
+                <span class="feature-badge">NYT Cooking</span>
+                <span class="feature-badge">Auto Translation</span>
+                <span class="feature-badge">Metric Units</span>
             </div>
         </div>
 
-        <div id="recipesList"></div>
+        <div class="translation-form">
+            <div class="error-message" id="errorMessage"></div>
 
-        <div id="emptyState" class="empty-family" style="display: none;">
-            <h2>No recipes available this week</h2>
-            <p>Please check back later</p>
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label for="recipeUrl">NYT Recipe URL</label>
+                    <input type="url" id="recipeUrl" placeholder="https://cooking.nytimes.com/recipes/..." autocomplete="off">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="targetLanguage">Translate To</label>
+                    <select id="targetLanguage">
+                        <option value="es" {% if language == 'es' %}selected{% endif %}>Spanish</option>
+                        <option value="fr" {% if language == 'fr' %}selected{% endif %}>French</option>
+                        <option value="de" {% if language == 'de' %}selected{% endif %}>German</option>
+                        <option value="it" {% if language == 'it' %}selected{% endif %}>Italian</option>
+                        <option value="pt" {% if language == 'pt' %}selected{% endif %}>Portuguese</option>
+                        <option value="nl" {% if language == 'nl' %}selected{% endif %}>Dutch</option>
+                        <option value="ja" {% if language == 'ja' %}selected{% endif %}>Japanese</option>
+                        <option value="zh" {% if language == 'zh' %}selected{% endif %}>Chinese</option>
+                        <option value="ko" {% if language == 'ko' %}selected{% endif %}>Korean</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="translateBtn" class="translate-btn" onclick="translateRecipe()">
+                Translate Recipe
+            </button>
+            <p class="metric-note">Measurements will be automatically converted to metric (ml, g, °C)</p>
+        </div>
+
+        <div class="loading-message" id="loadingMessage" style="display: none;">
+            <div class="loading-spinner"></div>
+            Fetching and translating recipe... This may take a moment.
+        </div>
+
+        <div class="recipe-display" id="recipeDisplay">
+            <div class="recipe-actions-top">
+                <button onclick="copyRecipe()">Copy Recipe</button>
+                <button onclick="window.print()">Print Recipe</button>
+            </div>
+
+            <img id="recipeImage" class="recipe-image" alt="Recipe" style="display: none;">
+
+            <h2 class="recipe-title" id="recipeTitle"></h2>
+
+            <div class="recipe-meta" id="recipeMeta"></div>
+
+            <div class="recipe-section">
+                <h3>Ingredients</h3>
+                <ul class="ingredients-list" id="ingredientsList"></ul>
+            </div>
+
+            <div class="recipe-section">
+                <h3>Instructions</h3>
+                <ol class="instructions-list" id="instructionsList"></ol>
+            </div>
         </div>
     </div>
 
     <script>
-        let currentLanguage = '{{ language }}' || 'en';
-        let cachedRecipes = null;
         const pinVerified = {{ 'true' if pin_verified else 'false' }};
-
-        // Get week date range
-        function getWeekDateRange() {
-            const today = new Date();
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - today.getDay() + 1);
-
-            const sunday = new Date(monday);
-            sunday.setDate(monday.getDate() + 6);
-
-            const options = { month: 'long', day: 'numeric', year: 'numeric' };
-            return `${monday.toLocaleDateString(undefined, options)} - ${sunday.toLocaleDateString(undefined, options)}`;
-        }
-
-        document.getElementById('weekDate').textContent = getWeekDateRange();
+        let currentRecipe = null;
 
         // PIN verification
         async function verifyPin() {
@@ -372,7 +475,6 @@
 
                 if (data.success) {
                     document.getElementById('pinModal').style.display = 'none';
-                    loadRecipes();
                 } else {
                     errorEl.style.display = 'block';
                     document.getElementById('pinInput').value = '';
@@ -391,151 +493,124 @@
                     verifyPin();
                 }
             });
-        } else {
-            // Load recipes immediately if PIN already verified
-            loadRecipes();
         }
 
-        function changeLanguage() {
-            currentLanguage = document.getElementById('languageSelect').value;
-            if (cachedRecipes) {
-                displayRecipes(cachedRecipes);
+        // Allow Enter key to translate
+        document.getElementById('recipeUrl').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                translateRecipe();
             }
-        }
+        });
 
-        // Load recipes
-        async function loadRecipes() {
+        async function translateRecipe() {
+            const url = document.getElementById('recipeUrl').value.trim();
+            const language = document.getElementById('targetLanguage').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const translateBtn = document.getElementById('translateBtn');
+            const recipeDisplay = document.getElementById('recipeDisplay');
+
+            // Validate URL
+            if (!url) {
+                showError('Please enter a recipe URL');
+                return;
+            }
+
+            if (!url.includes('nytimes.com')) {
+                showError('Please enter a valid NYT Cooking recipe URL');
+                return;
+            }
+
+            // Hide previous results and errors
+            errorMessage.style.display = 'none';
+            recipeDisplay.style.display = 'none';
+
+            // Show loading
+            loadingMessage.style.display = 'block';
+            translateBtn.disabled = true;
+            translateBtn.textContent = 'Translating...';
+
             try {
-                const response = await fetch('/api/family/planner');
+                const response = await fetch('/api/family/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, language: language })
+                });
+
                 const data = await response.json();
 
-                if (data.success && data.recipes && data.recipes.length > 0) {
-                    cachedRecipes = data.recipes;
-                    displayRecipes(data.recipes);
+                if (data.success) {
+                    currentRecipe = data.recipe;
+                    displayRecipe(data.recipe);
                 } else {
-                    document.getElementById('emptyState').style.display = 'block';
+                    showError(data.message || 'Failed to translate recipe');
                 }
             } catch (error) {
-                console.error('Error loading recipes:', error);
-                document.getElementById('emptyState').style.display = 'block';
+                console.error('Translation error:', error);
+                showError('Error translating recipe: ' + error.message);
+            } finally {
+                loadingMessage.style.display = 'none';
+                translateBtn.disabled = false;
+                translateBtn.textContent = 'Translate Recipe';
             }
         }
 
-        function getTranslatedIngredients(recipe) {
-            // If English is selected, use original ingredients
-            if (currentLanguage === 'en') {
-                return recipe.ingredients || [];
+        function displayRecipe(recipe) {
+            // Show image
+            const imageEl = document.getElementById('recipeImage');
+            if (recipe.image_url) {
+                imageEl.src = recipe.image_url;
+                imageEl.style.display = 'block';
+            } else {
+                imageEl.style.display = 'none';
             }
 
-            // Try to get translation for selected language
-            if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
-                return recipe.ingredients || [];
-            }
+            // Title
+            document.getElementById('recipeTitle').textContent = recipe.translated_title;
 
-            const translation = recipe.translations[currentLanguage];
-            if (translation && translation.ingredients) {
-                return translation.ingredients;
-            }
+            // Meta
+            const metaHtml = [];
+            if (recipe.total_time) metaHtml.push(`<span>Time: ${recipe.total_time}</span>`);
+            if (recipe.servings) metaHtml.push(`<span>Servings: ${recipe.servings}</span>`);
+            if (recipe.author) metaHtml.push(`<span>By: ${escapeHtml(recipe.author)}</span>`);
+            document.getElementById('recipeMeta').innerHTML = metaHtml.join('');
 
-            // Fallback to original if translation not available
-            return recipe.ingredients || [];
+            // Ingredients (translated with metric)
+            const ingredientsList = document.getElementById('ingredientsList');
+            ingredientsList.innerHTML = recipe.translated_ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('');
+
+            // Instructions (translated with metric)
+            const instructionsList = document.getElementById('instructionsList');
+            instructionsList.innerHTML = recipe.translated_instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('');
+
+            // Show recipe
+            document.getElementById('recipeDisplay').style.display = 'block';
+
+            // Scroll to recipe
+            document.getElementById('recipeDisplay').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function getTranslatedInstructions(recipe) {
-            // If English is selected, use original instructions
-            if (currentLanguage === 'en') {
-                return recipe.instructions || [];
+        function copyRecipe() {
+            if (!currentRecipe) return;
+
+            let text = `${currentRecipe.translated_title}\n\n`;
+
+            if (currentRecipe.total_time || currentRecipe.servings) {
+                if (currentRecipe.total_time) text += `Time: ${currentRecipe.total_time}`;
+                if (currentRecipe.servings) text += ` | Servings: ${currentRecipe.servings}`;
+                text += '\n\n';
             }
 
-            // Try to get translation for selected language
-            if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
-                return recipe.instructions || [];
-            }
+            text += 'INGREDIENTS:\n';
+            currentRecipe.translated_ingredients.forEach(ing => {
+                text += `- ${ing}\n`;
+            });
+            text += '\n';
 
-            const translation = recipe.translations[currentLanguage];
-            if (translation && translation.instructions) {
-                return translation.instructions;
-            }
-
-            // Fallback to original if translation not available
-            return recipe.instructions || [];
-        }
-
-        function displayRecipes(recipes) {
-            const container = document.getElementById('recipesList');
-
-            container.innerHTML = recipes.map(recipe => {
-                const ingredients = getTranslatedIngredients(recipe);
-                const instructions = getTranslatedInstructions(recipe);
-
-                return `
-                    <div class="recipe-card-family" id="recipe-${recipe.id}">
-                        <div class="recipe-actions">
-                            <button onclick="copyRecipe(${recipe.id})" title="Copy recipe">📋 Copy</button>
-                            <button onclick="printRecipe(${recipe.id})" title="Print recipe">🖨️ Print</button>
-                        </div>
-
-                        ${recipe.image_url ? `<img src="${escapeHtml(recipe.image_url)}" alt="${escapeHtml(recipe.title)}" class="recipe-image-family">` : ''}
-                        <h2>${escapeHtml(recipe.title)}</h2>
-
-                        <div class="recipe-meta-family">
-                            ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                            ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
-                        </div>
-
-                        ${ingredients.length > 0 ? `
-                            <div class="recipe-section">
-                                <h3>Ingredients</h3>
-                                <ul class="ingredients-family">
-                                    ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-
-                        ${instructions.length > 0 ? `
-                            <div class="recipe-section">
-                                <h3>Instructions</h3>
-                                <ol class="instructions-family">
-                                    ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
-                                </ol>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function copyRecipe(recipeId) {
-            const recipe = cachedRecipes.find(r => r.id === recipeId);
-            if (!recipe) return;
-
-            const ingredients = getTranslatedIngredients(recipe);
-            const instructions = getTranslatedInstructions(recipe);
-
-            let text = `${recipe.title}\n\n`;
-
-            if (recipe.total_time) {
-                text += `⏱️ ${formatTime(recipe.total_time)}`;
-            }
-            if (recipe.servings) {
-                text += ` | 🍽️ ${recipe.servings}`;
-            }
-            text += '\n\n';
-
-            if (ingredients.length > 0) {
-                text += 'INGREDIENTS:\n';
-                ingredients.forEach(ing => {
-                    text += `• ${ing}\n`;
-                });
-                text += '\n';
-            }
-
-            if (instructions.length > 0) {
-                text += 'INSTRUCTIONS:\n';
-                instructions.forEach((inst, idx) => {
-                    text += `${idx + 1}. ${inst}\n`;
-                });
-            }
+            text += 'INSTRUCTIONS:\n';
+            currentRecipe.translated_instructions.forEach((inst, idx) => {
+                text += `${idx + 1}. ${inst}\n`;
+            });
 
             navigator.clipboard.writeText(text).then(() => {
                 alert('Recipe copied to clipboard!');
@@ -545,30 +620,10 @@
             });
         }
 
-        function printRecipe(recipeId) {
-            // Hide all other recipes temporarily
-            const allRecipes = document.querySelectorAll('.recipe-card-family');
-            allRecipes.forEach(card => {
-                if (card.id !== `recipe-${recipeId}`) {
-                    card.style.display = 'none';
-                }
-            });
-
-            // Print
-            window.print();
-
-            // Restore all recipes
-            allRecipes.forEach(card => {
-                card.style.display = 'block';
-            });
-        }
-
-        function formatTime(minutes) {
-            if (!minutes) return '';
-            if (minutes < 60) return `${minutes} minutes`;
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            return mins > 0 ? `${hours} hour${hours > 1 ? 's' : ''} ${mins} minutes` : `${hours} hour${hours > 1 ? 's' : ''}`;
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
         }
 
         function escapeHtml(text) {
