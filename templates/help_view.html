@@ -215,12 +215,12 @@
             const container = document.getElementById('recipesList');
 
             container.innerHTML = recipes.map(recipe => {
-                const ingredients = recipe.ingredients_translated || [];
-                const instructions = recipe.instructions_translated || [];
+                const ingredients = recipe.ingredients || [];
+                const instructions = recipe.instructions || [];
 
                 return `
                     <div class="recipe-card-simple">
-                        <h2>${escapeHtml(recipe.title_translated || recipe.title_original)}</h2>
+                        <h2>${escapeHtml(recipe.title)}</h2>
 
                         <div class="recipe-meta-simple">
                             ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}

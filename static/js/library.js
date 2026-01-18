@@ -62,7 +62,7 @@ function filterRecipes() {
         const matchesSearch = !searchTerm ||
             recipe.title_translated?.toLowerCase().includes(searchTerm) ||
             recipe.title_original?.toLowerCase().includes(searchTerm) ||
-            (recipe.ingredients_translated || []).some(ing => ing.toLowerCase().includes(searchTerm));
+            (recipe.ingredients || []).some(ing => ing.toLowerCase().includes(searchTerm));
 
         // Duration filter
         let matchesDuration = true;
@@ -129,7 +129,7 @@ function displayRecipes() {
 
 function createRecipeCard(recipe) {
     const imageUrl = recipe.image_url || '';
-    const title = recipe.title_translated || recipe.title_original;
+    const title = recipe.title;
     const time = formatTime(recipe.total_time);
 
     return `
@@ -185,7 +185,7 @@ function buildServingsAdjuster(servings) {
 // Build ingredients HTML with current servings scale
 function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
     let html = '';
-    const ingredientsList = useOriginal ? recipe.ingredients_original : recipe.ingredients_translated;
+    const ingredientsList = useOriginal ? recipe.ingredients : recipe.ingredients;
 
     if (ingredientsList && ingredientsList.length > 0) {
         const originalList = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
@@ -287,8 +287,8 @@ async function showRecipeDetail(recipeId) {
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredientsTranslated = [...(recipe.ingredients_translated || [])];
-            window.originalIngredientsOriginal = [...(recipe.ingredients_original || [])];
+            window.originalIngredientsTranslated = [...(recipe.ingredients || [])];
+            window.originalIngredientsOriginal = [...(recipe.ingredients || [])];
             window.activeLanguageTab = 'translated'; // Track which tab is active
 
             // Build ingredients section with substitution buttons
@@ -297,7 +297,7 @@ async function showRecipeDetail(recipeId) {
             content.innerHTML = `
                 <div class="recipe-detail">
                     ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title_translated}">` : ''}
-                    <h2>${escapeHtml(recipe.title_translated || recipe.title_original)}</h2>
+                    <h2>${escapeHtml(recipe.title)}</h2>
 
                     <div class="recipe-detail-meta">
                         ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
@@ -319,11 +319,11 @@ async function showRecipeDetail(recipeId) {
                         </div>
 
                         <div class="recipe-tab-content active" id="translated-content">
-                            ${formatRecipeContent(recipe.content_translated || 'No translation available')}
+                            ${formatRecipeContent(recipe.content || 'No translation available')}
                         </div>
 
                         <div class="recipe-tab-content" id="original-content" style="display: none;">
-                            ${formatRecipeContent(recipe.content_original)}
+                            ${formatRecipeContent(recipe.content)}
                         </div>
                     </div>
 
@@ -474,7 +474,7 @@ async function addToWeeklyPlan(recipeId) {
         const servings = window.currentServings || window.originalServings || parseServings(recipe.servings) || 1;
 
         // Show confirmation with servings
-        const confirmed = confirm(`Add "${recipe.title_translated || recipe.title_original}" to weekly plan with ${servings} servings?`);
+        const confirmed = confirm(`Add "${recipe.title}" to weekly plan with ${servings} servings?`);
 
         if (!confirmed) return;
 
@@ -535,7 +535,7 @@ async function substituteIngredient(ingredient, recipeId) {
             body: JSON.stringify({
                 ingredient: ingredient,
                 recipe_context: {
-                    title: recipe.title_translated || recipe.title_original,
+                    title: recipe.title,
                     type: recipe.tags ? recipe.tags.join(', ') : ''
                 }
             })

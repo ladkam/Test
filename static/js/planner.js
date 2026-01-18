@@ -65,7 +65,7 @@ function displayCurrentPlan() {
             <div class="plan-item-content" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
                 ${recipe.image_url ? `<img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title_translated}">` : ''}
                 <div class="plan-item-details">
-                    <h3>${escapeHtml(recipe.title_translated || recipe.title_original)}</h3>
+                    <h3>${escapeHtml(recipe.title)}</h3>
                     <div class="plan-item-meta">
                         ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
                         ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
@@ -108,7 +108,7 @@ function displayAvailableRecipes() {
         <div class="available-recipe-card">
             ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title_translated}">` : '<div class="available-recipe-placeholder">No Image</div>'}
             <div class="available-recipe-content">
-                <h4>${escapeHtml(recipe.title_translated || recipe.title_original)}</h4>
+                <h4>${escapeHtml(recipe.title)}</h4>
                 ${recipe.total_time ? `<span class="recipe-time">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
             </div>
             <button onclick="addToPlan(${recipe.id})" class="btn btn-primary btn-sm">Add to Plan</button>
@@ -223,10 +223,10 @@ function displayShoppingList(shoppingList) {
     // Group by recipe if needed, or just list all ingredients
     const allIngredients = [];
     currentPlan.forEach(recipe => {
-        if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
+        if (recipe.ingredients && recipe.ingredients.length > 0) {
             allIngredients.push({
-                recipe: recipe.title_translated || recipe.title_original,
-                ingredients: recipe.ingredients_translated
+                recipe: recipe.title,
+                ingredients: recipe.ingredients
             });
         }
     });
@@ -259,9 +259,9 @@ async function copyShoppingList() {
     let text = 'SHOPPING LIST\n\n';
 
     currentPlan.forEach(recipe => {
-        if (recipe.ingredients_translated && recipe.ingredients_translated.length > 0) {
-            text += `${recipe.title_translated || recipe.title_original}\n`;
-            recipe.ingredients_translated.forEach(ing => {
+        if (recipe.ingredients && recipe.ingredients.length > 0) {
+            text += `${recipe.title}\n`;
+            recipe.ingredients.forEach(ing => {
                 text += `  • ${ing}\n`;
             });
             text += '\n';
@@ -305,8 +305,8 @@ async function showRecipeDetail(recipeId) {
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredientsTranslated = [...(recipe.ingredients_translated || [])];
-            window.originalIngredientsOriginal = [...(recipe.ingredients_original || [])];
+            window.originalIngredientsTranslated = [...(recipe.ingredients || [])];
+            window.originalIngredientsOriginal = [...(recipe.ingredients || [])];
             window.activeLanguageTab = 'translated'; // Track which tab is active
 
             // Build ingredients section
@@ -315,7 +315,7 @@ async function showRecipeDetail(recipeId) {
             content.innerHTML = `
                 <div class="recipe-detail">
                     ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title_translated}">` : ''}
-                    <h2>${escapeHtml(recipe.title_translated || recipe.title_original)}</h2>
+                    <h2>${escapeHtml(recipe.title)}</h2>
 
                     <div class="recipe-detail-meta">
                         ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
@@ -336,11 +336,11 @@ async function showRecipeDetail(recipeId) {
                         </div>
 
                         <div class="recipe-tab-content active" id="translated-content">
-                            ${formatRecipeContent(recipe.content_translated || 'No translation available')}
+                            ${formatRecipeContent(recipe.content || 'No translation available')}
                         </div>
 
                         <div class="recipe-tab-content" id="original-content" style="display: none;">
-                            ${formatRecipeContent(recipe.content_original)}
+                            ${formatRecipeContent(recipe.content)}
                         </div>
                     </div>
                 </div>
@@ -409,7 +409,7 @@ function buildServingsAdjuster(servings) {
 
 function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
     let html = '';
-    const ingredientsList = useOriginal ? recipe.ingredients_original : recipe.ingredients_translated;
+    const ingredientsList = useOriginal ? recipe.ingredients : recipe.ingredients;
 
     if (ingredientsList && ingredientsList.length > 0) {
         const originalList = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
