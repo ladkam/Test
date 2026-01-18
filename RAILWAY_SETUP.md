@@ -218,7 +218,93 @@ MISTRAL_API_KEY       ******************************************* (Optional)
 #### Common Questions:
 
 **Q: I don't see DATABASE_URL!**
-A: Make sure you added the PostgreSQL database (Step 3). The DATABASE_URL appears automatically when both services are in the same project.
+
+This is the most common issue. Here's how to fix it:
+
+**Solution 1: Check Both Services Are in Same Project**
+
+1. Look at your Railway dashboard
+2. You should see **both** services in the same project view:
+   ```
+   Project: your-project-name
+   ├── your-repo-name (web service)
+   └── PostgreSQL (database)
+   ```
+3. If PostgreSQL is in a different project, delete it and recreate it in the correct project
+
+**Solution 2: Manually Connect the Services**
+
+Railway should auto-connect them, but if it doesn't:
+
+1. Click on your **web service** (your repo name)
+2. Go to **"Settings"** tab
+3. Scroll down to **"Service Variables"** or **"Connected Services"** section
+4. Look for PostgreSQL in the list
+5. Click **"Connect"** or **"Add Reference"** next to PostgreSQL
+6. Go back to **"Variables"** tab
+7. `DATABASE_URL` should now appear!
+
+**Solution 3: Add DATABASE_URL Manually (Last Resort)**
+
+If the above doesn't work, you can manually copy the database URL:
+
+1. Click on your **PostgreSQL service**
+2. Go to **"Connect"** tab
+3. Copy the **"Postgres Connection URL"** (starts with `postgresql://`)
+   - It looks like: `postgresql://postgres:password@containers-us-west-123.railway.app:5432/railway`
+4. Go back to your **web service**
+5. Go to **"Variables"** tab
+6. Click **"New Variable"**
+7. Add:
+   - Variable Name: `DATABASE_URL`
+   - Variable Value: Paste the URL you copied
+8. Click **"Add"**
+
+**Solution 4: Recreate Everything (If Still Not Working)**
+
+1. Delete your PostgreSQL service (your data will be lost, but it's empty anyway)
+2. Delete your web service deployment
+3. Start fresh:
+   - First, create PostgreSQL database
+   - Then, deploy from GitHub
+   - Railway should auto-connect them this time
+
+**How to Verify DATABASE_URL is Working:**
+
+After adding DATABASE_URL (automatically or manually):
+
+1. Go to your **web service** → **"Variables"** tab
+2. You should see:
+   ```
+   DATABASE_URL    postgresql://postgres:***@***.railway.app:5432/railway
+   ```
+3. The value should start with `postgresql://` (NOT `sqlite://`)
+4. Click on it to expand and verify it has all parts:
+   - Username: `postgres`
+   - Password: (hidden)
+   - Host: `containers-us-west-xxx.railway.app`
+   - Port: `5432`
+   - Database: `railway`
+
+**Still Not Working?**
+
+If you've tried everything above and still don't see DATABASE_URL:
+
+1. **Contact Railway Support:**
+   - Click the "?" icon in Railway dashboard
+   - Or visit: https://railway.app/help
+
+2. **Check Railway Status:**
+   - Visit: https://status.railway.app/
+   - Make sure there are no ongoing issues
+
+3. **Try a Different Browser:**
+   - Sometimes clearing cache helps
+   - Try incognito/private mode
+
+4. **Double-check Project Structure:**
+   - Make sure both services show in the **same** project
+   - They should be side-by-side in the dashboard, not in separate tabs
 
 **Q: What if I make a typo in the variable name?**
 A: Click the "•••" menu next to the variable → Delete → Add it again with correct spelling
