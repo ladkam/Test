@@ -19,6 +19,9 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='user')  # 'admin' or 'user'
 
+    # Relationships
+    ratings = db.relationship('RecipeRating', back_populates='user', cascade='all, delete-orphan')
+
     def set_password(self, password):
         """Hash and set password."""
         self.password_hash = generate_password_hash(password)
@@ -67,8 +70,9 @@ class Recipe(db.Model):
     # Relationships
     translations = db.relationship('RecipeTranslation', back_populates='recipe', cascade='all, delete-orphan')
     plan_recipes = db.relationship('PlanRecipe', back_populates='recipe', cascade='all, delete-orphan')
+    ratings = db.relationship('RecipeRating', back_populates='recipe', cascade='all, delete-orphan')
 
-    def to_dict(self, include_translations=True):
+    def to_dict(self, include_translations=True, include_user_rating=None):
         """Convert recipe to dictionary."""
         # Calculate health score from nutrition data
         health_score = None
@@ -79,6 +83,15 @@ class Recipe(db.Model):
                 health_score = calculate_health_score(self.nutrition)
             except:
                 health_score = None
+
+        # Calculate average rating
+        average_rating = None
+        rating_count = 0
+        if self.ratings:
+            total_rating = sum(r.rating for r in self.ratings)
+            rating_count = len(self.ratings)
+            if rating_count > 0:
+                average_rating = round(total_rating / rating_count, 1)
 
         result = {
             'id': self.id,
@@ -97,9 +110,20 @@ class Recipe(db.Model):
             'nutrition': self.nutrition,
             'health_score': health_score,
             'tags': self.tags,
+            'average_rating': average_rating,
+            'rating_count': rating_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+        # Include user's rating if user_id provided
+        if include_user_rating:
+            user_rating = None
+            for r in self.ratings:
+                if r.user_id == include_user_rating:
+                    user_rating = r.to_dict()
+                    break
+            result['user_rating'] = user_rating
 
         if include_translations:
             result['translations'] = {
@@ -247,3 +271,45 @@ class Settings(db.Model):
             db.session.add(setting)
         db.session.commit()
         return setting
+
+
+class RecipeRating(db.Model):
+    """User ratings for recipes."""
+    __tablename__ = 'recipe_ratings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # Rating data
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    notes = db.Column(db.Text)  # Personal cooking notes
+    would_make_again = db.Column(db.Boolean, default=True)
+    date_cooked = db.Column(db.Date)  # When they cooked it
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    recipe = db.relationship('Recipe', back_populates='ratings')
+    user = db.relationship('User', back_populates='ratings')
+
+    # Unique constraint: one rating per user per recipe
+    __table_args__ = (
+        db.UniqueConstraint('recipe_id', 'user_id', name='uix_recipe_user_rating'),
+    )
+
+    def to_dict(self):
+        """Convert rating to dictionary."""
+        return {
+            'id': self.id,
+            'recipe_id': self.recipe_id,
+            'user_id': self.user_id,
+            'rating': self.rating,
+            'notes': self.notes,
+            'would_make_again': self.would_make_again,
+            'date_cooked': self.date_cooked.isoformat() if self.date_cooked else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

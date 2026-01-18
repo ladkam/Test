@@ -713,7 +713,7 @@ def list_recipes():
     recipes = Recipe.query.order_by(Recipe.created_at.desc()).all()
     return jsonify({
         'success': True,
-        'recipes': [r.to_dict() for r in recipes]
+        'recipes': [r.to_dict(include_user_rating=current_user.id) for r in recipes]
     })
 
 
@@ -727,7 +727,7 @@ def get_recipe(recipe_id):
 
     return jsonify({
         'success': True,
-        'recipe': recipe.to_dict()
+        'recipe': recipe.to_dict(include_user_rating=current_user.id)
     })
 
 
@@ -746,6 +746,105 @@ def delete_recipe(recipe_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error deleting recipe: {str(e)}'}), 500
+
+
+@app.route('/api/recipes/<int:recipe_id>/rate', methods=['POST'])
+@login_required
+def rate_recipe(recipe_id):
+    """Rate a recipe."""
+    try:
+        from models import RecipeRating
+        from datetime import date as date_class
+
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+        data = request.json
+        rating_value = data.get('rating')
+        notes = data.get('notes', '')
+        would_make_again = data.get('would_make_again', True)
+        date_cooked = data.get('date_cooked')
+
+        # Validate rating
+        if not rating_value or not isinstance(rating_value, int) or rating_value < 1 or rating_value > 5:
+            return jsonify({'success': False, 'message': 'Rating must be between 1 and 5'}), 400
+
+        # Parse date if provided
+        cooked_date = None
+        if date_cooked:
+            try:
+                cooked_date = date_class.fromisoformat(date_cooked)
+            except:
+                cooked_date = date_class.today()
+        else:
+            cooked_date = date_class.today()
+
+        # Check if user already rated this recipe
+        existing_rating = RecipeRating.query.filter_by(
+            recipe_id=recipe_id,
+            user_id=current_user.id
+        ).first()
+
+        if existing_rating:
+            # Update existing rating
+            existing_rating.rating = rating_value
+            existing_rating.notes = notes
+            existing_rating.would_make_again = would_make_again
+            existing_rating.date_cooked = cooked_date
+            existing_rating.updated_at = datetime.utcnow()
+        else:
+            # Create new rating
+            new_rating = RecipeRating(
+                recipe_id=recipe_id,
+                user_id=current_user.id,
+                rating=rating_value,
+                notes=notes,
+                would_make_again=would_make_again,
+                date_cooked=cooked_date
+            )
+            db.session.add(new_rating)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Rating saved successfully',
+            'rating': existing_rating.to_dict() if existing_rating else new_rating.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error saving rating: {str(e)}'}), 500
+
+
+@app.route('/api/recipes/<int:recipe_id>/rating', methods=['GET'])
+@login_required
+def get_user_rating(recipe_id):
+    """Get current user's rating for a recipe."""
+    try:
+        from models import RecipeRating
+
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+        rating = RecipeRating.query.filter_by(
+            recipe_id=recipe_id,
+            user_id=current_user.id
+        ).first()
+
+        if rating:
+            return jsonify({
+                'success': True,
+                'rating': rating.to_dict()
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'rating': None
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error getting rating: {str(e)}'}), 500
 
 
 @app.route('/recipe/edit/<int:recipe_id>')
