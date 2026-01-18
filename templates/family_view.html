@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recipe Translator</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         * {
             box-sizing: border-box;
@@ -352,11 +351,10 @@
         }
 
         .ingredients li {
-            padding: 0.75rem 0;
-            padding-left: 1.75rem;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 0.875rem 0 0.875rem 1.5rem;
+            border-bottom: 1px solid #eee;
             position: relative;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
         .ingredients li:last-child {
@@ -364,28 +362,24 @@
         }
 
         .ingredients li::before {
-            content: "";
+            content: "•";
             position: absolute;
             left: 0;
-            top: 1rem;
-            width: 8px;
-            height: 8px;
-            background: #e63946;
-            border-radius: 50%;
+            top: 0.875rem;
+            color: #e63946;
+            font-size: 1.25rem;
+            line-height: 1;
         }
 
         .instructions {
             list-style: none;
             padding: 0;
             margin: 0;
-            counter-reset: step;
         }
 
         .instructions li {
-            counter-increment: step;
-            padding: 1rem 0;
-            padding-left: 3rem;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 1rem 0 1rem 2.5rem;
+            border-bottom: 1px solid #eee;
             position: relative;
             line-height: 1.7;
         }
@@ -394,13 +388,12 @@
             border-bottom: none;
         }
 
-        .instructions li::before {
-            content: counter(step);
+        .step-num {
             position: absolute;
             left: 0;
             top: 1rem;
-            width: 2rem;
-            height: 2rem;
+            width: 1.75rem;
+            height: 1.75rem;
             background: #e63946;
             color: white;
             border-radius: 50%;
@@ -408,7 +401,7 @@
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         /* Print styles */
@@ -654,9 +647,11 @@
             document.getElementById('ingredientsList').innerHTML =
                 recipe.translated_ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join('');
 
-            // Instructions
+            // Instructions with numbered steps
             document.getElementById('instructionsList').innerHTML =
-                recipe.translated_instructions.map(i => `<li>${escapeHtml(i)}</li>`).join('');
+                recipe.translated_instructions.map((inst, idx) =>
+                    `<li><span class="step-num">${idx + 1}</span>${escapeHtml(inst)}</li>`
+                ).join('');
 
             // Show
             document.getElementById('recipeDisplay').style.display = 'block';
