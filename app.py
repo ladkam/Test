@@ -752,6 +752,72 @@ def save_recipe():
         )
 
         db.session.add(new_recipe)
+        db.session.flush()  # Get the recipe ID
+
+        # If there's a translation, save it as a RecipeTranslation record
+        target_language = data.get('language', 'English')
+        if target_language and target_language != 'English' and data.get('content'):
+            from models import RecipeTranslation
+
+            # Map language names to codes
+            language_code_map = {
+                'Spanish': 'es',
+                'French': 'fr',
+                'Español': 'es',
+                'Français': 'fr'
+            }
+
+            language_code = language_code_map.get(target_language, target_language.lower()[:2])
+
+            # Check if translation doesn't already exist
+            existing_translation = RecipeTranslation.query.filter_by(
+                recipe_id=new_recipe.id,
+                language_code=language_code
+            ).first()
+
+            if not existing_translation:
+                # Translate individual fields using AI
+                try:
+                    ai_provider = settings.get_ai_provider()
+                    if ai_provider == 'groq':
+                        api_key = get_api_key('groq_api_key')
+                        if api_key:
+                            translator = GroqTranslator(api_key=api_key)
+                        else:
+                            translator = None
+                    else:
+                        api_key = get_api_key('mistral_api_key')
+                        if api_key:
+                            translator = MistralTranslator(api_key=api_key)
+                        else:
+                            translator = None
+
+                    if translator:
+                        # Translate title, ingredients, and instructions
+                        translated_title = translator.translate_text(new_recipe.title, target_language)
+                        translated_ingredients = [
+                            translator.translate_text(ing, target_language)
+                            for ing in (new_recipe.ingredients or [])
+                        ]
+                        translated_instructions = [
+                            translator.translate_text(inst, target_language)
+                            for inst in (new_recipe.instructions or [])
+                        ]
+
+                        translation = RecipeTranslation(
+                            recipe_id=new_recipe.id,
+                            language_code=language_code,
+                            language_name=target_language,
+                            title=translated_title,
+                            content=data.get('content', ''),  # Translated content from scraping
+                            ingredients=translated_ingredients,
+                            instructions=translated_instructions
+                        )
+                        db.session.add(translation)
+                except Exception as e:
+                    # If translation fails, still save the recipe but skip the translation
+                    print(f"Warning: Failed to create translation: {e}")
+
         db.session.commit()
 
         return jsonify({
