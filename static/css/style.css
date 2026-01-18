@@ -2205,15 +2205,16 @@ textarea:focus {
 }
 
 .plan-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
 }
 
 .empty-plan {
     text-align: center;
     padding: 3rem 2rem;
     color: var(--text-secondary);
+    grid-column: 1 / -1;
 }
 
 .empty-plan p {
@@ -2221,45 +2222,111 @@ textarea:focus {
 }
 
 .plan-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: var(--background);
+    position: relative;
+    background: var(--card-background);
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
-    transition: all 0.2s;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 .plan-item:hover {
-    box-shadow: var(--shadow);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.plan-item-content {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex: 1;
+.plan-item-image-wrapper {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f5f5f5, #e8e8e8);
 }
 
 .plan-item-image {
-    width: 80px;
-    height: 80px;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    border-radius: 8px;
+    transition: transform 0.3s ease;
 }
 
-.plan-item-details h3 {
-    font-size: 1.125rem;
-    margin-bottom: 0.5rem;
+.plan-item:hover .plan-item-image {
+    transform: scale(1.05);
+}
+
+.plan-item-image-placeholder {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+    font-size: 3rem;
+    color: var(--text-secondary);
+}
+
+.plan-item-content {
+    padding: 1.25rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.plan-item-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
     color: var(--text-primary);
+    line-height: 1.4;
 }
 
 .plan-item-meta {
     display: flex;
     gap: 1rem;
-    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--background);
+    border-radius: 6px;
     font-size: 0.875rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.meta-badge svg {
+    flex-shrink: 0;
+}
+
+.btn-remove-overlay {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    color: var(--error-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-remove-overlay:hover {
+    background: var(--error-color);
+    color: white;
+    transform: scale(1.1);
 }
 
 .btn-remove {
@@ -2382,6 +2449,52 @@ textarea:focus {
     justify-content: flex-end;
 }
 
+/* Servings Modal */
+.servings-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.servings-btn-large {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    background: white;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.servings-btn-large:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.servings-input {
+    width: 100px;
+    height: 60px;
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 600;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+    color: var(--text-primary);
+}
+
+.servings-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
 @media (max-width: 768px) {
     .planner-header {
         flex-direction: column;
@@ -2392,14 +2505,8 @@ textarea:focus {
         flex-direction: column;
     }
 
-    .plan-item {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .plan-item-content {
-        flex-direction: column;
-        align-items: start;
+    .plan-list {
+        grid-template-columns: 1fr;
     }
 
     .available-recipes-grid {

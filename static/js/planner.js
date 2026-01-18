@@ -13,7 +13,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchRecipes').addEventListener('input', filterAvailableRecipes);
     document.getElementById('generateShoppingList').addEventListener('click', generateShoppingList);
     document.getElementById('clearPlan').addEventListener('click', clearPlan);
-    document.querySelector('.close').addEventListener('click', closeModal);
+
+    // Allow Enter key to confirm servings in the modal
+    document.getElementById('servingsInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            confirmServings();
+        }
+    });
 });
 
 async function loadCurrentPlan() {
@@ -60,25 +66,52 @@ function displayCurrentPlan() {
         return;
     }
 
-    planList.innerHTML = currentPlan.map(recipe => `
-        <div class="plan-item">
-            <div class="plan-item-content" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
-                ${recipe.image_url ? `<img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title}">` : ''}
-                <div class="plan-item-details">
-                    <h3>${escapeHtml(recipe.title)}</h3>
-                    <div class="plan-item-meta">
-                        ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                        ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
-                    </div>
-                </div>
-            </div>
-            <button onclick="event.stopPropagation(); removeFromPlan(${recipe.id})" class="btn-remove" title="Remove from plan">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    planList.innerHTML = currentPlan.map(recipe => {
+        const healthScoreBadge = getHealthScoreBadge(recipe.health_score);
+
+        return `
+        <div class="plan-item" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
+            <button onclick="event.stopPropagation(); removeFromPlan(${recipe.id})" class="btn-remove-overlay" title="Remove from plan">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                    <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                 </svg>
             </button>
+
+            ${recipe.image_url
+                ? `<div class="plan-item-image-wrapper">
+                     <img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title}">
+                   </div>`
+                : '<div class="plan-item-image-placeholder">🍽️</div>'}
+
+            <div class="plan-item-content">
+                <h3 class="plan-item-title">${escapeHtml(recipe.title)}</h3>
+
+                <div class="plan-item-meta">
+                    ${recipe.total_time ? `
+                        <span class="meta-badge">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            ${formatTime(recipe.total_time)}
+                        </span>
+                    ` : ''}
+                    ${recipe.servings ? `
+                        <span class="meta-badge">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M7 13h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            ${escapeHtml(recipe.servings)}
+                        </span>
+                    ` : ''}
+                </div>
+
+                ${healthScoreBadge}
+            </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function filterAvailableRecipes() {
@@ -144,24 +177,45 @@ function getHealthScoreIcon(grade) {
     return icons[grade] || '🍽️';
 }
 
+// Store current recipe being added
+let pendingRecipeId = null;
+
 async function addToPlan(recipeId) {
     // Find recipe to get default servings
     const recipe = allRecipes.find(r => r.id === recipeId);
     const defaultServings = recipe && recipe.servings ? parseInt(recipe.servings.toString().match(/\d+/)?.[0] || 1) : 1;
 
-    // Prompt for servings
-    const servingsInput = prompt(`How many servings? (Default: ${defaultServings})`, defaultServings);
+    // Store the recipe ID for later confirmation
+    pendingRecipeId = recipeId;
 
-    if (servingsInput === null) return; // User cancelled
+    // Open the servings modal
+    document.getElementById('servingsRecipeName').textContent = recipe.title;
+    document.getElementById('servingsInput').value = defaultServings;
+    document.getElementById('servingsModal').style.display = 'flex';
+}
 
-    const servings = parseInt(servingsInput) || defaultServings;
+function adjustModalServings(delta) {
+    const input = document.getElementById('servingsInput');
+    const newValue = Math.max(1, parseInt(input.value || 1) + delta);
+    input.value = newValue;
+}
+
+function closeServingsModal() {
+    document.getElementById('servingsModal').style.display = 'none';
+    pendingRecipeId = null;
+}
+
+async function confirmServings() {
+    if (!pendingRecipeId) return;
+
+    const servings = parseInt(document.getElementById('servingsInput').value) || 1;
 
     try {
         const response = await fetch('/api/planner/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                recipe_id: recipeId,
+                recipe_id: pendingRecipeId,
                 servings: servings
             })
         });
@@ -169,6 +223,7 @@ async function addToPlan(recipeId) {
         const data = await response.json();
 
         if (data.success) {
+            closeServingsModal();
             await loadCurrentPlan();
             displayAvailableRecipes();
         } else {
@@ -276,6 +331,10 @@ function displayShoppingList(shoppingList) {
 }
 
 function closeModal() {
+    closeShoppingListModal();
+}
+
+function closeShoppingListModal() {
     document.getElementById('shoppingListModal').style.display = 'none';
 }
 

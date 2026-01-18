@@ -62,10 +62,28 @@
         </div>
     </div>
 
+    <!-- Servings Modal -->
+    <div id="servingsModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close" onclick="closeServingsModal()">&times;</span>
+            <h2>Select Servings</h2>
+            <p id="servingsRecipeName" style="color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+            <div class="servings-selector">
+                <button onclick="adjustModalServings(-1)" class="servings-btn-large">−</button>
+                <input type="number" id="servingsInput" min="1" value="1" class="servings-input">
+                <button onclick="adjustModalServings(1)" class="servings-btn-large">+</button>
+            </div>
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button onclick="closeServingsModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="confirmServings()" class="btn btn-primary">Add to Plan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Shopping List Modal -->
     <div id="shoppingListModal" class="modal" style="display: none;">
         <div class="modal-content modal-large">
-            <span class="close">&times;</span>
+            <span class="close" onclick="closeShoppingListModal()">&times;</span>
             <div class="shopping-list-content">
                 <h2>Shopping List</h2>
                 <div id="shoppingListContent"></div>
