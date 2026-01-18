@@ -1284,6 +1284,26 @@ def get_shopping_list():
     from datetime import date, timedelta
     import re
 
+    def get_recipe_ingredients(recipe):
+        """Get ingredients from recipe, preferring translations."""
+        # Try to get translated ingredients (prefer Spanish, then French)
+        for translation in recipe.translations:
+            if translation.language_code in ['es', 'fr'] and translation.ingredients:
+                return translation.ingredients
+
+        # Fall back to original ingredients
+        return recipe.ingredients or []
+
+    def get_recipe_title(recipe):
+        """Get recipe title, preferring translations."""
+        # Try to get translated title (prefer Spanish, then French)
+        for translation in recipe.translations:
+            if translation.language_code in ['es', 'fr'] and translation.title:
+                return translation.title
+
+        # Fall back to original title
+        return recipe.title
+
     def scale_ingredient(ingredient, scale):
         """Scale ingredient amounts by a multiplier."""
         if scale == 1:
@@ -1328,9 +1348,9 @@ def get_shopping_list():
         shopping_list = []
         for pr in plan_recipes:
             if pr.recipe:
-                # Get the ingredients (prefer translated)
-                ingredients = pr.recipe.ingredients_translated or pr.recipe.ingredients_original or []
-                title = pr.recipe.title_translated or pr.recipe.title_original
+                # Get ingredients and title (prefer translated)
+                ingredients = get_recipe_ingredients(pr.recipe)
+                title = get_recipe_title(pr.recipe)
 
                 if ingredients:
                     # Get original servings from recipe

@@ -2204,6 +2204,42 @@ textarea:focus {
     font-weight: 600;
 }
 
+/* Plan Section - Highlighted Background */
+.plan-section {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.plan-section h2 {
+    color: #1e40af;
+}
+
+/* Add Recipes Section - Subtle Gray Background */
+.add-recipes-section {
+    background: var(--background);
+    border: 1px solid var(--border-color);
+}
+
+.add-recipes-section h2 {
+    color: var(--text-secondary);
+}
+
+/* Section Title with Icon */
+.section-title-wrapper {
+    display: flex;
+    align-items: center;
+    font-size: 1.25rem;
+}
+
+.section-title-wrapper h2 {
+    margin: 0;
+}
+
+.section-title-wrapper svg {
+    color: currentColor;
+}
+
 .plan-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
