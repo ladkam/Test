@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Recipe - Recipe Translator</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✏️ Edit Recipe</h1>
+            <nav>
+                <a href="{{ url_for('library') }}" class="btn btn-secondary">← Back to Library</a>
+            </nav>
+        </header>
+
+        <div class="card">
+            <form id="editRecipeForm">
+                <input type="hidden" id="recipeId" value="{{ recipe.id }}">
+
+                <div class="form-group">
+                    <label for="title">Recipe Title *</label>
+                    <input type="text" id="title" name="title" class="input-full" value="{{ recipe.title }}" required>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="prepTime">Prep Time</label>
+                        <input type="text" id="prepTime" name="prep_time" class="input-full"
+                               value="{{ recipe.prep_time }}" placeholder="e.g., 15 minutes">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cookTime">Cook Time</label>
+                        <input type="text" id="cookTime" name="cook_time" class="input-full"
+                               value="{{ recipe.cook_time }}" placeholder="e.g., 30 minutes">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servings">Servings</label>
+                        <input type="text" id="servings" name="servings" class="input-full"
+                               value="{{ recipe.servings }}" placeholder="e.g., 4 servings">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="imageUrl">Image URL</label>
+                    <input type="url" id="imageUrl" name="image_url" class="input-full"
+                           value="{{ recipe.image_url or '' }}" placeholder="https://...">
+                </div>
+
+                <div class="form-group">
+                    <label for="ingredients">Ingredients (one per line) *</label>
+                    <textarea id="ingredients" name="ingredients" rows="10" class="input-full" required>{{ recipe.ingredients|join('\n') if recipe.ingredients else '' }}</textarea>
+                    <small>Enter each ingredient on a new line</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="instructions">Instructions (one step per line) *</label>
+                    <textarea id="instructions" name="instructions" rows="10" class="input-full" required>{{ recipe.instructions|join('\n') if recipe.instructions else '' }}</textarea>
+                    <small>Enter each instruction step on a new line</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Full Recipe Content</label>
+                    <textarea id="content" name="content" rows="15" class="input-full">{{ recipe.content or '' }}</textarea>
+                    <small>The full recipe text (markdown supported)</small>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    <a href="{{ url_for('library') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('editRecipeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const recipeId = document.getElementById('recipeId').value;
+            const formData = {
+                title: document.getElementById('title').value.trim(),
+                prep_time: document.getElementById('prepTime').value.trim(),
+                cook_time: document.getElementById('cookTime').value.trim(),
+                servings: document.getElementById('servings').value.trim(),
+                image_url: document.getElementById('imageUrl').value.trim(),
+                ingredients: document.getElementById('ingredients').value
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0),
+                instructions: document.getElementById('instructions').value
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0),
+                content: document.getElementById('content').value.trim()
+            };
+
+            try {
+                const response = await fetch(`/api/recipes/${recipeId}/update`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Recipe updated successfully!');
+                    window.location.href = '/library';
+                } else {
+                    alert('Error updating recipe: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error updating recipe: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

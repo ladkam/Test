@@ -326,6 +326,7 @@ async function showRecipeDetail(recipeId) {
                     </div>
 
                     <div class="recipe-detail-actions">
+                        <button onclick="editRecipe(${recipe.id})" class="btn btn-secondary">✏️ Edit Recipe</button>
                         <button onclick="addToWeeklyPlan(${recipe.id})" class="btn btn-primary">Add to Weekly Plan</button>
                     </div>
 

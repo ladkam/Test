@@ -600,6 +600,88 @@ def delete_recipe(recipe_id):
         return jsonify({'success': False, 'message': f'Error deleting recipe: {str(e)}'}), 500
 
 
+@app.route('/recipe/edit/<int:recipe_id>')
+@login_required
+def edit_recipe_page(recipe_id):
+    """Render the edit recipe page."""
+    recipe = Recipe.query.get(recipe_id)
+    if not recipe:
+        flash('Recipe not found', 'error')
+        return redirect(url_for('library'))
+
+    return render_template('edit_recipe.html', recipe=recipe)
+
+
+@app.route('/api/recipes/<int:recipe_id>/update', methods=['PUT'])
+@login_required
+def update_recipe(recipe_id):
+    """Update a recipe."""
+    try:
+        recipe = Recipe.query.get(recipe_id)
+        if not recipe:
+            return jsonify({'success': False, 'message': 'Recipe not found'}), 404
+
+        data = request.json
+
+        # Helper function to parse time string to minutes
+        def parse_time_to_minutes(time_str):
+            if not time_str or not isinstance(time_str, str):
+                return None
+            time_str = time_str.lower().strip()
+            total_mins = 0
+            # Extract hours
+            if 'hour' in time_str:
+                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
+                total_mins += hours * 60
+            # Extract minutes
+            if 'minute' in time_str:
+                parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
+                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
+                total_mins += minutes
+            return total_mins if total_mins > 0 else None
+
+        # Update recipe fields
+        if 'title' in data:
+            recipe.title = data['title']
+        if 'content' in data:
+            recipe.content = data['content']
+        if 'ingredients' in data:
+            recipe.ingredients = data['ingredients']
+        if 'instructions' in data:
+            recipe.instructions = data['instructions']
+        if 'prep_time' in data:
+            recipe.prep_time = parse_time_to_minutes(data['prep_time'])
+        if 'cook_time' in data:
+            recipe.cook_time = parse_time_to_minutes(data['cook_time'])
+        if 'servings' in data:
+            recipe.servings = data['servings']
+        if 'image_url' in data:
+            recipe.image_url = data['image_url']
+        if 'author' in data:
+            recipe.author = data['author']
+        if 'source_url' in data:
+            recipe.source_url = data['source_url']
+
+        # Calculate total time
+        if recipe.prep_time and recipe.cook_time:
+            recipe.total_time = recipe.prep_time + recipe.cook_time
+        elif recipe.prep_time:
+            recipe.total_time = recipe.prep_time
+        elif recipe.cook_time:
+            recipe.total_time = recipe.cook_time
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Recipe updated successfully',
+            'recipe': recipe.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error updating recipe: {str(e)}'}), 500
+
+
 @app.route('/api/recipes/ocr', methods=['POST'])
 @login_required
 def extract_recipe_from_image():
