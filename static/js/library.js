@@ -60,8 +60,7 @@ function filterRecipes() {
     filteredRecipes = allRecipes.filter(recipe => {
         // Search filter
         const matchesSearch = !searchTerm ||
-            recipe.title_translated?.toLowerCase().includes(searchTerm) ||
-            recipe.title_original?.toLowerCase().includes(searchTerm) ||
+            recipe.title?.toLowerCase().includes(searchTerm) ||
             (recipe.ingredients || []).some(ing => ing.toLowerCase().includes(searchTerm));
 
         // Duration filter
@@ -139,7 +138,7 @@ function createRecipeCard(recipe) {
                 <div class="recipe-card-content">
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
                     ${time ? `<p class="recipe-card-time">⏱️ ${time}</p>` : ''}
-                    ${recipe.language ? `<span class="recipe-card-lang">${escapeHtml(recipe.language)}</span>` : ''}
+                    ${recipe.source_language ? `<span class="recipe-card-lang">${escapeHtml(recipe.source_language)}</span>` : ''}
                 </div>
             </div>
             <div class="recipe-card-actions">
@@ -296,13 +295,13 @@ async function showRecipeDetail(recipeId) {
 
             content.innerHTML = `
                 <div class="recipe-detail">
-                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title_translated}">` : ''}
+                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title}">` : ''}
                     <h2>${escapeHtml(recipe.title)}</h2>
 
                     <div class="recipe-detail-meta">
                         ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
                         ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
-                        ${recipe.language ? `<span>🌍 ${escapeHtml(recipe.language)}</span>` : ''}
+                        ${recipe.source_language ? `<span>🌍 ${escapeHtml(recipe.source_language)}</span>` : ''}
                     </div>
 
                     <div class="recipe-detail-actions">

@@ -63,7 +63,7 @@ function displayCurrentPlan() {
     planList.innerHTML = currentPlan.map(recipe => `
         <div class="plan-item">
             <div class="plan-item-content" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
-                ${recipe.image_url ? `<img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title_translated}">` : ''}
+                ${recipe.image_url ? `<img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title}">` : ''}
                 <div class="plan-item-details">
                     <h3>${escapeHtml(recipe.title)}</h3>
                     <div class="plan-item-meta">
@@ -93,8 +93,7 @@ function displayAvailableRecipes() {
         if (planRecipeIds.has(recipe.id)) return false;
         if (!searchTerm) return true;
 
-        return (recipe.title_translated?.toLowerCase().includes(searchTerm) ||
-                recipe.title_original?.toLowerCase().includes(searchTerm));
+        return recipe.title?.toLowerCase().includes(searchTerm);
     });
 
     const grid = document.getElementById('availableRecipes');
@@ -106,7 +105,7 @@ function displayAvailableRecipes() {
 
     grid.innerHTML = filtered.map(recipe => `
         <div class="available-recipe-card">
-            ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title_translated}">` : '<div class="available-recipe-placeholder">No Image</div>'}
+            ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title}">` : '<div class="available-recipe-placeholder">No Image</div>'}
             <div class="available-recipe-content">
                 <h4>${escapeHtml(recipe.title)}</h4>
                 ${recipe.total_time ? `<span class="recipe-time">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
@@ -314,13 +313,13 @@ async function showRecipeDetail(recipeId) {
 
             content.innerHTML = `
                 <div class="recipe-detail">
-                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title_translated}">` : ''}
+                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title}">` : ''}
                     <h2>${escapeHtml(recipe.title)}</h2>
 
                     <div class="recipe-detail-meta">
                         ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
                         ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
-                        ${recipe.language ? `<span>🌍 ${escapeHtml(recipe.language)}</span>` : ''}
+                        ${recipe.source_language ? `<span>🌍 ${escapeHtml(recipe.source_language)}</span>` : ''}
                     </div>
 
                     <div class="recipe-detail-actions">
