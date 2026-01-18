@@ -385,6 +385,8 @@ async function showRecipeDetail(recipeId) {
 
                     ${buildRatingSection(recipe)}
 
+                    ${buildTranslationsSection(recipe)}
+
                     <div id="substitutionResult" class="substitution-result" style="display: none;"></div>
                 </div>
             `;

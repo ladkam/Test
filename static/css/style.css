@@ -2997,3 +2997,85 @@ textarea:focus {
 .recipe-card-rating {
     margin-top: 0.5rem;
 }
+
+/* Translation Management Styles */
+.translations-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.translations-section h3 {
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.translation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.translation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.translation-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.translation-flag {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.translation-title {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.btn-delete-translation {
+    background: none;
+    border: none;
+    color: var(--error-color);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.btn-delete-translation:hover {
+    background: rgba(193, 53, 21, 0.1);
+}
+
+.translation-form {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.translation-language-select {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-family: inherit;
+    background: white;
+}
+
+.translation-language-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}

@@ -37,6 +37,29 @@
             color: var(--text-secondary);
         }
 
+        .language-selector {
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .language-selector label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .language-selector select {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--background);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
         .recipe-card-simple {
             margin-bottom: 3rem;
             padding: 2rem;
@@ -178,6 +201,21 @@
         <div class="help-header">
             <h1>📖 This Week's Recipes</h1>
             <p id="weekDate"></p>
+            <div class="language-selector">
+                <label for="languageSelect">🌍 Language:</label>
+                <select id="languageSelect" onchange="changeLanguage()">
+                    <option value="en" {% if language == 'en' %}selected{% endif %}>English (Original)</option>
+                    <option value="es" {% if language == 'es' %}selected{% endif %}>Spanish 🇪🇸</option>
+                    <option value="fr" {% if language == 'fr' %}selected{% endif %}>French 🇫🇷</option>
+                    <option value="de" {% if language == 'de' %}selected{% endif %}>German 🇩🇪</option>
+                    <option value="it" {% if language == 'it' %}selected{% endif %}>Italian 🇮🇹</option>
+                    <option value="pt" {% if language == 'pt' %}selected{% endif %}>Portuguese 🇵🇹</option>
+                    <option value="nl" {% if language == 'nl' %}selected{% endif %}>Dutch 🇳🇱</option>
+                    <option value="ja" {% if language == 'ja' %}selected{% endif %}>Japanese 🇯🇵</option>
+                    <option value="zh" {% if language == 'zh' %}selected{% endif %}>Chinese 🇨🇳</option>
+                    <option value="ko" {% if language == 'ko' %}selected{% endif %}>Korean 🇰🇷</option>
+                </select>
+            </div>
         </div>
 
         <div id="recipesList"></div>
@@ -211,6 +249,7 @@
                 const data = await response.json();
 
                 if (data.success && data.recipes && data.recipes.length > 0) {
+                    cachedRecipes = data.recipes;
                     displayRecipes(data.recipes);
                 } else {
                     document.getElementById('emptyState').style.display = 'block';
@@ -221,20 +260,54 @@
             }
         }
 
+        let currentLanguage = '{{ language }}' || 'en';
+        let cachedRecipes = null;
+
+        function changeLanguage() {
+            currentLanguage = document.getElementById('languageSelect').value;
+            if (cachedRecipes) {
+                displayRecipes(cachedRecipes);
+            }
+        }
+
         function getTranslatedIngredients(recipe) {
+            // If English is selected, use original ingredients
+            if (currentLanguage === 'en') {
+                return recipe.ingredients || [];
+            }
+
+            // Try to get translation for selected language
             if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
                 return recipe.ingredients || [];
             }
-            const translation = recipe.translations['es'] || recipe.translations['fr'];
-            return translation && translation.ingredients ? translation.ingredients : (recipe.ingredients || []);
+
+            const translation = recipe.translations[currentLanguage];
+            if (translation && translation.ingredients) {
+                return translation.ingredients;
+            }
+
+            // Fallback to original if translation not available
+            return recipe.ingredients || [];
         }
 
         function getTranslatedInstructions(recipe) {
+            // If English is selected, use original instructions
+            if (currentLanguage === 'en') {
+                return recipe.instructions || [];
+            }
+
+            // Try to get translation for selected language
             if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
                 return recipe.instructions || [];
             }
-            const translation = recipe.translations['es'] || recipe.translations['fr'];
-            return translation && translation.instructions ? translation.instructions : (recipe.instructions || []);
+
+            const translation = recipe.translations[currentLanguage];
+            if (translation && translation.instructions) {
+                return translation.instructions;
+            }
+
+            // Fallback to original if translation not available
+            return recipe.instructions || [];
         }
 
         function displayRecipes(recipes) {
