@@ -41,12 +41,44 @@ CORS(app)
 # Initialize database
 db.init_app(app)
 
+# Helper function to add missing columns to existing tables
+def add_column_if_not_exists(table_name, column_name, column_type, default_value=None):
+    """Add a column to an existing table if it doesn't exist.
+    Works with both SQLite and PostgreSQL."""
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(db.engine)
+    columns = [col['name'] for col in inspector.get_columns(table_name)]
+
+    if column_name not in columns:
+        # Build ALTER TABLE statement
+        if 'sqlite' in str(db.engine.url):
+            # SQLite syntax
+            default_clause = f" DEFAULT {default_value}" if default_value is not None else ""
+            sql = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}{default_clause}"
+        else:
+            # PostgreSQL syntax
+            default_clause = f" DEFAULT {default_value}" if default_value is not None else ""
+            sql = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}{default_clause}"
+
+        db.session.execute(text(sql))
+        db.session.commit()
+        print(f"✓ Added missing column '{column_name}' to table '{table_name}'")
+        return True
+    return False
+
 # Create tables on first run
 with app.app_context():
     try:
         # Create all tables (idempotent - safe to run multiple times)
         db.create_all()
         print("✓ Database tables created/verified")
+
+        # Run migrations for any missing columns
+        # This handles cases where columns were added after initial table creation
+        add_column_if_not_exists('recipes', 'is_shareable', 'BOOLEAN', 'TRUE')
+        add_column_if_not_exists('recipes', 'nutrition', 'TEXT', 'NULL')
+        add_column_if_not_exists('recipes', 'tags', 'TEXT', 'NULL')
 
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
