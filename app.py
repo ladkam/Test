@@ -701,9 +701,15 @@ def shopping_list_page():
 
 
 @app.route('/help')
-def help_view():
+@app.route('/help/<language>')
+def help_view(language='en'):
     """Render simplified help view for household staff (no login required)."""
-    return render_template('help_view.html')
+    # Supported languages for help
+    supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
+    if language not in supported_languages:
+        language = 'en'  # Default to English
+
+    return render_template('help_view.html', language=language)
 
 
 @app.route('/api/recipes', methods=['GET'])
@@ -1472,40 +1478,47 @@ def get_shopping_list():
         return jsonify({'success': False, 'message': f'Error generating shopping list: {str(e)}'}), 500
 
 
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=port, debug=debug)
 @app.route('/api/recipes/<int:recipe_id>/translate', methods=['POST'])
 @login_required
 def create_recipe_translation(recipe_id):
     """Create a new translation for a recipe."""
     try:
         data = request.json
-        language_code = data.get('language_code')  # 'es' or 'fr'
-        
-        if not language_code or language_code not in ['es', 'fr']:
-            return jsonify({'success': False, 'message': 'Invalid language code. Use "es" or "fr"'}), 400
-        
+        language_code = data.get('language_code')  # 'es', 'fr', 'de', 'it', 'pt', etc.
+
+        # Supported languages
+        supported_languages = {
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'ja': 'Japanese',
+            'zh': 'Chinese',
+            'ko': 'Korean'
+        }
+
+        if not language_code or language_code not in supported_languages:
+            return jsonify({'success': False, 'message': f'Invalid language code. Supported: {", ".join(supported_languages.keys())}'}), 400
+
         # Get recipe
         recipe = Recipe.query.get(recipe_id)
         if not recipe:
             return jsonify({'success': False, 'message': 'Recipe not found'}), 404
-        
+
         # Check if translation already exists
         from models import RecipeTranslation
         existing = RecipeTranslation.query.filter_by(
             recipe_id=recipe_id,
             language_code=language_code
         ).first()
-        
+
         if existing:
-            return jsonify({'success': False, 'message': f'Translation already exists for {language_code}'}), 400
-        
-        # Language names
-        language_names = {'es': 'Spanish', 'fr': 'French'}
-        language_name = language_names[language_code]
-        
+            return jsonify({'success': False, 'message': f'Translation already exists for {supported_languages[language_code]}'}), 400
+
+        language_name = supported_languages[language_code]
+
         # Translate using AI
         from groq_translator import GroqTranslator
         from mistral_translator import MistralTranslator
@@ -1522,27 +1535,27 @@ def create_recipe_translation(recipe_id):
             if not api_key:
                 return jsonify({'success': False, 'message': 'Mistral API key not configured. Please add it in the admin panel.'}), 500
             translator = MistralTranslator(api_key=api_key)
-        
+
         # Translate title
         title_translation = translator.translate_text(recipe.title, language_name)
-        
+
         # Translate ingredients
         ingredients_translated = []
         if recipe.ingredients:
             for ingredient in recipe.ingredients:
                 translated = translator.translate_text(ingredient, language_name)
                 ingredients_translated.append(translated)
-        
+
         # Translate instructions
         instructions_translated = []
         if recipe.instructions:
             for instruction in recipe.instructions:
                 translated = translator.translate_text(instruction, language_name)
                 instructions_translated.append(translated)
-        
+
         # Translate full content
         content_translated = translator.translate_text(recipe.content, language_name)
-        
+
         # Create translation record
         translation = RecipeTranslation(
             recipe_id=recipe_id,
@@ -1553,16 +1566,16 @@ def create_recipe_translation(recipe_id):
             ingredients=ingredients_translated,
             instructions=instructions_translated
         )
-        
+
         db.session.add(translation)
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'Recipe translated to {language_name}',
             'translation': translation.to_dict()
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Translation error: {str(e)}'}), 500
@@ -1578,17 +1591,23 @@ def delete_translation(recipe_id, language_code):
             recipe_id=recipe_id,
             language_code=language_code
         ).first()
-        
+
         if not translation:
             return jsonify({'success': False, 'message': 'Translation not found'}), 404
-        
+
         db.session.delete(translation)
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': 'Translation deleted'})
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+if __name__ == '__main__':
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)
 
 
