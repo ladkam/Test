@@ -7,302 +7,241 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Family Recipe Translator Styles */
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-size: 1.125rem;
-            background: var(--background);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-size: 1rem;
+            background: #f5f5f5;
             margin: 0;
             padding: 0;
+            min-height: 100vh;
         }
 
-        .translator-container {
-            max-width: 900px;
+        .container {
+            max-width: 800px;
             margin: 0 auto;
-            padding: 2rem 1.5rem;
+            padding: 2rem 1rem;
         }
 
-        .translator-header {
+        /* Header */
+        .header {
             text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-            border-bottom: 3px solid var(--primary-color);
-        }
-
-        .translator-header h1 {
-            font-size: 2.5rem;
-            color: var(--primary-color);
-            margin-bottom: 0.5rem;
-        }
-
-        .translator-header p {
-            font-size: 1.125rem;
-            color: var(--text-secondary);
-        }
-
-        .feature-badges {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .feature-badge {
-            background: var(--primary-color);
-            color: white;
-            padding: 0.4rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-
-        /* PIN Access Modal */
-        .pin-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        }
-
-        .pin-modal-content {
-            background: var(--card-background);
-            padding: 3rem 2rem;
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-        }
-
-        .pin-modal-content h2 {
-            margin-bottom: 1rem;
-            color: var(--text-primary);
-        }
-
-        .pin-modal-content p {
-            color: var(--text-secondary);
             margin-bottom: 2rem;
         }
 
-        .pin-input {
+        .header h1 {
+            font-size: 2rem;
+            color: #e63946;
+            margin: 0 0 0.5rem 0;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #666;
+            margin: 0 0 1.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: #e63946;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* PIN Modal */
+        .pin-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .pin-box {
+            background: white;
+            padding: 2.5rem 2rem;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .pin-box h2 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .pin-box p {
+            color: #666;
+            margin: 0 0 1.5rem 0;
+        }
+
+        .pin-box input {
             width: 100%;
             padding: 1rem;
             font-size: 1.5rem;
             text-align: center;
             letter-spacing: 0.5rem;
-            border: 2px solid var(--border-color);
-            border-radius: var(--border-radius);
-            margin-bottom: 1.5rem;
-            background: var(--background);
-            color: var(--text-primary);
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            outline: none;
         }
 
-        .pin-error {
-            color: #ef4444;
+        .pin-box input:focus {
+            border-color: #e63946;
+        }
+
+        .pin-box .error {
+            color: #e63946;
             margin-bottom: 1rem;
             display: none;
+            font-size: 0.9rem;
         }
 
-        /* Translation Form */
-        .translation-form {
-            background: var(--card-background);
-            padding: 2rem;
-            border-radius: var(--border-radius);
-            margin-bottom: 2rem;
-        }
-
-        .form-row {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group {
-            flex: 1;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 0.75rem;
-            font-size: 1rem;
-            border: 2px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background: var(--background);
-            color: var(--text-primary);
-            box-sizing: border-box;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        .translate-btn {
+        .pin-box button {
             width: 100%;
             padding: 1rem;
-            font-size: 1.125rem;
-            font-weight: 600;
-            background: var(--primary-color);
+            background: #e63946;
             color: white;
             border: none;
-            border-radius: var(--border-radius);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
             transition: background 0.2s;
         }
 
-        .translate-btn:hover {
-            background: var(--primary-hover);
+        .pin-box button:hover {
+            background: #d62839;
         }
 
-        .translate-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        /* Recipe Display */
-        .recipe-display {
-            background: var(--card-background);
+        /* Form Card */
+        .form-card {
+            background: white;
+            border-radius: 16px;
             padding: 2rem;
-            border-radius: var(--border-radius);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .form-card .error-msg {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
             display: none;
         }
 
-        .recipe-actions-top {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            justify-content: flex-end;
+        .input-group {
+            margin-bottom: 1.5rem;
         }
 
-        .recipe-actions-top button {
-            padding: 0.75rem 1.5rem;
-            background: var(--primary-color);
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            font-size: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            border-color: #e63946;
+        }
+
+        .input-group input::placeholder {
+            color: #a0aec0;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: #e63946;
             color: white;
             border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background 0.2s;
-        }
-
-        .recipe-actions-top button:hover {
-            background: var(--primary-hover);
-        }
-
-        .recipe-image {
-            width: 100%;
-            max-height: 400px;
-            object-fit: cover;
-            border-radius: var(--border-radius);
-            margin-bottom: 2rem;
-        }
-
-        .recipe-title {
-            font-size: 2rem;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .recipe-meta {
-            display: flex;
-            gap: 2rem;
-            margin-bottom: 2rem;
-            font-size: 1.125rem;
-            color: var(--text-secondary);
-            flex-wrap: wrap;
-        }
-
-        .recipe-section {
-            margin-bottom: 2rem;
-        }
-
-        .recipe-section h3 {
-            font-size: 1.5rem;
-            color: var(--text-primary);
-            margin-bottom: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
             font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.75rem;
         }
 
-        .ingredients-list {
-            list-style: none;
-            padding: 0;
+        .submit-btn:hover {
+            background: #d62839;
+            transform: translateY(-1px);
         }
 
-        .ingredients-list li {
-            padding: 0.75rem 0 0.75rem 2rem;
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
-            font-size: 1.125rem;
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
         }
 
-        .ingredients-list li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: var(--primary-color);
-            font-weight: bold;
-            font-size: 1.25rem;
-        }
-
-        .instructions-list {
-            counter-reset: step-counter;
-            list-style: none;
-            padding: 0;
-        }
-
-        .instructions-list li {
-            counter-increment: step-counter;
-            padding: 1.5rem 0 1.5rem 3.5rem;
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
-            font-size: 1.125rem;
-            line-height: 1.7;
-        }
-
-        .instructions-list li:before {
-            content: counter(step-counter);
-            position: absolute;
-            left: 0;
-            top: 1.5rem;
-            background: var(--primary-color);
-            color: white;
-            width: 2.5rem;
-            height: 2.5rem;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.25rem;
-        }
-
-        .loading-message {
+        .form-note {
             text-align: center;
-            padding: 2rem;
-            color: var(--text-secondary);
-            font-size: 1.125rem;
+            color: #718096;
+            font-size: 0.875rem;
+            margin: 0;
         }
 
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--border-color);
-            border-top: 4px solid var(--primary-color);
+        /* Loading */
+        .loading-box {
+            background: white;
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: none;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #e63946;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
@@ -313,98 +252,240 @@
             100% { transform: rotate(360deg); }
         }
 
-        .error-message {
-            background: #fee;
-            border: 2px solid #fcc;
-            padding: 1rem;
-            border-radius: var(--border-radius);
-            color: #c00;
-            margin-bottom: 1rem;
+        .loading-box p {
+            color: #666;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        /* Recipe Result */
+        .recipe-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             display: none;
         }
 
-        .metric-note {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            font-style: italic;
-            margin-top: 0.5rem;
+        .recipe-actions {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
         }
 
-        /* Print Styles */
+        .recipe-actions button {
+            flex: 1;
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy {
+            background: #e63946;
+            color: white;
+        }
+
+        .btn-copy:hover {
+            background: #d62839;
+        }
+
+        .btn-print {
+            background: #2d3748;
+            color: white;
+        }
+
+        .btn-print:hover {
+            background: #1a202c;
+        }
+
+        .recipe-content {
+            padding: 2rem;
+        }
+
+        .recipe-img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: none;
+        }
+
+        .recipe-title {
+            font-size: 1.75rem;
+            color: #e63946;
+            margin: 0 0 1rem 0;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #eee;
+        }
+
+        .recipe-info {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .recipe-info span {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            color: #333;
+            margin: 0 0 1rem 0;
+            font-weight: 600;
+        }
+
+        .ingredients {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 2rem 0;
+        }
+
+        .ingredients li {
+            padding: 0.75rem 0;
+            padding-left: 1.75rem;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .ingredients li:last-child {
+            border-bottom: none;
+        }
+
+        .ingredients li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 1rem;
+            width: 8px;
+            height: 8px;
+            background: #e63946;
+            border-radius: 50%;
+        }
+
+        .instructions {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            counter-reset: step;
+        }
+
+        .instructions li {
+            counter-increment: step;
+            padding: 1rem 0;
+            padding-left: 3rem;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+            line-height: 1.7;
+        }
+
+        .instructions li:last-child {
+            border-bottom: none;
+        }
+
+        .instructions li::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 1rem;
+            width: 2rem;
+            height: 2rem;
+            background: #e63946;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Print styles */
         @media print {
             body {
                 background: white;
             }
 
-            .translator-header, .translation-form, .recipe-actions-top {
+            .header, .form-card, .recipe-actions, .loading-box {
                 display: none !important;
             }
 
-            .recipe-display {
-                border: none;
+            .recipe-card {
                 box-shadow: none;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
             }
         }
 
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .translator-header h1 {
-                font-size: 2rem;
+        /* Mobile */
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 1.75rem;
             }
 
-            .form-row {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+
+            .recipe-actions {
                 flex-direction: column;
             }
 
-            .recipe-meta {
+            .recipe-info {
                 flex-direction: column;
                 gap: 0.5rem;
-            }
-
-            .recipe-actions-top {
-                flex-direction: column;
-            }
-
-            .feature-badges {
-                flex-direction: column;
-                align-items: center;
             }
         }
     </style>
 </head>
 <body>
     {% if not pin_verified %}
-    <div class="pin-modal" id="pinModal">
-        <div class="pin-modal-content">
-            <h2>Recipe Translator Access</h2>
-            <p>Enter PIN to access the recipe translator</p>
-            <input type="password" id="pinInput" class="pin-input" maxlength="6" placeholder="****" autocomplete="off">
-            <p class="pin-error" id="pinError">Incorrect PIN. Please try again.</p>
-            <button onclick="verifyPin()" class="btn btn-primary">Access Translator</button>
+    <div class="pin-overlay" id="pinModal">
+        <div class="pin-box">
+            <h2>Recipe Translator</h2>
+            <p>Enter PIN to continue</p>
+            <input type="password" id="pinInput" maxlength="6" placeholder="****" autocomplete="off">
+            <p class="error" id="pinError">Incorrect PIN. Please try again.</p>
+            <button onclick="verifyPin()">Continue</button>
         </div>
     </div>
     {% endif %}
 
-    <div class="translator-container">
-        <div class="translator-header">
+    <div class="container">
+        <div class="header">
             <h1>NYT Recipe Translator</h1>
-            <p>Translate NYT Cooking recipes to your language with metric measurements</p>
-            <div class="feature-badges">
-                <span class="feature-badge">NYT Cooking</span>
-                <span class="feature-badge">Auto Translation</span>
-                <span class="feature-badge">Metric Units</span>
+            <p>Translate recipes to your language with metric measurements</p>
+            <div class="badges">
+                <span class="badge">NYT Cooking</span>
+                <span class="badge">Auto Translation</span>
+                <span class="badge">Metric Units</span>
             </div>
         </div>
 
-        <div class="translation-form">
-            <div class="error-message" id="errorMessage"></div>
+        <div class="form-card">
+            <div class="error-msg" id="errorMessage"></div>
 
-            <div class="form-row">
-                <div class="form-group" style="flex: 2;">
-                    <label for="recipeUrl">NYT Recipe URL</label>
-                    <input type="url" id="recipeUrl" placeholder="https://cooking.nytimes.com/recipes/..." autocomplete="off">
-                </div>
-                <div class="form-group" style="flex: 1;">
+            <div class="input-group">
+                <label for="recipeUrl">Recipe URL</label>
+                <input type="url" id="recipeUrl" placeholder="Paste NYT Cooking recipe link here...">
+            </div>
+
+            <div class="input-row">
+                <div class="input-group">
                     <label for="targetLanguage">Translate To</label>
                     <select id="targetLanguage">
                         <option value="es" {% if language == 'es' %}selected{% endif %}>Spanish</option>
@@ -418,39 +499,39 @@
                         <option value="ko" {% if language == 'ko' %}selected{% endif %}>Korean</option>
                     </select>
                 </div>
+                <div class="input-group" style="display: flex; align-items: flex-end;">
+                    <button id="translateBtn" class="submit-btn" onclick="translateRecipe()" style="margin-bottom: 0;">
+                        Translate Recipe
+                    </button>
+                </div>
             </div>
 
-            <button id="translateBtn" class="translate-btn" onclick="translateRecipe()">
-                Translate Recipe
-            </button>
-            <p class="metric-note">Measurements will be automatically converted to metric (ml, g, °C)</p>
+            <p class="form-note">Measurements are automatically converted to metric (ml, g, °C)</p>
         </div>
 
-        <div class="loading-message" id="loadingMessage" style="display: none;">
-            <div class="loading-spinner"></div>
-            Fetching and translating recipe... This may take a moment.
+        <div class="loading-box" id="loadingMessage">
+            <div class="spinner"></div>
+            <p>Translating recipe...</p>
         </div>
 
-        <div class="recipe-display" id="recipeDisplay">
-            <div class="recipe-actions-top">
-                <button onclick="copyRecipe()">Copy Recipe</button>
-                <button onclick="window.print()">Print Recipe</button>
+        <div class="recipe-card" id="recipeDisplay">
+            <div class="recipe-actions">
+                <button class="btn-copy" onclick="copyRecipe()">Copy to Clipboard</button>
+                <button class="btn-print" onclick="window.print()">Print Recipe</button>
             </div>
 
-            <img id="recipeImage" class="recipe-image" alt="Recipe" style="display: none;">
+            <img id="recipeImage" class="recipe-img" alt="Recipe">
 
-            <h2 class="recipe-title" id="recipeTitle"></h2>
+            <div class="recipe-content">
+                <h1 class="recipe-title" id="recipeTitle"></h1>
 
-            <div class="recipe-meta" id="recipeMeta"></div>
+                <div class="recipe-info" id="recipeMeta"></div>
 
-            <div class="recipe-section">
-                <h3>Ingredients</h3>
-                <ul class="ingredients-list" id="ingredientsList"></ul>
-            </div>
+                <h3 class="section-title">Ingredients</h3>
+                <ul class="ingredients" id="ingredientsList"></ul>
 
-            <div class="recipe-section">
-                <h3>Instructions</h3>
-                <ol class="instructions-list" id="instructionsList"></ol>
+                <h3 class="section-title">Instructions</h3>
+                <ol class="instructions" id="instructionsList"></ol>
             </div>
         </div>
     </div>
@@ -478,63 +559,57 @@
                 } else {
                     errorEl.style.display = 'block';
                     document.getElementById('pinInput').value = '';
+                    document.getElementById('pinInput').focus();
                 }
             } catch (error) {
-                console.error('Error verifying PIN:', error);
-                errorEl.textContent = 'Error verifying PIN. Please try again.';
+                console.error('Error:', error);
+                errorEl.textContent = 'Connection error. Please try again.';
                 errorEl.style.display = 'block';
             }
         }
 
-        // Allow Enter key to submit PIN
+        // Enter key handlers
         if (!pinVerified) {
             document.getElementById('pinInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    verifyPin();
-                }
+                if (e.key === 'Enter') verifyPin();
             });
         }
 
-        // Allow Enter key to translate
         document.getElementById('recipeUrl').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                translateRecipe();
-            }
+            if (e.key === 'Enter') translateRecipe();
         });
 
         async function translateRecipe() {
             const url = document.getElementById('recipeUrl').value.trim();
             const language = document.getElementById('targetLanguage').value;
-            const errorMessage = document.getElementById('errorMessage');
-            const loadingMessage = document.getElementById('loadingMessage');
-            const translateBtn = document.getElementById('translateBtn');
-            const recipeDisplay = document.getElementById('recipeDisplay');
+            const errorEl = document.getElementById('errorMessage');
+            const loadingEl = document.getElementById('loadingMessage');
+            const btn = document.getElementById('translateBtn');
+            const resultEl = document.getElementById('recipeDisplay');
 
-            // Validate URL
+            // Validate
             if (!url) {
                 showError('Please enter a recipe URL');
                 return;
             }
 
             if (!url.includes('nytimes.com')) {
-                showError('Please enter a valid NYT Cooking recipe URL');
+                showError('Please enter a valid NYT Cooking URL');
                 return;
             }
 
-            // Hide previous results and errors
-            errorMessage.style.display = 'none';
-            recipeDisplay.style.display = 'none';
-
-            // Show loading
-            loadingMessage.style.display = 'block';
-            translateBtn.disabled = true;
-            translateBtn.textContent = 'Translating...';
+            // Reset UI
+            errorEl.style.display = 'none';
+            resultEl.style.display = 'none';
+            loadingEl.style.display = 'block';
+            btn.disabled = true;
+            btn.textContent = 'Translating...';
 
             try {
                 const response = await fetch('/api/family/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url, language: language })
+                    body: JSON.stringify({ url, language })
                 });
 
                 const data = await response.json();
@@ -543,51 +618,49 @@
                     currentRecipe = data.recipe;
                     displayRecipe(data.recipe);
                 } else {
-                    showError(data.message || 'Failed to translate recipe');
+                    showError(data.message || 'Translation failed');
                 }
             } catch (error) {
-                console.error('Translation error:', error);
-                showError('Error translating recipe: ' + error.message);
+                console.error('Error:', error);
+                showError('Connection error. Please try again.');
             } finally {
-                loadingMessage.style.display = 'none';
-                translateBtn.disabled = false;
-                translateBtn.textContent = 'Translate Recipe';
+                loadingEl.style.display = 'none';
+                btn.disabled = false;
+                btn.textContent = 'Translate Recipe';
             }
         }
 
         function displayRecipe(recipe) {
-            // Show image
-            const imageEl = document.getElementById('recipeImage');
+            // Image
+            const imgEl = document.getElementById('recipeImage');
             if (recipe.image_url) {
-                imageEl.src = recipe.image_url;
-                imageEl.style.display = 'block';
+                imgEl.src = recipe.image_url;
+                imgEl.style.display = 'block';
             } else {
-                imageEl.style.display = 'none';
+                imgEl.style.display = 'none';
             }
 
             // Title
             document.getElementById('recipeTitle').textContent = recipe.translated_title;
 
-            // Meta
-            const metaHtml = [];
-            if (recipe.total_time) metaHtml.push(`<span>Time: ${recipe.total_time}</span>`);
-            if (recipe.servings) metaHtml.push(`<span>Servings: ${recipe.servings}</span>`);
-            if (recipe.author) metaHtml.push(`<span>By: ${escapeHtml(recipe.author)}</span>`);
-            document.getElementById('recipeMeta').innerHTML = metaHtml.join('');
+            // Meta info
+            const meta = [];
+            if (recipe.total_time) meta.push(`<span><strong>Time:</strong> ${recipe.total_time}</span>`);
+            if (recipe.servings) meta.push(`<span><strong>Servings:</strong> ${recipe.servings}</span>`);
+            if (recipe.author) meta.push(`<span><strong>By:</strong> ${escapeHtml(recipe.author)}</span>`);
+            document.getElementById('recipeMeta').innerHTML = meta.join('');
 
-            // Ingredients (translated with metric)
-            const ingredientsList = document.getElementById('ingredientsList');
-            ingredientsList.innerHTML = recipe.translated_ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('');
+            // Ingredients
+            document.getElementById('ingredientsList').innerHTML =
+                recipe.translated_ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join('');
 
-            // Instructions (translated with metric)
-            const instructionsList = document.getElementById('instructionsList');
-            instructionsList.innerHTML = recipe.translated_instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('');
+            // Instructions
+            document.getElementById('instructionsList').innerHTML =
+                recipe.translated_instructions.map(i => `<li>${escapeHtml(i)}</li>`).join('');
 
-            // Show recipe
+            // Show
             document.getElementById('recipeDisplay').style.display = 'block';
-
-            // Scroll to recipe
-            document.getElementById('recipeDisplay').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('recipeDisplay').scrollIntoView({ behavior: 'smooth' });
         }
 
         function copyRecipe() {
@@ -595,35 +668,26 @@
 
             let text = `${currentRecipe.translated_title}\n\n`;
 
-            if (currentRecipe.total_time || currentRecipe.servings) {
-                if (currentRecipe.total_time) text += `Time: ${currentRecipe.total_time}`;
-                if (currentRecipe.servings) text += ` | Servings: ${currentRecipe.servings}`;
-                text += '\n\n';
-            }
+            if (currentRecipe.total_time) text += `Time: ${currentRecipe.total_time}\n`;
+            if (currentRecipe.servings) text += `Servings: ${currentRecipe.servings}\n`;
+            text += '\n';
 
             text += 'INGREDIENTS:\n';
-            currentRecipe.translated_ingredients.forEach(ing => {
-                text += `- ${ing}\n`;
-            });
+            currentRecipe.translated_ingredients.forEach(i => text += `• ${i}\n`);
             text += '\n';
 
             text += 'INSTRUCTIONS:\n';
-            currentRecipe.translated_instructions.forEach((inst, idx) => {
-                text += `${idx + 1}. ${inst}\n`;
-            });
+            currentRecipe.translated_instructions.forEach((i, idx) => text += `${idx + 1}. ${i}\n`);
 
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Recipe copied to clipboard!');
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-                alert('Failed to copy recipe');
-            });
+            navigator.clipboard.writeText(text)
+                .then(() => alert('Recipe copied!'))
+                .catch(() => alert('Copy failed'));
         }
 
-        function showError(message) {
-            const errorEl = document.getElementById('errorMessage');
-            errorEl.textContent = message;
-            errorEl.style.display = 'block';
+        function showError(msg) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = msg;
+            el.style.display = 'block';
         }
 
         function escapeHtml(text) {
