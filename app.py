@@ -44,14 +44,11 @@ db.init_app(app)
 # Create tables on first run
 with app.app_context():
     try:
-        # Check if tables exist by trying a simple query
-        User.query.first()
-    except Exception:
-        # Tables don't exist, create them
-        print("Creating database tables...")
+        # Create all tables (idempotent - safe to run multiple times)
         db.create_all()
+        print("✓ Database tables created/verified")
 
-        # Create default admin user
+        # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
         if not admin:
             admin = User(username='admin', role='admin')
@@ -61,6 +58,9 @@ with app.app_context():
             print("✓ Created default admin user (username: admin, password: admin123)")
 
         print("✓ Database initialized")
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+        db.session.rollback()
 
 # Configure Flask-Login
 login_manager = LoginManager()
