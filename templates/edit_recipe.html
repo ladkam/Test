@@ -8,12 +8,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    {% include '_sidebar.html' %}
+
     <div class="container">
         <header>
             <h1>✏️ Edit Recipe</h1>
-            <nav>
-                <a href="{{ url_for('library') }}" class="btn btn-secondary">← Back to Library</a>
-            </nav>
         </header>
 
         <div class="card">
