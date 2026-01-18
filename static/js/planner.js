@@ -117,7 +117,7 @@ function displayAvailableRecipes() {
 
 async function addToPlan(recipeId) {
     // Find recipe to get default servings
-    const recipe = availableRecipes.find(r => r.id === recipeId);
+    const recipe = allRecipes.find(r => r.id === recipeId);
     const defaultServings = recipe && recipe.servings ? parseInt(recipe.servings.toString().match(/\d+/)?.[0] || 1) : 1;
 
     // Prompt for servings
