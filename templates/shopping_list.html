@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping List - Recipe Management</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="container">
+        <header class="planner-header">
+            <div>
+                <h1>🛒 Shopping List</h1>
+                <p class="subtitle">Your ingredients in English with metric measurements</p>
+            </div>
+            <div class="planner-actions">
+                <button onclick="printShoppingList()" class="btn btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Print
+                </button>
+                <button onclick="copyShoppingList()" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 4v12a2 2 0 002 2h8a2 2 0 002-2V7.242a2 2 0 00-.602-1.43L16.083 2.57A2 2 0 0014.685 2H10a2 2 0 00-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 18v2a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Copy to Clipboard
+                </button>
+            </div>
+        </header>
+
+        <div class="card">
+            <div id="shoppingListContent" class="shopping-list-container">
+                <div class="loading-center">
+                    <p>Loading shopping list...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem; background: #f8f9fa; border-left: 4px solid var(--primary-color);">
+            <h3 style="margin-bottom: 0.75rem;">📏 Metric Conversions Applied</h3>
+            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                <li>Cups → ml (1 cup = 240ml)</li>
+                <li>Tablespoons → ml (1 tbsp = 15ml)</li>
+                <li>Teaspoons → ml (1 tsp = 5ml)</li>
+                <li>Ounces → grams (1 oz = 28g)</li>
+                <li>Pounds → kg (1 lb = 454g)</li>
+                <li>Fahrenheit → Celsius</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/shopping_list.js') }}"></script>
+</body>
+</html>

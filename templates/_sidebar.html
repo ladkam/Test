@@ -17,9 +17,17 @@
     <nav class="sidebar-nav">
         <a href="{{ url_for('planner') }}" class="sidebar-nav-link {% if request.endpoint == 'planner' %}active{% endif %}">
             <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 5m2-5h10m0 0l2 5" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="3" y="4" width="14" height="14" rx="2" ry="2" fill="none"/>
+                <path d="M6 2v4M14 2v4M3 8h14" stroke-linecap="round"/>
             </svg>
             Weekly Planner
+        </a>
+
+        <a href="{{ url_for('shopping_list_page') }}" class="sidebar-nav-link {% if request.endpoint == 'shopping_list_page' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 5m2-5h10m0 0l2 5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Shopping List
         </a>
 
         <a href="{{ url_for('library') }}" class="sidebar-nav-link {% if request.endpoint == 'library' %}active{% endif %}">

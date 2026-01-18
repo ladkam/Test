@@ -693,6 +693,13 @@ def planner():
     return render_template('planner.html')
 
 
+@app.route('/shopping-list')
+@login_required
+def shopping_list_page():
+    """Render shopping list page."""
+    return render_template('shopping_list.html')
+
+
 @app.route('/help')
 def help_view():
     """Render simplified help view for household staff (no login required)."""
@@ -1285,23 +1292,13 @@ def get_shopping_list():
     import re
 
     def get_recipe_ingredients(recipe):
-        """Get ingredients from recipe, preferring translations."""
-        # Try to get translated ingredients (prefer Spanish, then French)
-        for translation in recipe.translations:
-            if translation.language_code in ['es', 'fr'] and translation.ingredients:
-                return translation.ingredients
-
-        # Fall back to original ingredients
+        """Get ingredients from recipe in English (original language)."""
+        # Always use original English ingredients for shopping list
         return recipe.ingredients or []
 
     def get_recipe_title(recipe):
-        """Get recipe title, preferring translations."""
-        # Try to get translated title (prefer Spanish, then French)
-        for translation in recipe.translations:
-            if translation.language_code in ['es', 'fr'] and translation.title:
-                return translation.title
-
-        # Fall back to original title
+        """Get recipe title in English (original language)."""
+        # Always use original English title for shopping list
         return recipe.title
 
     def scale_ingredient(ingredient, scale):

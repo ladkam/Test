@@ -2204,25 +2204,25 @@ textarea:focus {
     font-weight: 600;
 }
 
-/* Plan Section - Highlighted Background */
+/* Plan Section - Subtle Highlighted Background */
 .plan-section {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    border: 2px solid #3b82f6;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    background: linear-gradient(to bottom, #fafbfc 0%, #ffffff 100%);
+    border: 1px solid #e1e8ed;
+    border-left: 4px solid var(--primary-color);
 }
 
 .plan-section h2 {
-    color: #1e40af;
+    color: var(--text-primary);
 }
 
-/* Add Recipes Section - Subtle Gray Background */
+/* Add Recipes Section - Clean Background */
 .add-recipes-section {
-    background: var(--background);
+    background: var(--card-background);
     border: 1px solid var(--border-color);
 }
 
 .add-recipes-section h2 {
-    color: var(--text-secondary);
+    color: var(--text-primary);
 }
 
 /* Section Title with Icon */
@@ -2441,24 +2441,73 @@ textarea:focus {
     margin-bottom: 1.5rem;
 }
 
+.shopping-list-container {
+    min-height: 300px;
+}
+
+.loading-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
 .shopping-list-section {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.shopping-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(to bottom, #fafbfc 0%, #ffffff 100%);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .shopping-list-section h3 {
     font-size: 1.125rem;
-    margin-bottom: 0.75rem;
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.btn-collapse {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.btn-collapse:hover {
     color: var(--primary-color);
+}
+
+.btn-collapse.collapsed svg {
+    transform: rotate(-90deg);
 }
 
 .shopping-list-items {
     list-style: none;
     padding: 0;
+    margin: 0;
 }
 
 .shopping-list-items li {
-    padding: 0.5rem 0;
+    padding: 0.75rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s;
+}
+
+.shopping-list-items li:hover {
+    background: var(--background);
 }
 
 .shopping-list-items li:last-child {
@@ -2473,9 +2522,21 @@ textarea:focus {
     margin: 0;
 }
 
+.shopping-list-items label.checked .ingredient-text {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
 .shopping-list-items input[type="checkbox"] {
     width: 1.25rem;
     height: 1.25rem;
+    cursor: pointer;
+}
+
+.ingredient-text {
+    flex: 1;
+    transition: all 0.2s;
 }
 
 .modal-actions {
