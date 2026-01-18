@@ -316,6 +316,7 @@ def admin_dashboard():
     # Get API keys from database
     groq_api_key = SettingsModel.get('groq_api_key', '')
     mistral_api_key = SettingsModel.get('mistral_api_key', '')
+    translator_pin = SettingsModel.get('translator_access_pin', '1234')
 
     return render_template(
         'admin.html',
@@ -327,7 +328,8 @@ def admin_dashboard():
         ai_model=ai_model,
         nyt_cookie=nyt_cookie,
         groq_api_key=groq_api_key,
-        mistral_api_key=mistral_api_key
+        mistral_api_key=mistral_api_key,
+        translator_pin=translator_pin
     )
 
 
@@ -552,27 +554,31 @@ def manage_prompts():
 @app.route('/api/admin/api-settings', methods=['GET', 'POST'])
 @admin_required
 def manage_api_settings():
-    """Manage API settings (provider, model, API keys, and cookie)."""
+    """Manage API settings (provider, model, API keys, cookie, and translator PIN)."""
     if request.method == 'GET':
         return jsonify({
             'ai_provider': settings.get_ai_provider(),
             'ai_model': settings.get_ai_model(),
             'nyt_cookie': settings.get_nyt_cookie(),
             'groq_api_key': SettingsModel.get('groq_api_key', ''),
-            'mistral_api_key': SettingsModel.get('mistral_api_key', '')
+            'mistral_api_key': SettingsModel.get('mistral_api_key', ''),
+            'translator_pin': SettingsModel.get('translator_access_pin', '1234')
         })
 
     elif request.method == 'POST':
         data = request.json
 
-        # Handle API keys
+        # Handle API keys and PINs
         groq_api_key = data.get('groq_api_key')
         mistral_api_key = data.get('mistral_api_key')
+        translator_pin = data.get('translator_pin')
 
         if groq_api_key is not None:
             SettingsModel.set('groq_api_key', groq_api_key)
         if mistral_api_key is not None:
             SettingsModel.set('mistral_api_key', mistral_api_key)
+        if translator_pin is not None:
+            SettingsModel.set('translator_access_pin', translator_pin)
 
         # Handle other settings
         ai_provider = data.get('ai_provider')
@@ -700,10 +706,180 @@ def shopping_list_page():
     return render_template('shopping_list.html')
 
 
+@app.route('/family')
+@app.route('/family/<language>')
+def family_view(language='en'):
+    """Render family/guest view with PIN access for shareable recipes only."""
+    # Supported languages
+    supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
+    if language not in supported_languages:
+        language = 'en'  # Default to English
+
+    # Check if PIN is verified in session
+    pin_verified = session.get('family_pin_verified', False)
+
+    return render_template('family_view.html', language=language, pin_verified=pin_verified)
+
+
+@app.route('/api/family/verify-pin', methods=['POST'])
+def verify_family_pin():
+    """Verify family access PIN."""
+    data = request.json
+    entered_pin = data.get('pin', '')
+
+    # Get PIN from settings (default: 1234)
+    correct_pin = SettingsModel.get('family_access_pin', '1234')
+
+    if entered_pin == correct_pin:
+        session['family_pin_verified'] = True
+        return jsonify({'success': True, 'message': 'Access granted'})
+    else:
+        return jsonify({'success': False, 'message': 'Incorrect PIN'}), 401
+
+
+@app.route('/api/family/planner', methods=['GET'])
+def get_family_plan():
+    """Get current week's plan with only shareable recipes (no login required, but requires PIN verification)."""
+    from datetime import date, timedelta
+
+    # Check if PIN is verified
+    if not session.get('family_pin_verified', False):
+        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
+
+    # Get Monday of current week
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+
+    # Find plan for this week
+    plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+
+    if not plan:
+        return jsonify({'success': True, 'recipes': []})
+
+    # Get all recipes in the plan, but ONLY shareable ones
+    plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
+    recipes = []
+    for pr in plan_recipes:
+        if pr.recipe and pr.recipe.is_shareable:
+            recipes.append(pr.recipe.to_dict())
+
+    return jsonify({'success': True, 'recipes': recipes})
+
+
+@app.route('/translator')
+@app.route('/translator/<language>')
+def translator_view(language='es'):
+    """Render standalone NYT recipe translator with PIN access (no login required)."""
+    # Supported languages
+    supported_languages = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
+    if language not in supported_languages:
+        language = 'es'  # Default to Spanish
+
+    # Check if PIN is verified in session
+    pin_verified = session.get('translator_pin_verified', False)
+
+    return render_template('translator_view.html', language=language, pin_verified=pin_verified)
+
+
+@app.route('/api/translator/verify-pin', methods=['POST'])
+def verify_translator_pin():
+    """Verify translator access PIN."""
+    data = request.json
+    entered_pin = data.get('pin', '')
+
+    # Get PIN from settings (default: 1234)
+    correct_pin = SettingsModel.get('translator_access_pin', '1234')
+
+    if entered_pin == correct_pin:
+        session['translator_pin_verified'] = True
+        return jsonify({'success': True, 'message': 'Access granted'})
+    else:
+        return jsonify({'success': False, 'message': 'Incorrect PIN'}), 401
+
+
+@app.route('/api/translator/translate', methods=['POST'])
+def translate_recipe_standalone():
+    """Translate a recipe from URL without saving to library (requires PIN verification)."""
+    # Check if PIN is verified
+    if not session.get('translator_pin_verified', False):
+        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
+
+    try:
+        data = request.json
+        url = data.get('url', '')
+        target_language_code = data.get('language', 'es')
+
+        # Validate URL is from NYT
+        if 'nytimes.com' not in url.lower():
+            return jsonify({'success': False, 'message': 'Only NYT Cooking recipes are supported'}), 400
+
+        # Map language codes to names
+        language_map = {
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'ja': 'Japanese',
+            'zh': 'Chinese',
+            'ko': 'Korean'
+        }
+        target_language = language_map.get(target_language_code, 'Spanish')
+
+        # Scrape recipe
+        cookie = settings.get_nyt_cookie()
+        scraper = NYTRecipeScraper(cookie=cookie)
+        recipe_data = scraper.scrape(url)
+
+        if not recipe_data:
+            return jsonify({'success': False, 'message': 'Failed to fetch recipe'}), 400
+
+        # Translate recipe
+        ai_provider = settings.get_ai_provider()
+        if ai_provider == 'groq':
+            api_key = get_api_key('groq_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = GroqTranslator(api_key=api_key)
+        else:
+            api_key = get_api_key('mistral_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = MistralTranslator(api_key=api_key)
+
+        # Translate title, ingredients, and instructions
+        translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
+        translated_ingredients = [translator.translate_text(ing, target_language) for ing in recipe_data.get('ingredients', [])]
+        translated_instructions = [translator.translate_text(inst, target_language) for inst in recipe_data.get('instructions', [])]
+
+        return jsonify({
+            'success': True,
+            'recipe': {
+                'title': recipe_data.get('title', ''),
+                'translated_title': translated_title,
+                'ingredients': recipe_data.get('ingredients', []),
+                'translated_ingredients': translated_ingredients,
+                'instructions': recipe_data.get('instructions', []),
+                'translated_instructions': translated_instructions,
+                'image_url': recipe_data.get('image', ''),
+                'prep_time': recipe_data.get('prep_time', ''),
+                'cook_time': recipe_data.get('cook_time', ''),
+                'total_time': recipe_data.get('total_time', ''),
+                'servings': recipe_data.get('yield', ''),
+                'target_language': target_language
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/help')
 @app.route('/help/<language>')
 def help_view(language='en'):
-    """Render simplified help view for household staff (no login required)."""
+    """Render simplified help view for household staff (no login required).
+    NOTE: This is the old help view. Consider using /family instead for better access control."""
     # Supported languages for help
     supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
     if language not in supported_languages:
@@ -1068,6 +1244,12 @@ def save_recipe():
                 total_mins += minutes
             return total_mins if total_mins > 0 else None
 
+        # Determine if recipe is shareable (not from copyrighted sources like NYT)
+        source_url = data.get('url', '')
+        is_shareable = True
+        if source_url and 'nytimes.com' in source_url.lower():
+            is_shareable = False
+
         # Create new recipe (original content only)
         new_recipe = Recipe(
             title=data.get('title', ''),
@@ -1080,8 +1262,9 @@ def save_recipe():
             servings=data.get('servings', ''),
             image_url=data.get('image', ''),
             author=data.get('author', ''),
-            source_url=data.get('url', ''),
+            source_url=source_url,
             source_language=data.get('source_language', 'English'),
+            is_shareable=is_shareable,
             nutrition=data.get('nutrition', {}),
             tags=[]
         )

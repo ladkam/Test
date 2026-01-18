@@ -60,6 +60,7 @@ class Recipe(db.Model):
     author = db.Column(db.String(200))
     source_url = db.Column(db.String(1000))
     source_language = db.Column(db.String(50), default='English')  # Language of original recipe
+    is_shareable = db.Column(db.Boolean, default=True)  # Can be shared in family view (False for copyrighted sources like NYT)
     nutrition = db.Column(JSON)  # Nutrition data object
     tags = db.Column(JSON)  # Array of tags/keywords
 
@@ -107,6 +108,7 @@ class Recipe(db.Model):
             'author': self.author,
             'source_url': self.source_url,
             'source_language': self.source_language,
+            'is_shareable': self.is_shareable if hasattr(self, 'is_shareable') else True,
             'nutrition': self.nutrition,
             'health_score': health_score,
             'tags': self.tags,

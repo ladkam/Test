@@ -151,6 +151,24 @@
                 <hr style="margin: 2rem 0;">
 
                 <div class="form-group">
+                    <label for="translatorPin">NYT Translator PIN</label>
+                    <input
+                        type="text"
+                        id="translatorPin"
+                        placeholder="Enter translator access PIN..."
+                        class="input-full"
+                        value="{{ translator_pin or '1234' }}"
+                        maxlength="6"
+                    >
+                    <small>
+                        PIN code for the standalone NYT recipe translator (recommended: 4-6 digits).
+                        Share this PIN and the URL <strong>/translator</strong> with users who need to translate NYT recipes.
+                    </small>
+                </div>
+
+                <hr style="margin: 2rem 0;">
+
+                <div class="form-group">
                     <label for="aiProvider">AI Provider</label>
                     <select id="aiProvider" class="select-full" onchange="updateModelOptions()">
                         <option value="mistral" {% if ai_provider == 'mistral' %}selected{% endif %}>Mistral AI</option>

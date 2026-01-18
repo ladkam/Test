@@ -45,6 +45,16 @@
             Import Recipe
         </a>
 
+        <a href="{{ url_for('family_view') }}" class="sidebar-nav-link {% if request.endpoint == 'family_view' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="10" cy="7" r="2.5" fill="none"/>
+                <circle cx="6" cy="13" r="2" fill="none"/>
+                <circle cx="14" cy="13" r="2" fill="none"/>
+                <path d="M10 9.5v1.5M6 11l2 2M14 11l-2 2" stroke-linecap="round"/>
+            </svg>
+            Family View
+        </a>
+
         <a href="{{ url_for('help_view') }}" class="sidebar-nav-link {% if request.endpoint == 'help_view' %}active{% endif %}">
             <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="10" cy="10" r="8" fill="none"/>
