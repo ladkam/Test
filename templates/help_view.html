@@ -10,7 +10,7 @@
         /* Help View Specific Styles - Large, Clean, Simple */
         body {
             font-size: 1.125rem;
-            background: white;
+            background: var(--background);
         }
 
         .help-container {
@@ -213,12 +213,28 @@
             }
         }
 
+        function getTranslatedIngredients(recipe) {
+            if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
+                return recipe.ingredients || [];
+            }
+            const translation = recipe.translations['es'] || recipe.translations['fr'];
+            return translation && translation.ingredients ? translation.ingredients : (recipe.ingredients || []);
+        }
+
+        function getTranslatedInstructions(recipe) {
+            if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
+                return recipe.instructions || [];
+            }
+            const translation = recipe.translations['es'] || recipe.translations['fr'];
+            return translation && translation.instructions ? translation.instructions : (recipe.instructions || []);
+        }
+
         function displayRecipes(recipes) {
             const container = document.getElementById('recipesList');
 
             container.innerHTML = recipes.map(recipe => {
-                const ingredients = recipe.ingredients || [];
-                const instructions = recipe.instructions || [];
+                const ingredients = getTranslatedIngredients(recipe);
+                const instructions = getTranslatedInstructions(recipe);
 
                 return `
                     <div class="recipe-card-simple">
