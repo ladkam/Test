@@ -8,22 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="top-nav">
-        <div class="nav-content">
-            <a href="{{ url_for('index') }}" class="nav-brand">Recipe Manager</a>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}" class="nav-link">Dashboard</a>
-                <a href="{{ url_for('library') }}" class="nav-link active">Library</a>
-                <a href="{{ url_for('import_recipe') }}" class="nav-link">Import</a>
-                {% if current_user.is_authenticated %}
-                    {% if current_user.is_admin() %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Admin</a>
-                    {% endif %}
-                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
+    {% include '_sidebar.html' %}
 
     <div class="container">
         <header class="library-header">
