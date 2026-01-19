@@ -1800,6 +1800,126 @@ def get_shopping_list():
         return jsonify({'success': False, 'message': f'Error generating shopping list: {str(e)}'}), 500
 
 
+@app.route('/api/planner/shopping-list/combined', methods=['GET'])
+@login_required
+def get_combined_shopping_list():
+    """Generate a combined/aggregated shopping list using AI to merge similar ingredients."""
+    from datetime import date, timedelta
+
+    try:
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if not plan:
+            return jsonify({'success': True, 'combined_list': [], 'by_recipe': []})
+
+        # Get all recipes in the plan
+        plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
+
+        # Collect all ingredients with recipe context
+        all_ingredients = []
+        by_recipe = []
+
+        for pr in plan_recipes:
+            if pr.recipe and pr.recipe.ingredients:
+                recipe_title = pr.recipe.title
+                ingredients = pr.recipe.ingredients
+
+                # Scale ingredients based on servings
+                recipe_servings = 1
+                if pr.recipe.servings:
+                    import re
+                    match = re.search(r'\d+', str(pr.recipe.servings))
+                    if match:
+                        recipe_servings = int(match.group(0))
+
+                scale = pr.servings / recipe_servings if recipe_servings > 0 else 1
+
+                for ing in ingredients:
+                    all_ingredients.append({
+                        'ingredient': ing,
+                        'recipe': recipe_title,
+                        'scale': scale
+                    })
+
+                by_recipe.append({
+                    'recipe': recipe_title,
+                    'servings': pr.servings,
+                    'ingredients': ingredients
+                })
+
+        if not all_ingredients:
+            return jsonify({'success': True, 'combined_list': [], 'by_recipe': []})
+
+        # Use AI to combine and aggregate ingredients
+        ai_provider = settings.get_ai_provider()
+        if ai_provider == 'groq':
+            api_key = get_api_key('groq_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
+            translator = GroqTranslator(api_key=api_key)
+        else:
+            api_key = get_api_key('mistral_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
+            translator = MistralTranslator(api_key=api_key)
+
+        # Build the prompt
+        ingredients_text = "\n".join([
+            f"- {item['ingredient']} (x{item['scale']:.1f} scale, from: {item['recipe']})"
+            for item in all_ingredients
+        ])
+
+        prompt = f"""Combine these recipe ingredients into a single shopping list.
+
+Rules:
+1. Merge same ingredients together and sum their quantities
+2. Convert all measurements to metric (cups→ml, oz→g, lbs→kg, tbsp→ml, tsp→ml)
+3. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
+4. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
+5. Apply the scale factor to quantities before combining
+6. Items without clear quantities (like "salt to taste") should be listed once
+7. Round metric values sensibly (no decimals for ml/g unless needed)
+
+Ingredients:
+{ingredients_text}
+
+Return ONLY a JSON array of objects, each with "item" (string) and "display" (formatted string for display like "500g chicken breast" or "3 eggs"):
+[{{"item": "chicken breast", "display": "500g chicken breast"}}, ...]"""
+
+        # Call AI
+        try:
+            response = translator.translate_text(prompt, "JSON")
+
+            # Parse JSON from response
+            import re
+            json_match = re.search(r'\[[\s\S]*\]', response)
+            if json_match:
+                combined_list = json.loads(json_match.group())
+            else:
+                # Fallback: return ingredients as-is
+                combined_list = [{"item": ing['ingredient'], "display": ing['ingredient']} for ing in all_ingredients]
+
+        except Exception as e:
+            print(f"AI aggregation error: {e}")
+            # Fallback: return ingredients as-is without combining
+            combined_list = [{"item": ing['ingredient'], "display": ing['ingredient']} for ing in all_ingredients]
+
+        return jsonify({
+            'success': True,
+            'combined_list': combined_list,
+            'by_recipe': by_recipe
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error generating combined list: {str(e)}'}), 500
+
+
 @app.route('/api/recipes/<int:recipe_id>/translate', methods=['POST'])
 @login_required
 def create_recipe_translation(recipe_id):
