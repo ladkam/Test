@@ -1,6 +1,6 @@
 // Recipe Translator App JavaScript
 
-// DOM elements
+// DOM elements - URL form
 const recipeForm = document.getElementById('recipeForm');
 const submitBtn = document.getElementById('submitBtn');
 const btnText = submitBtn.querySelector('.btn-text');
@@ -16,8 +16,27 @@ const errorSection = document.getElementById('error');
 const errorMessage = document.getElementById('errorMessage');
 const successSection = document.getElementById('success');
 
+// DOM elements - OCR form
+const ocrForm = document.getElementById('ocrForm');
+const imageUploadArea = document.getElementById('imageUploadArea');
+const recipeImageInput = document.getElementById('recipeImage');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('previewImg');
+const removeImageBtn = document.getElementById('removeImage');
+const ocrSubmitBtn = document.getElementById('ocrSubmitBtn');
+const ocrResults = document.getElementById('ocrResults');
+const ocrText = document.getElementById('ocrText');
+const detectedLang = document.getElementById('detectedLang');
+const ocrConfidence = document.getElementById('ocrConfidence');
+const translateOcrBtn = document.getElementById('translateOcrBtn');
+
+// DOM elements - Tabs
+const inputTabs = document.querySelectorAll('.input-tab');
+const tabContents = document.querySelectorAll('.tab-content');
+
 // Store the current recipe data
 let currentRecipe = null;
+let currentOcrData = null;
 
 // Show/hide loading state
 function setLoading(isLoading) {
@@ -258,5 +277,228 @@ downloadBtn.addEventListener('click', async () => {
 
     } catch (error) {
         showError(error.message);
+    }
+});
+
+// ==========================================
+// Tab Switching Logic
+// ==========================================
+
+inputTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+
+        // Update active tab
+        inputTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Show corresponding content
+        tabContents.forEach(content => {
+            if (content.dataset.tab === targetTab) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
+
+        // Clear errors when switching tabs
+        errorSection.style.display = 'none';
+    });
+});
+
+// ==========================================
+// Image Upload Handling
+// ==========================================
+
+// Handle file selection
+recipeImageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        handleImageFile(file);
+    }
+});
+
+// Handle drag and drop
+imageUploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    imageUploadArea.classList.add('drag-over');
+});
+
+imageUploadArea.addEventListener('dragleave', () => {
+    imageUploadArea.classList.remove('drag-over');
+});
+
+imageUploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    imageUploadArea.classList.remove('drag-over');
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        // Update the file input
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        recipeImageInput.files = dt.files;
+        handleImageFile(file);
+    } else {
+        showError('Please drop a valid image file');
+    }
+});
+
+function handleImageFile(file) {
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+        showError('Invalid file type. Please use PNG, JPG, GIF, or WebP images.');
+        return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        imagePreview.style.display = 'block';
+        document.querySelector('.upload-placeholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+
+    // Reset OCR results
+    ocrResults.style.display = 'none';
+    currentOcrData = null;
+}
+
+// Handle remove image
+removeImageBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    recipeImageInput.value = '';
+    imagePreview.style.display = 'none';
+    document.querySelector('.upload-placeholder').style.display = 'flex';
+    ocrResults.style.display = 'none';
+    currentOcrData = null;
+});
+
+// ==========================================
+// OCR Form Submission
+// ==========================================
+
+function setOcrLoading(isLoading, btn) {
+    btn.disabled = isLoading;
+    const btnTextEl = btn.querySelector('.btn-text');
+    const btnLoaderEl = btn.querySelector('.btn-loader');
+
+    if (isLoading) {
+        btnTextEl.style.display = 'none';
+        btnLoaderEl.style.display = 'flex';
+    } else {
+        btnTextEl.style.display = 'block';
+        btnLoaderEl.style.display = 'none';
+    }
+}
+
+ocrForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Clear previous errors
+    errorSection.style.display = 'none';
+
+    // Validate image
+    const file = recipeImageInput.files[0];
+    if (!file) {
+        showError('Please select a recipe image');
+        return;
+    }
+
+    setOcrLoading(true, ocrSubmitBtn);
+
+    try {
+        // Create form data
+        const formData = new FormData();
+        formData.append('image', file);
+
+        // Call OCR API
+        const response = await fetch('/api/ocr', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'OCR processing failed');
+        }
+
+        // Store OCR data
+        currentOcrData = {
+            text: data.text,
+            detected_language: data.detected_language,
+            confidence: data.confidence,
+            image_url: data.image_url
+        };
+
+        // Update OCR results UI
+        ocrText.value = data.text;
+        detectedLang.textContent = data.detected_language;
+        ocrConfidence.textContent = `${data.confidence}%`;
+        ocrResults.style.display = 'block';
+
+        // Scroll to results
+        ocrResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        setOcrLoading(false, ocrSubmitBtn);
+    }
+});
+
+// ==========================================
+// OCR Translation
+// ==========================================
+
+translateOcrBtn.addEventListener('click', async () => {
+    if (!currentOcrData) {
+        showError('No OCR data available. Please extract text first.');
+        return;
+    }
+
+    // Get the possibly edited text from textarea
+    const text = ocrText.value.trim();
+    if (!text) {
+        showError('No text to translate');
+        return;
+    }
+
+    const targetLanguage = document.getElementById('ocrLanguage').value;
+
+    setOcrLoading(true, translateOcrBtn);
+
+    try {
+        const response = await fetch('/api/ocr/translate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                source_language: currentOcrData.detected_language,
+                target_language: targetLanguage,
+                image_url: currentOcrData.image_url
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Translation failed');
+        }
+
+        // Redirect to results page
+        if (data.redirect) {
+            window.location.href = data.redirect;
+        }
+
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        setOcrLoading(false, translateOcrBtn);
     }
 });

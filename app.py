@@ -15,8 +15,11 @@ from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
+from ocr_service import extract_text_with_language, get_supported_languages
 from models import db, User, Recipe, WeeklyPlan, PlanRecipe
 import settings
+import uuid
+from werkzeug.utils import secure_filename
 
 # Load environment variables
 load_dotenv()
@@ -60,6 +63,16 @@ login_manager.login_message = 'Please log in to access this page.'
 # Configure upload folder for temporary files
 TEMP_FOLDER = Path(tempfile.gettempdir()) / 'recipe_translator'
 TEMP_FOLDER.mkdir(exist_ok=True)
+
+# Configure upload folder for recipe images
+UPLOAD_FOLDER = Path(__file__).parent / 'static' / 'uploads'
+UPLOAD_FOLDER.mkdir(exist_ok=True)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
+def allowed_file(filename):
+    """Check if file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @login_manager.user_loader
@@ -244,6 +257,155 @@ def translate_recipe():
             'recipe': recipe_text,
             'title': recipe['title'],
             'image': recipe.get('image', ''),
+            'redirect': url_for('show_results')
+        })
+
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+
+
+@app.route('/api/ocr', methods=['POST'])
+@login_required
+def ocr_recipe():
+    """
+    API endpoint to extract text from a recipe image using OCR.
+
+    Expects a multipart/form-data request with:
+    - image: The recipe image file
+    - language (optional): Hint for the expected language
+    """
+    try:
+        # Check if image was uploaded
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+
+        file = request.files['image']
+
+        if file.filename == '':
+            return jsonify({'error': 'No image selected'}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({
+                'error': f'Invalid file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+            }), 400
+
+        # Get optional language hint
+        hint_language = request.form.get('language', None)
+
+        # Read image bytes
+        image_bytes = file.read()
+
+        # Generate unique filename and save the image for later use
+        original_filename = secure_filename(file.filename)
+        ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        image_path = UPLOAD_FOLDER / unique_filename
+
+        # Save the image
+        with open(image_path, 'wb') as f:
+            f.write(image_bytes)
+
+        # Run OCR with language detection
+        result = extract_text_with_language(image_bytes, hint_language)
+
+        if not result['success']:
+            return jsonify({
+                'error': result.get('error', 'OCR failed to extract text'),
+                'success': False
+            }), 400
+
+        # Return the extracted text, detected language, and image URL
+        return jsonify({
+            'success': True,
+            'text': result['text'],
+            'detected_language': result['detected_language'],
+            'confidence': result['confidence'],
+            'image_url': url_for('static', filename=f'uploads/{unique_filename}'),
+            'raw_results': result.get('raw_results', [])
+        })
+
+    except Exception as e:
+        return jsonify({'error': f'OCR processing failed: {str(e)}'}), 500
+
+
+@app.route('/api/ocr/translate', methods=['POST'])
+@login_required
+def ocr_translate():
+    """
+    API endpoint to translate OCR-extracted text.
+
+    Expected JSON payload:
+    {
+        "text": "extracted recipe text",
+        "source_language": "detected source language",
+        "target_language": "target language for translation",
+        "image_url": "URL of the uploaded image"
+    }
+    """
+    try:
+        data = request.json
+
+        text = data.get('text', '').strip()
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+
+        source_language = data.get('source_language', 'Unknown')
+        target_language = data.get('target_language', os.getenv('TARGET_LANGUAGE', 'English'))
+        image_url = data.get('image_url', '')
+
+        # Parse the raw OCR text into a recipe structure
+        # Try to identify title, ingredients, and instructions
+        lines = text.split('\n')
+        title = lines[0] if lines else 'Imported Recipe'
+
+        # Convert measurements to metric
+        try:
+            converter = UnitConverter()
+            text = converter.convert_text(text)
+        except Exception:
+            pass  # Non-fatal error, continue without conversion
+
+        # Translate the recipe
+        try:
+            ai_provider = settings.get_ai_provider()
+
+            if ai_provider == 'groq':
+                translator = GroqTranslator()
+            else:
+                translator = MistralTranslator()
+
+            translated_text = translator.translate_recipe(text, target_language)
+        except ValueError as e:
+            return jsonify({'error': f'AI API error: {str(e)}'}), 500
+        except Exception as e:
+            return jsonify({'error': f'Translation failed: {str(e)}'}), 500
+
+        # Store in session for the results page
+        session['current_recipe'] = {
+            'content': translated_text,
+            'content_original': text,
+            'title': title,
+            'image': image_url,
+            'url': '',  # No URL for OCR imports
+            'language': target_language,
+            'source_language': source_language,
+            'ingredients': [],
+            'instructions': [],
+            'prep_time': '',
+            'cook_time': '',
+            'total_time': '',
+            'servings': '',
+            'author': '',
+            'nutrition': {},
+            'import_type': 'ocr'
+        }
+
+        return jsonify({
+            'success': True,
+            'recipe': translated_text,
+            'title': title,
+            'image': image_url,
+            'source_language': source_language,
             'redirect': url_for('show_results')
         })
 

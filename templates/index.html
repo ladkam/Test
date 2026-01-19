@@ -38,7 +38,18 @@
 
         <main>
             <div class="card translate-card">
-                <form id="recipeForm">
+                <!-- Input Method Tabs -->
+                <div class="input-tabs">
+                    <button type="button" class="input-tab active" data-tab="url">
+                        URL Import
+                    </button>
+                    <button type="button" class="input-tab" data-tab="image">
+                        Image / OCR
+                    </button>
+                </div>
+
+                <!-- URL Input Form -->
+                <form id="recipeForm" class="tab-content active" data-tab="url">
                     <div class="form-group">
                         <label for="recipeUrl">
                             Recipe URL
@@ -70,6 +81,69 @@
                             <span class="spinner"></span> Processing...
                         </span>
                     </button>
+                </form>
+
+                <!-- Image/OCR Input Form -->
+                <form id="ocrForm" class="tab-content" data-tab="image">
+                    <div class="form-group">
+                        <label for="recipeImage">
+                            Recipe Image
+                            <span class="required">*</span>
+                        </label>
+                        <div class="image-upload-area" id="imageUploadArea">
+                            <input
+                                type="file"
+                                id="recipeImage"
+                                name="recipeImage"
+                                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                                required
+                            >
+                            <div class="upload-placeholder">
+                                <span class="upload-icon">📷</span>
+                                <span class="upload-text">Drop an image here or click to select</span>
+                                <span class="upload-hint">Supports: PNG, JPG, GIF, WebP</span>
+                            </div>
+                            <div class="image-preview" id="imagePreview" style="display: none;">
+                                <img id="previewImg" src="" alt="Preview">
+                                <button type="button" class="remove-image" id="removeImage">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ocrLanguage">Target Language</label>
+                        <select id="ocrLanguage" name="ocrLanguage">
+                            {% for lang in languages %}
+                                <option value="{{ lang }}">{{ lang }}</option>
+                            {% endfor %}
+                        </select>
+                        <small>Language detection is automatic - select target language for translation</small>
+                    </div>
+
+                    <button type="submit" id="ocrSubmitBtn" class="btn btn-primary">
+                        <span class="btn-text">Extract &amp; Translate</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span> Processing OCR...
+                        </span>
+                    </button>
+
+                    <!-- OCR Results Preview -->
+                    <div id="ocrResults" class="ocr-results" style="display: none;">
+                        <div class="ocr-header">
+                            <h3>Extracted Text</h3>
+                            <div class="ocr-meta">
+                                <span class="detected-lang">Detected: <strong id="detectedLang">-</strong></span>
+                                <span class="ocr-confidence">Confidence: <strong id="ocrConfidence">-</strong></span>
+                            </div>
+                        </div>
+                        <textarea id="ocrText" rows="10" placeholder="Extracted text will appear here..."></textarea>
+                        <button type="button" id="translateOcrBtn" class="btn btn-primary">
+                            <span class="btn-text">Translate Recipe</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span> Translating...
+                            </span>
+                        </button>
+                    </div>
                 </form>
             </div>
 
