@@ -452,7 +452,7 @@ function getTranslatedIngredients(recipe) {
     return translation && translation.ingredients ? translation.ingredients : (recipe.ingredients || []);
 }
 
-// Recipe detail modal functions (shared with library.js)
+// Recipe detail modal functions - consistent with library.js
 async function showRecipeDetail(recipeId) {
     try {
         const response = await fetch(`/api/recipes/${recipeId}`);
@@ -463,86 +463,164 @@ async function showRecipeDetail(recipeId) {
             const modal = document.getElementById('recipeModal');
             const content = document.getElementById('modalContent');
 
-            // Store original recipe data for scaling
+            // Store recipe data
             window.currentRecipeData = recipe;
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
-            window.originalIngredientsTranslated = [...getTranslatedIngredients(recipe)];
-            window.originalIngredientsOriginal = [...(recipe.ingredients || [])];
-            window.activeLanguageTab = 'translated'; // Track which tab is active
+            window.selectedLanguage = 'original';
 
-            // Build ingredients section
-            let ingredientsHtml = buildIngredientsHtml(recipe, window.currentServings);
+            // Get available translations
+            const availableLanguages = getAvailableLanguages(recipe);
+            const languageOptions = buildLanguageSelector(availableLanguages);
 
             content.innerHTML = `
-                <div class="recipe-detail">
+                <div class="recipe-detail-new">
                     ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title}">` : ''}
-                    <h2>${escapeHtml(recipe.title)}</h2>
 
-                    <div class="recipe-detail-meta">
-                        ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                        ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
-                        ${recipe.source_language ? `<span>🌍 ${escapeHtml(recipe.source_language)}</span>` : ''}
+                    <div class="recipe-header">
+                        <h2>${escapeHtml(recipe.title)}</h2>
+                        <div class="recipe-meta-row">
+                            ${recipe.total_time ? `<span class="meta-item">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                            ${recipe.servings ? `<span class="meta-item">🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                        </div>
                     </div>
 
-                    <div class="recipe-detail-actions">
-                        <button onclick="closeRecipeModal()" class="btn btn-secondary">Close</button>
+                    <div class="recipe-actions-bar">
+                        <div class="language-selector-inline">
+                            <label for="recipeLanguageSelect">🌍 Language:</label>
+                            <select id="recipeLanguageSelect" onchange="switchRecipeLanguage()">
+                                ${languageOptions}
+                            </select>
+                        </div>
+                        <div class="action-buttons">
+                            <button onclick="closeRecipeModal()" class="btn btn-secondary btn-sm">Close</button>
+                        </div>
                     </div>
 
-                    ${ingredientsHtml}
-
-                    <div class="recipe-detail-content">
-                        <div class="recipe-tabs">
-                            <button class="recipe-tab active" data-lang="translated">Translated</button>
-                            <button class="recipe-tab" data-lang="original">Original</button>
+                    <div class="recipe-content-section">
+                        <div class="servings-adjuster-section">
+                            ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
                         </div>
 
-                        <div class="recipe-tab-content active" id="translated-content">
-                            ${formatRecipeContent(getTranslatedContent(recipe) || recipe.content || 'No translation available')}
+                        <div id="ingredientsSection" class="ingredients-section">
+                            ${buildIngredientsListHtml(recipe, window.currentServings)}
                         </div>
 
-                        <div class="recipe-tab-content" id="original-content" style="display: none;">
-                            ${formatRecipeContent(recipe.content || 'No content available')}
+                        <div id="instructionsSection" class="instructions-section">
+                            ${buildInstructionsHtml(recipe)}
                         </div>
                     </div>
                 </div>
             `;
-
-            // Tab switching
-            content.querySelectorAll('.recipe-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const lang = tab.dataset.lang;
-                    window.activeLanguageTab = lang; // Track active tab
-
-                    content.querySelectorAll('.recipe-tab').forEach(t => t.classList.remove('active'));
-                    content.querySelectorAll('.recipe-tab-content').forEach(c => c.style.display = 'none');
-                    tab.classList.add('active');
-                    document.getElementById(`${lang}-content`).style.display = 'block';
-
-                    // Update ingredients to match the active tab
-                    const useOriginal = lang === 'original';
-                    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
-                    const scale = window.currentServings / window.originalServings;
-                    const scaledIngredients = scaleIngredients(originalIngredients, scale);
-
-                    // Rebuild ingredients list
-                    const ingredientsSection = document.getElementById('ingredientsSection');
-                    if (ingredientsSection) {
-                        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
-                        scaledIngredients.forEach((ing) => {
-                            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
-                        });
-                        html += '</ul>';
-                        ingredientsSection.innerHTML = html;
-                    }
-                });
-            });
 
             modal.style.display = 'flex';
         }
     } catch (error) {
         console.error('Error loading recipe:', error);
         alert('Error loading recipe: ' + error.message);
+    }
+}
+
+function getAvailableLanguages(recipe) {
+    const languages = [{ code: 'original', name: 'Original (English)' }];
+
+    if (recipe.translations) {
+        const languageMap = {
+            'es': 'Spanish 🇪🇸',
+            'fr': 'French 🇫🇷',
+            'de': 'German 🇩🇪',
+            'it': 'Italian 🇮🇹',
+            'pt': 'Portuguese 🇵🇹',
+            'nl': 'Dutch 🇳🇱',
+            'ja': 'Japanese 🇯🇵',
+            'zh': 'Chinese 🇨🇳',
+            'ko': 'Korean 🇰🇷'
+        };
+
+        Object.keys(recipe.translations).forEach(code => {
+            languages.push({
+                code: code,
+                name: languageMap[code] || code.toUpperCase()
+            });
+        });
+    }
+
+    return languages;
+}
+
+function buildLanguageSelector(languages) {
+    return languages.map(lang =>
+        `<option value="${lang.code}">${lang.name}</option>`
+    ).join('');
+}
+
+function getIngredientsForLanguage(recipe, language) {
+    if (language === 'original' || !language) {
+        return recipe.ingredients || [];
+    }
+
+    if (recipe.translations && recipe.translations[language]) {
+        return recipe.translations[language].ingredients || recipe.ingredients || [];
+    }
+
+    return recipe.ingredients || [];
+}
+
+function getInstructionsForLanguage(recipe, language) {
+    if (language === 'original' || !language) {
+        return recipe.instructions || [];
+    }
+
+    if (recipe.translations && recipe.translations[language]) {
+        return recipe.translations[language].instructions || recipe.instructions || [];
+    }
+
+    return recipe.instructions || [];
+}
+
+function buildIngredientsListHtml(recipe, servings) {
+    const scale = servings / window.originalServings;
+    const ingredients = getIngredientsForLanguage(recipe, window.selectedLanguage);
+    const scaledIngredients = scaleIngredients(ingredients, scale);
+
+    let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+    scaledIngredients.forEach(ing => {
+        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
+    });
+    html += '</ul>';
+    return html;
+}
+
+function buildInstructionsHtml(recipe) {
+    const instructions = getInstructionsForLanguage(recipe, window.selectedLanguage);
+
+    let html = '<h3>Instructions</h3>';
+    if (instructions && instructions.length > 0) {
+        html += '<ol class="instructions-list">';
+        instructions.forEach(inst => {
+            html += `<li>${escapeHtml(inst)}</li>`;
+        });
+        html += '</ol>';
+    } else {
+        html += '<p style="color: var(--text-secondary);">No instructions available</p>';
+    }
+    return html;
+}
+
+function switchRecipeLanguage() {
+    const language = document.getElementById('recipeLanguageSelect').value;
+    window.selectedLanguage = language;
+
+    // Update ingredients
+    const ingredientsSection = document.getElementById('ingredientsSection');
+    if (ingredientsSection) {
+        ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, window.currentServings);
+    }
+
+    // Update instructions
+    const instructionsSection = document.getElementById('instructionsSection');
+    if (instructionsSection) {
+        instructionsSection.innerHTML = buildInstructionsHtml(window.currentRecipeData);
     }
 }
 
@@ -611,21 +689,10 @@ function adjustServings(delta) {
 
     document.getElementById('servingsDisplay').textContent = newServings;
 
-    // Determine which ingredient list to use based on active tab
-    const useOriginal = window.activeLanguageTab === 'original';
-    const originalIngredients = useOriginal ? window.originalIngredientsOriginal : window.originalIngredientsTranslated;
-
-    const scale = newServings / window.originalServings;
-    const scaledIngredients = scaleIngredients(originalIngredients, scale);
-
+    // Update ingredients with new serving size
     const ingredientsSection = document.getElementById('ingredientsSection');
-    if (ingredientsSection) {
-        let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
-        scaledIngredients.forEach((ing) => {
-            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
-        });
-        html += '</ul>';
-        ingredientsSection.innerHTML = html;
+    if (ingredientsSection && window.currentRecipeData) {
+        ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, newServings);
     }
 }
 

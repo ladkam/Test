@@ -3298,3 +3298,446 @@ textarea:focus {
         font-size: 0.8125rem;
     }
 }
+
+/* ========== Enhanced Mobile Styles ========== */
+@media (max-width: 768px) {
+    /* Container spacing */
+    .container {
+        padding: 1.25rem 1rem;
+        padding-top: 4.5rem; /* Space for mobile menu button */
+    }
+
+    /* Headers */
+    h1 {
+        font-size: 1.75rem !important;
+    }
+
+    .library-header h1,
+    .planner-header h1 {
+        font-size: 1.5rem !important;
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
+    }
+
+    /* Cards */
+    .card {
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    /* Buttons - Larger touch targets */
+    .btn {
+        padding: 0.875rem 1.25rem;
+        font-size: 0.9375rem;
+        min-height: 44px; /* iOS touch target minimum */
+    }
+
+    .btn-sm {
+        padding: 0.625rem 1rem;
+        min-height: 40px;
+    }
+
+    /* Form elements - Better touch targets */
+    input[type="url"],
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
+        padding: 0.875rem 1rem;
+        font-size: 16px; /* Prevent iOS zoom on focus */
+        min-height: 48px;
+    }
+
+    /* Modal improvements */
+    .modal {
+        padding: 0.5rem;
+        align-items: flex-end; /* Slide from bottom on mobile */
+    }
+
+    .modal-content {
+        max-height: 90vh;
+        max-width: 100%;
+        border-radius: 1rem 1rem 0 0;
+        padding: 1.25rem;
+        margin: 0;
+    }
+
+    .modal-large {
+        max-width: 100%;
+        max-height: 95vh;
+    }
+
+    .close {
+        right: 1rem;
+        top: 1rem;
+        font-size: 1.75rem;
+        padding: 0.5rem;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Recipe detail modal */
+    .recipe-detail-image {
+        max-height: 250px;
+        border-radius: 0.5rem;
+    }
+
+    .recipe-detail h2,
+    .recipe-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .recipe-detail-meta {
+        gap: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* Servings adjuster */
+    .servings-adjuster {
+        padding: 0.5rem 1rem;
+    }
+
+    .servings-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1.25rem;
+    }
+
+    /* Recipe content */
+    .ingredients-section,
+    .instructions-section {
+        padding: 1rem;
+    }
+
+    .ingredients-list .ingredient-item {
+        padding: 0.875rem 0.5rem;
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+
+    .ingredient-text {
+        font-size: 0.9375rem;
+    }
+
+    .instructions-list li {
+        padding: 0.875rem 0.875rem 0.875rem 2.75rem;
+        font-size: 0.9375rem;
+    }
+
+    .instructions-list li:before {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 0.8125rem;
+        top: 0.875rem;
+    }
+
+    /* Weekly Planner */
+    .plan-list {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .plan-item-image-wrapper,
+    .plan-item-image-placeholder {
+        height: 180px;
+    }
+
+    .plan-item-content {
+        padding: 1rem;
+    }
+
+    .plan-item-title {
+        font-size: 1.125rem;
+    }
+
+    .meta-badge {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    .btn-remove-overlay {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Available recipes grid */
+    .available-recipes-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .available-recipe-image,
+    .available-recipe-placeholder {
+        height: 120px;
+    }
+
+    .available-recipe-content {
+        padding: 0.75rem;
+    }
+
+    .available-recipe-content h4 {
+        font-size: 0.9375rem;
+    }
+
+    .available-recipe-card .btn {
+        margin: 0 0.75rem 0.75rem 0.75rem;
+    }
+
+    /* Library grid */
+    .recipe-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .recipe-card-image {
+        height: 180px;
+    }
+
+    .recipe-card-content {
+        padding: 1rem;
+    }
+
+    .recipe-card-title {
+        font-size: 1rem;
+    }
+
+    /* Shopping list */
+    .shopping-list-items li {
+        padding: 0.875rem 1rem;
+    }
+
+    .shopping-list-items label {
+        gap: 1rem;
+    }
+
+    .shopping-list-items input[type="checkbox"] {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    /* Servings modal */
+    .servings-selector {
+        gap: 0.75rem;
+    }
+
+    .servings-btn-large {
+        width: 44px;
+        height: 44px;
+        font-size: 1.25rem;
+    }
+
+    .servings-input {
+        width: 80px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+
+    /* Import tabs */
+    .import-tabs {
+        margin-bottom: 1.5rem;
+    }
+
+    .import-tab {
+        padding: 0.75rem 0.875rem;
+        font-size: 0.875rem;
+    }
+
+    /* Mobile menu button positioning */
+    .mobile-menu-btn {
+        top: 0.75rem;
+        left: 0.75rem;
+        padding: 0.625rem;
+    }
+
+    /* View toggle buttons */
+    .view-toggle {
+        flex-direction: column;
+    }
+
+    .btn-toggle {
+        padding: 0.875rem 1rem !important;
+    }
+
+    /* Recipe translator / Family view */
+    .translator-page {
+        padding: 0;
+    }
+
+    .translator-header h1 {
+        font-size: 1.5rem !important;
+    }
+
+    .translator-header p {
+        font-size: 0.9375rem;
+    }
+
+    .feature-tags {
+        gap: 0.5rem;
+    }
+
+    .feature-tag {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .translator-form {
+        padding: 1rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem;
+    }
+
+    .translate-btn {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+    }
+
+    /* Recipe result on mobile */
+    .recipe-result .recipe-content {
+        padding: 1rem;
+    }
+
+    .recipe-title {
+        font-size: 1.5rem !important;
+    }
+
+    .recipe-meta {
+        gap: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .recipe-actions {
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+    }
+
+    .recipe-actions button {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        flex: 1;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .container {
+        padding: 1rem 0.75rem;
+        padding-top: 4rem;
+    }
+
+    h1 {
+        font-size: 1.5rem !important;
+    }
+
+    .card {
+        padding: 1rem;
+        border-radius: 0.75rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .modal-content {
+        padding: 1rem;
+    }
+
+    .recipe-detail-image {
+        max-height: 200px;
+    }
+
+    .plan-item-image-wrapper,
+    .plan-item-image-placeholder {
+        height: 150px;
+    }
+
+    .recipe-card-image {
+        height: 150px;
+    }
+
+    /* Stack action buttons */
+    .modal-actions {
+        flex-direction: column;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
+    }
+
+    /* Recipe tabs scroll */
+    .recipe-main-tabs {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .recipe-main-tabs::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Remove hover effects on touch devices */
+    .card:hover {
+        transform: none;
+        box-shadow: var(--shadow);
+    }
+
+    .recipe-card:hover {
+        transform: none;
+        box-shadow: var(--shadow);
+    }
+
+    .recipe-card:hover .recipe-card-image {
+        transform: none;
+    }
+
+    .plan-item:hover {
+        transform: none;
+        box-shadow: var(--shadow);
+    }
+
+    .plan-item:hover .plan-item-image {
+        transform: none;
+    }
+
+    .btn:hover::before {
+        width: 0;
+        height: 0;
+    }
+
+    /* Active states for touch */
+    .btn:active {
+        transform: scale(0.98);
+    }
+
+    .recipe-card:active,
+    .plan-item:active {
+        transform: scale(0.99);
+    }
+}
+
+/* Landscape phone optimization */
+@media (max-width: 812px) and (orientation: landscape) {
+    .modal {
+        align-items: center;
+    }
+
+    .modal-content {
+        max-height: 85vh;
+        border-radius: 1rem;
+    }
+
+    .recipe-detail-image {
+        max-height: 150px;
+    }
+}
