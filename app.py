@@ -740,70 +740,23 @@ def shopping_list_page():
 
 @app.route('/family')
 @app.route('/family/<language>')
+@app.route('/recipe-translator')
+@app.route('/recipe-translator/<language>')
+@login_required
 def family_view(language='en'):
-    """Render family/guest view with PIN access for shareable recipes only."""
+    """Recipe Translator - translate NYT recipes with metric conversion."""
     # Supported languages
     supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
     if language not in supported_languages:
         language = 'en'  # Default to English
 
-    # Check if PIN is verified in session
-    pin_verified = session.get('family_pin_verified', False)
-
-    return render_template('family_view.html', language=language, pin_verified=pin_verified)
-
-
-@app.route('/api/family/verify-pin', methods=['POST'])
-def verify_family_pin():
-    """Verify family access PIN."""
-    data = request.json
-    entered_pin = data.get('pin', '')
-
-    # Get PIN from settings (default: 1234)
-    correct_pin = SettingsModel.get('family_access_pin', '1234')
-
-    if entered_pin == correct_pin:
-        session['family_pin_verified'] = True
-        return jsonify({'success': True, 'message': 'Access granted'})
-    else:
-        return jsonify({'success': False, 'message': 'Incorrect PIN'}), 401
-
-
-@app.route('/api/family/planner', methods=['GET'])
-def get_family_plan():
-    """Get current week's plan with only shareable recipes (no login required, but requires PIN verification)."""
-    from datetime import date, timedelta
-
-    # Check if PIN is verified
-    if not session.get('family_pin_verified', False):
-        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
-
-    # Get Monday of current week
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
-
-    # Find plan for this week
-    plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
-
-    if not plan:
-        return jsonify({'success': True, 'recipes': []})
-
-    # Get all recipes in the plan, but ONLY shareable ones
-    plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
-    recipes = []
-    for pr in plan_recipes:
-        if pr.recipe and pr.recipe.is_shareable:
-            recipes.append(pr.recipe.to_dict())
-
-    return jsonify({'success': True, 'recipes': recipes})
+    return render_template('family_view.html', language=language)
 
 
 @app.route('/api/family/translate', methods=['POST'])
+@login_required
 def translate_recipe_family():
-    """Translate a NYT recipe with metric conversion (requires PIN verification)."""
-    # Check if PIN is verified
-    if not session.get('family_pin_verified', False):
-        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
+    """Translate a NYT recipe with metric conversion."""
 
     try:
         data = request.json
