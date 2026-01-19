@@ -1262,21 +1262,25 @@ def extract_recipe_from_image():
         # Prepare the prompt for recipe extraction
         prompt = """Extract the recipe from this image. Please provide:
 1. Recipe Title
-2. Prep Time (if mentioned)
-3. Cook Time (if mentioned)
-4. Ingredients (list each ingredient on a separate line)
-5. Instructions (list each step on a separate line)
+2. Language - Identify the language of the text in the image (e.g., English, French, Spanish, German, Italian, etc.)
+3. Prep Time (if mentioned)
+4. Cook Time (if mentioned)
+5. Servings (if mentioned)
+6. Ingredients (list each ingredient on a separate line)
+7. Instructions (list each step on a separate line)
 
 Format your response as JSON with this structure:
 {
     "title": "Recipe Name",
+    "language": "English",
     "prep_time": "15 minutes",
     "cook_time": "30 minutes",
+    "servings": "4 servings",
     "ingredients": ["ingredient 1", "ingredient 2", ...],
     "instructions": ["step 1", "step 2", ...]
 }
 
-If any field is not visible in the image, omit it or leave it empty."""
+If any field is not visible in the image, omit it or leave it empty. Make sure to correctly identify the language of the recipe text."""
 
         # Call Groq vision API
         headers = {
@@ -1333,6 +1337,9 @@ If any field is not visible in the image, omit it or leave it empty."""
                     'message': 'Could not parse recipe data from image',
                     'raw_content': content
                 }), 400
+
+            # Include the image in the response
+            recipe_data['image'] = image_data
 
             return jsonify({
                 'success': True,
