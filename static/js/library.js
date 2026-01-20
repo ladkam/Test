@@ -5,6 +5,173 @@
 let allRecipes = [];
 let filteredRecipes = [];
 
+// Unit system preference (default to metric)
+window.unitSystem = localStorage.getItem('unitSystem') || 'metric';
+
+// Unit conversion functions
+function convertToMetric(text) {
+    let converted = text;
+
+    // Temperature: Fahrenheit to Celsius
+    converted = converted.replace(/(\d+)\s*°?\s*F\b/gi, (match, temp) => {
+        const celsius = Math.round((parseFloat(temp) - 32) * 5 / 9);
+        return `${celsius}°C`;
+    });
+
+    // Cups to ml
+    converted = converted.replace(/(\d+\.?\d*)\s*cups?\b/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 240);
+        return `${ml}ml`;
+    });
+
+    // Tablespoons to ml
+    converted = converted.replace(/(\d+\.?\d*)\s*(tbsp|tablespoons?)\b/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 15);
+        return `${ml}ml`;
+    });
+
+    // Teaspoons to ml
+    converted = converted.replace(/(\d+\.?\d*)\s*(tsp|teaspoons?)\b/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 5);
+        return `${ml}ml`;
+    });
+
+    // Fluid ounces to ml
+    converted = converted.replace(/(\d+\.?\d*)\s*(fl\.?\s*oz|fluid\s*ounces?)\b/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 30);
+        return `${ml}ml`;
+    });
+
+    // Ounces (weight) to grams
+    converted = converted.replace(/(\d+\.?\d*)\s*oz\b/gi, (match, amount) => {
+        const g = Math.round(parseFloat(amount) * 28);
+        return `${g}g`;
+    });
+
+    // Pounds to grams/kg
+    converted = converted.replace(/(\d+\.?\d*)\s*(lbs?|pounds?)\b/gi, (match, amount) => {
+        const g = Math.round(parseFloat(amount) * 454);
+        if (g >= 1000) {
+            return `${(g / 1000).toFixed(1)}kg`;
+        }
+        return `${g}g`;
+    });
+
+    // Inches to cm
+    converted = converted.replace(/(\d+\.?\d*)\s*(inches?|in\.?)\b/gi, (match, amount) => {
+        const cm = Math.round(parseFloat(amount) * 2.54 * 10) / 10;
+        return `${cm}cm`;
+    });
+
+    // Quarts to liters
+    converted = converted.replace(/(\d+\.?\d*)\s*(quarts?|qt\.?)\b/gi, (match, amount) => {
+        const l = Math.round(parseFloat(amount) * 0.946 * 10) / 10;
+        return `${l}L`;
+    });
+
+    // Pints to ml
+    converted = converted.replace(/(\d+\.?\d*)\s*(pints?|pt\.?)\b/gi, (match, amount) => {
+        const ml = Math.round(parseFloat(amount) * 473);
+        return `${ml}ml`;
+    });
+
+    // Gallons to liters
+    converted = converted.replace(/(\d+\.?\d*)\s*(gallons?|gal\.?)\b/gi, (match, amount) => {
+        const l = Math.round(parseFloat(amount) * 3.785 * 10) / 10;
+        return `${l}L`;
+    });
+
+    return converted;
+}
+
+function convertToImperial(text) {
+    let converted = text;
+
+    // Temperature: Celsius to Fahrenheit
+    converted = converted.replace(/(\d+)\s*°?\s*C\b/gi, (match, temp) => {
+        const fahrenheit = Math.round(parseFloat(temp) * 9 / 5 + 32);
+        return `${fahrenheit}°F`;
+    });
+
+    // ml to cups/tbsp/tsp (choose appropriate unit)
+    converted = converted.replace(/(\d+\.?\d*)\s*ml\b/gi, (match, amount) => {
+        const ml = parseFloat(amount);
+        if (ml >= 240) {
+            const cups = Math.round(ml / 240 * 10) / 10;
+            return `${cups} cup${cups !== 1 ? 's' : ''}`;
+        } else if (ml >= 15) {
+            const tbsp = Math.round(ml / 15 * 10) / 10;
+            return `${tbsp} tbsp`;
+        } else {
+            const tsp = Math.round(ml / 5 * 10) / 10;
+            return `${tsp} tsp`;
+        }
+    });
+
+    // Liters to quarts
+    converted = converted.replace(/(\d+\.?\d*)\s*L\b/g, (match, amount) => {
+        const quarts = Math.round(parseFloat(amount) * 1.057 * 10) / 10;
+        return `${quarts} qt`;
+    });
+
+    // kg to pounds
+    converted = converted.replace(/(\d+\.?\d*)\s*kg\b/gi, (match, amount) => {
+        const lbs = Math.round(parseFloat(amount) * 2.205 * 10) / 10;
+        return `${lbs} lbs`;
+    });
+
+    // grams to ounces
+    converted = converted.replace(/(\d+\.?\d*)\s*g\b/gi, (match, amount) => {
+        const oz = Math.round(parseFloat(amount) / 28 * 10) / 10;
+        return `${oz} oz`;
+    });
+
+    // cm to inches
+    converted = converted.replace(/(\d+\.?\d*)\s*cm\b/gi, (match, amount) => {
+        const inches = Math.round(parseFloat(amount) / 2.54 * 10) / 10;
+        return `${inches} in`;
+    });
+
+    return converted;
+}
+
+function convertUnits(text) {
+    if (window.unitSystem === 'metric') {
+        return convertToMetric(text);
+    } else {
+        return convertToImperial(text);
+    }
+}
+
+function toggleUnitSystem() {
+    window.unitSystem = window.unitSystem === 'metric' ? 'imperial' : 'metric';
+    localStorage.setItem('unitSystem', window.unitSystem);
+
+    // Update toggle button text
+    updateUnitToggleButton();
+
+    // Refresh ingredients and instructions
+    if (window.currentRecipeData) {
+        const ingredientsSection = document.getElementById('ingredientsSection');
+        if (ingredientsSection) {
+            ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, window.currentServings);
+        }
+
+        const instructionsSection = document.getElementById('instructionsSection');
+        if (instructionsSection) {
+            instructionsSection.innerHTML = buildInstructionsHtml(window.currentRecipeData);
+        }
+    }
+}
+
+function updateUnitToggleButton() {
+    const btn = document.getElementById('unitToggleBtn');
+    if (btn) {
+        btn.textContent = window.unitSystem === 'metric' ? '📏 Metric' : '📐 Imperial';
+        btn.title = `Switch to ${window.unitSystem === 'metric' ? 'Imperial' : 'Metric'}`;
+    }
+}
+
 // Load recipes on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadRecipes();
@@ -429,6 +596,7 @@ async function showRecipeDetail(recipeId) {
                             </select>
                         </div>
                         <div class="action-buttons">
+                            <button id="unitToggleBtn" onclick="toggleUnitSystem()" class="btn btn-outline btn-sm" title="Switch unit system">${window.unitSystem === 'metric' ? '📏 Metric' : '📐 Imperial'}</button>
                             <button onclick="addToWeeklyPlan(${recipe.id})" class="btn btn-primary btn-sm">📅 Add to Plan</button>
                             <button onclick="editRecipe(${recipe.id})" class="btn btn-secondary btn-sm">✏️ Edit</button>
                         </div>
@@ -520,7 +688,8 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
+        const convertedIng = convertUnits(ing);
+        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertedIng)}</span></li>`;
     });
     html += `</ul>
         </div>
@@ -542,7 +711,8 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(inst)}</li>`;
+            const convertedInst = convertUnits(inst);
+            html += `<li>${escapeHtml(convertedInst)}</li>`;
         });
         html += '</ol>';
     } else {
