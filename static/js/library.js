@@ -400,6 +400,7 @@ async function showRecipeDetail(recipeId) {
             window.originalServings = parseServings(recipe.servings);
             window.currentServings = window.originalServings;
             window.selectedLanguage = 'original'; // Default to original
+            window.useMetric = false; // Default to imperial
 
             // Get available translations
             const availableLanguages = getAvailableLanguages(recipe);
@@ -427,6 +428,13 @@ async function showRecipeDetail(recipeId) {
                             <select id="recipeLanguageSelect" onchange="switchRecipeLanguage()">
                                 ${languageOptions}
                             </select>
+                        </div>
+                        <div class="metric-toggle">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="metricToggle" onchange="toggleMetricConversion()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <label for="metricToggle" style="cursor: pointer; user-select: none;">Metric</label>
                         </div>
                         <div class="action-buttons">
                             <button onclick="addToWeeklyPlan(${recipe.id})" class="btn btn-primary btn-sm">📅 Add to Plan</button>
@@ -520,7 +528,20 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
+        // Apply metric conversion if enabled
+        const displayIngredient = window.useMetric ? convertToMetric(ing) : ing;
+        const escapedIng = escapeHtml(displayIngredient).replace(/'/g, '&apos;');
+        html += `
+            <li class="ingredient-item">
+                <span class="ingredient-text">${escapeHtml(displayIngredient)}</span>
+                <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Substitute
+                </button>
+            </li>
+        `;
     });
     html += `</ul>
         </div>
@@ -542,7 +563,9 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(inst)}</li>`;
+            // Apply metric conversion if enabled (for temperatures)
+            const displayInstruction = window.useMetric ? convertToMetric(inst) : inst;
+            html += `<li>${escapeHtml(displayInstruction)}</li>`;
         });
         html += '</ol>';
     } else {
@@ -594,6 +617,23 @@ function switchRecipeLanguage() {
     }
 
     // Update instructions
+    const instructionsSection = document.getElementById('instructionsSection');
+    if (instructionsSection) {
+        instructionsSection.innerHTML = buildInstructionsHtml(window.currentRecipeData);
+    }
+}
+
+function toggleMetricConversion() {
+    const metricToggle = document.getElementById('metricToggle');
+    window.useMetric = metricToggle.checked;
+
+    // Update ingredients display
+    const ingredientsSection = document.getElementById('ingredientsSection');
+    if (ingredientsSection) {
+        ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, window.currentServings);
+    }
+
+    // Update instructions display (for temperature conversions)
     const instructionsSection = document.getElementById('instructionsSection');
     if (instructionsSection) {
         instructionsSection.innerHTML = buildInstructionsHtml(window.currentRecipeData);

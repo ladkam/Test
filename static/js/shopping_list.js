@@ -60,56 +60,7 @@ async function loadCombinedShoppingList() {
     }
 }
 
-function convertToMetric(ingredient) {
-    let converted = ingredient;
-
-    // Cup conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*cups?\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 240);
-        return `${ml}ml `;
-    });
-
-    // Tablespoon conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(tbsp?|tablespoons?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 15);
-        return `${ml}ml `;
-    });
-
-    // Teaspoon conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(tsp?|teaspoons?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 5);
-        return `${ml}ml `;
-    });
-
-    // Ounce (fluid) conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(fl\.?\s*oz|fluid ounces?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 30);
-        return `${ml}ml `;
-    });
-
-    // Ounce (weight) conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*oz\s+/gi, (match, amount) => {
-        const g = Math.round(parseFloat(amount) * 28);
-        return `${g}g `;
-    });
-
-    // Pound conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(lbs?|pounds?)\s+/gi, (match, amount) => {
-        const g = Math.round(parseFloat(amount) * 454);
-        if (g >= 1000) {
-            return `${(g / 1000).toFixed(1)}kg `;
-        }
-        return `${g}g `;
-    });
-
-    // Fahrenheit to Celsius (for temperatures)
-    converted = converted.replace(/(\d+)\s*°?\s*F\b/gi, (match, temp) => {
-        const celsius = Math.round((parseFloat(temp) - 32) * 5 / 9);
-        return `${celsius}°C`;
-    });
-
-    return converted;
-}
+// convertToMetric is now provided by utils.js
 
 function displayCombinedList(combinedList) {
     const content = document.getElementById('shoppingListContent');
