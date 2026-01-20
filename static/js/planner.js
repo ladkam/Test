@@ -5,10 +5,28 @@
 let currentPlan = [];
 let allRecipes = [];
 
-// Unit system preference (default to metric)
-window.unitSystem = localStorage.getItem('unitSystem') || 'metric';
+// Helper to parse fractions like "1/2" or "1 1/2"
+function parseFraction(str) {
+    if (!str) return 0;
+    str = String(str).trim();
 
-// Unit conversion functions
+    // Check for mixed number like "1 1/2"
+    const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixedMatch) {
+        return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
+    }
+
+    // Check for simple fraction like "1/2"
+    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
+    if (fractionMatch) {
+        return parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
+    }
+
+    // Regular number
+    return parseFloat(str) || 0;
+}
+
+// Unit conversion to metric
 function convertToMetric(text) {
     if (!text) return text;
     let converted = text;
@@ -93,116 +111,6 @@ function convertToMetric(text) {
     });
 
     return converted;
-}
-
-function convertToImperial(text) {
-    if (!text) return text;
-    let converted = text;
-
-    // Temperature: Celsius to Fahrenheit
-    converted = converted.replace(/(\d+)\s*°?\s*C\b/gi, (match, temp) => {
-        const fahrenheit = Math.round(parseFloat(temp) * 9 / 5 + 32);
-        return `${fahrenheit}°F`;
-    });
-
-    // ml to cups/tbsp/tsp (choose appropriate unit)
-    converted = converted.replace(/(\d+[\d.]*)\s*ml\b/gi, (match, amount) => {
-        const ml = parseFloat(amount);
-        if (ml >= 240) {
-            const cups = Math.round(ml / 240 * 10) / 10;
-            return `${cups} cup${cups !== 1 ? 's' : ''}`;
-        } else if (ml >= 15) {
-            const tbsp = Math.round(ml / 15 * 10) / 10;
-            return `${tbsp} tbsp`;
-        } else {
-            const tsp = Math.round(ml / 5 * 10) / 10;
-            return `${tsp} tsp`;
-        }
-    });
-
-    // Liters to quarts
-    converted = converted.replace(/(\d+[\d.]*)\s*L\b/g, (match, amount) => {
-        const quarts = Math.round(parseFloat(amount) * 1.057 * 10) / 10;
-        return `${quarts} qt`;
-    });
-
-    // kg to pounds
-    converted = converted.replace(/(\d+[\d.]*)\s*kg\b/gi, (match, amount) => {
-        const lbs = Math.round(parseFloat(amount) * 2.205 * 10) / 10;
-        return `${lbs} lbs`;
-    });
-
-    // grams to ounces
-    converted = converted.replace(/(\d+[\d.]*)\s*g\b/gi, (match, amount) => {
-        const oz = Math.round(parseFloat(amount) / 28 * 10) / 10;
-        return `${oz} oz`;
-    });
-
-    // cm to inches
-    converted = converted.replace(/(\d+[\d.]*)\s*cm\b/gi, (match, amount) => {
-        const inches = Math.round(parseFloat(amount) / 2.54 * 10) / 10;
-        return `${inches} in`;
-    });
-
-    return converted;
-}
-
-// Helper to parse fractions like "1/2" or "1 1/2"
-function parseFraction(str) {
-    if (!str) return 0;
-    str = str.trim();
-
-    // Check for mixed number like "1 1/2"
-    const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-    if (mixedMatch) {
-        return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
-    }
-
-    // Check for simple fraction like "1/2"
-    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
-    if (fractionMatch) {
-        return parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
-    }
-
-    // Regular number
-    return parseFloat(str) || 0;
-}
-
-function convertUnits(text) {
-    if (window.unitSystem === 'metric') {
-        return convertToMetric(text);
-    } else {
-        return convertToImperial(text);
-    }
-}
-
-function toggleUnitSystem() {
-    window.unitSystem = window.unitSystem === 'metric' ? 'imperial' : 'metric';
-    localStorage.setItem('unitSystem', window.unitSystem);
-
-    // Update toggle button text
-    updateUnitToggleButton();
-
-    // Refresh ingredients and instructions
-    if (window.currentRecipeData) {
-        const ingredientsSection = document.getElementById('ingredientsSection');
-        if (ingredientsSection) {
-            ingredientsSection.innerHTML = buildIngredientsListHtml(window.currentRecipeData, window.currentServings);
-        }
-
-        const instructionsSection = document.getElementById('instructionsSection');
-        if (instructionsSection) {
-            instructionsSection.innerHTML = buildInstructionsHtml(window.currentRecipeData);
-        }
-    }
-}
-
-function updateUnitToggleButton() {
-    const btn = document.getElementById('unitToggleBtn');
-    if (btn) {
-        btn.textContent = window.unitSystem === 'metric' ? '📏 Metric' : '📐 Imperial';
-        btn.title = `Switch to ${window.unitSystem === 'metric' ? 'Imperial' : 'Metric'}`;
-    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -499,57 +407,6 @@ async function generateShoppingList() {
     }
 }
 
-function convertToMetric(ingredient) {
-    let converted = ingredient;
-
-    // Cup conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*cups?\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 240);
-        return `${ml}ml `;
-    });
-
-    // Tablespoon conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(tbsp?|tablespoons?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 15);
-        return `${ml}ml `;
-    });
-
-    // Teaspoon conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(tsp?|teaspoons?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 5);
-        return `${ml}ml `;
-    });
-
-    // Ounce (fluid) conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(fl\.?\s*oz|fluid ounces?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 30);
-        return `${ml}ml `;
-    });
-
-    // Ounce (weight) conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*oz\s+/gi, (match, amount) => {
-        const g = Math.round(parseFloat(amount) * 28);
-        return `${g}g `;
-    });
-
-    // Pound conversions
-    converted = converted.replace(/(\d+\.?\d*)\s*(lbs?|pounds?)\s+/gi, (match, amount) => {
-        const g = Math.round(parseFloat(amount) * 454);
-        if (g >= 1000) {
-            return `${(g / 1000).toFixed(1)}kg `;
-        }
-        return `${g}g `;
-    });
-
-    // Fahrenheit to Celsius (for temperatures)
-    converted = converted.replace(/(\d+)\s*°?\s*F\b/gi, (match, temp) => {
-        const celsius = Math.round((parseFloat(temp) - 32) * 5 / 9);
-        return `${celsius}°C`;
-    });
-
-    return converted;
-}
-
 function displayShoppingList(shoppingList) {
     const content = document.getElementById('shoppingListContent');
 
@@ -697,7 +554,6 @@ async function showRecipeDetail(recipeId) {
                             </select>
                         </div>
                         <div class="action-buttons">
-                            <button id="unitToggleBtn" onclick="toggleUnitSystem()" class="btn btn-outline btn-sm" title="Switch unit system">${window.unitSystem === 'metric' ? '📏 Metric' : '📐 Imperial'}</button>
                             <button onclick="closeRecipeModal()" class="btn btn-secondary btn-sm">Close</button>
                         </div>
                     </div>
@@ -817,7 +673,7 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        const convertedIng = convertUnits(ing);
+        const convertedIng = convertToMetric(ing);
         html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertedIng)}</span></li>`;
     });
     html += `</ul>
@@ -840,7 +696,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            const convertedInst = convertUnits(inst);
+            const convertedInst = convertToMetric(inst);
             html += `<li>${escapeHtml(convertedInst)}</li>`;
         });
         html += '</ol>';
