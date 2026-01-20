@@ -67,25 +67,6 @@
             cursor: pointer;
         }
 
-        .unit-toggle-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border: 2px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background: var(--background);
-            color: var(--text-primary);
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-        }
-
-        .unit-toggle-btn:hover {
-            border-color: var(--primary-color);
-            background: var(--sidebar-hover);
-        }
-
         .recipe-card-simple {
             margin-bottom: 3rem;
             padding: 0;
@@ -291,7 +272,6 @@
                         <option value="ko" {% if language == 'ko' %}selected{% endif %}>Korean 🇰🇷</option>
                     </select>
                 </div>
-                <button id="unitToggleBtn" class="unit-toggle-btn" onclick="toggleUnitSystem()">📏 Metric</button>
             </div>
         </div>
 
@@ -304,9 +284,6 @@
     </div>
 
     <script>
-        // Unit system preference (default to metric)
-        let unitSystem = localStorage.getItem('unitSystem') || 'metric';
-
         // Helper to parse fractions like "1/2" or "1 1/2"
         function parseFraction(str) {
             if (!str) return 0;
@@ -414,85 +391,6 @@
 
             return converted;
         }
-
-        function convertToImperial(text) {
-            if (!text) return text;
-            let converted = text;
-
-            // Temperature: Celsius to Fahrenheit
-            converted = converted.replace(/(\d+)\s*°?\s*C\b/gi, (match, temp) => {
-                const fahrenheit = Math.round(parseFloat(temp) * 9 / 5 + 32);
-                return `${fahrenheit}°F`;
-            });
-
-            // ml to cups/tbsp/tsp (choose appropriate unit)
-            converted = converted.replace(/(\d+[\d.]*)\s*ml\b/gi, (match, amount) => {
-                const ml = parseFloat(amount);
-                if (ml >= 240) {
-                    const cups = Math.round(ml / 240 * 10) / 10;
-                    return `${cups} cup${cups !== 1 ? 's' : ''}`;
-                } else if (ml >= 15) {
-                    const tbsp = Math.round(ml / 15 * 10) / 10;
-                    return `${tbsp} tbsp`;
-                } else {
-                    const tsp = Math.round(ml / 5 * 10) / 10;
-                    return `${tsp} tsp`;
-                }
-            });
-
-            // Liters to quarts
-            converted = converted.replace(/(\d+[\d.]*)\s*L\b/g, (match, amount) => {
-                const quarts = Math.round(parseFloat(amount) * 1.057 * 10) / 10;
-                return `${quarts} qt`;
-            });
-
-            // kg to pounds
-            converted = converted.replace(/(\d+[\d.]*)\s*kg\b/gi, (match, amount) => {
-                const lbs = Math.round(parseFloat(amount) * 2.205 * 10) / 10;
-                return `${lbs} lbs`;
-            });
-
-            // grams to ounces
-            converted = converted.replace(/(\d+[\d.]*)\s*g\b/gi, (match, amount) => {
-                const oz = Math.round(parseFloat(amount) / 28 * 10) / 10;
-                return `${oz} oz`;
-            });
-
-            // cm to inches
-            converted = converted.replace(/(\d+[\d.]*)\s*cm\b/gi, (match, amount) => {
-                const inches = Math.round(parseFloat(amount) / 2.54 * 10) / 10;
-                return `${inches} in`;
-            });
-
-            return converted;
-        }
-
-        function convertUnits(text) {
-            if (unitSystem === 'metric') {
-                return convertToMetric(text);
-            } else {
-                return convertToImperial(text);
-            }
-        }
-
-        function toggleUnitSystem() {
-            unitSystem = unitSystem === 'metric' ? 'imperial' : 'metric';
-            localStorage.setItem('unitSystem', unitSystem);
-            updateUnitToggleButton();
-            if (cachedRecipes) {
-                displayRecipes(cachedRecipes);
-            }
-        }
-
-        function updateUnitToggleButton() {
-            const btn = document.getElementById('unitToggleBtn');
-            if (btn) {
-                btn.textContent = unitSystem === 'metric' ? '📏 Metric' : '📐 Imperial';
-            }
-        }
-
-        // Initialize button state
-        document.addEventListener('DOMContentLoaded', updateUnitToggleButton);
 
         // Get week date range
         function getWeekDateRange() {
@@ -606,7 +504,7 @@
                                     <div class="recipe-section">
                                         <h3>Ingredients</h3>
                                         <ul class="ingredients-simple">
-                                            ${ingredients.map(ing => `<li>${escapeHtml(convertUnits(ing))}</li>`).join('')}
+                                            ${ingredients.map(ing => `<li>${escapeHtml(convertToMetric(ing))}</li>`).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
@@ -615,7 +513,7 @@
                                     <div class="recipe-section">
                                         <h3>Instructions</h3>
                                         <ol class="instructions-simple">
-                                            ${instructions.map(inst => `<li>${escapeHtml(convertUnits(inst))}</li>`).join('')}
+                                            ${instructions.map(inst => `<li>${escapeHtml(convertToMetric(inst))}</li>`).join('')}
                                         </ol>
                                     </div>
                                 ` : ''}
@@ -638,7 +536,7 @@
                                     <div class="recipe-section">
                                         <h3>Ingredients</h3>
                                         <ul class="ingredients-simple">
-                                            ${ingredients.map(ing => `<li>${escapeHtml(convertUnits(ing))}</li>`).join('')}
+                                            ${ingredients.map(ing => `<li>${escapeHtml(convertToMetric(ing))}</li>`).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
@@ -647,7 +545,7 @@
                                     <div class="recipe-section">
                                         <h3>Instructions</h3>
                                         <ol class="instructions-simple">
-                                            ${instructions.map(inst => `<li>${escapeHtml(convertUnits(inst))}</li>`).join('')}
+                                            ${instructions.map(inst => `<li>${escapeHtml(convertToMetric(inst))}</li>`).join('')}
                                         </ol>
                                     </div>
                                 ` : ''}
