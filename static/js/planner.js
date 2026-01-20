@@ -668,6 +668,9 @@ function switchMainTab(tabName) {
 function buildNutritionSection(recipe) {
     let html = '';
 
+    // Get servings count for per-serving calculation
+    const servings = parseServings(recipe.servings) || 1;
+
     // Health Score section
     if (recipe.health_score && recipe.health_score.grade) {
         html += `
@@ -689,7 +692,7 @@ function buildNutritionSection(recipe) {
 
         html += `
             <div class="nutrition-macros">
-                <h3>Nutrition Facts</h3>
+                <h3>Nutrition Facts <span style="font-weight: normal; font-size: 0.875rem; color: var(--text-secondary);">(per serving)</span></h3>
                 <div class="macros-grid">
         `;
 
@@ -715,7 +718,14 @@ function buildNutritionSection(recipe) {
 
             if (value !== undefined && value !== null && value !== '') {
                 hasMacros = true;
-                const displayValue = typeof value === 'number' ? value : parseFloat(value) || value;
+                // Calculate per-serving value
+                let numValue = typeof value === 'number' ? value : parseFloat(value);
+                if (!isNaN(numValue)) {
+                    numValue = numValue / servings;
+                    // Round to 1 decimal place
+                    numValue = Math.round(numValue * 10) / 10;
+                }
+                const displayValue = isNaN(numValue) ? value : numValue;
                 html += `
                     <div class="macro-item">
                         <span class="macro-icon">${macro.icon}</span>
