@@ -3815,3 +3815,116 @@ textarea:focus {
         max-height: 150px;
     }
 }
+
+/* ========== Collapsible Sections ========== */
+.collapsible-section {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    background: var(--card-background);
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    margin: 0;
+    cursor: pointer;
+    background: var(--background);
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s ease;
+    user-select: none;
+}
+
+.collapsible-header:hover {
+    background: var(--sidebar-hover);
+}
+
+.collapsible-header span {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.collapse-icon {
+    transition: transform 0.3s ease;
+    color: var(--text-secondary);
+}
+
+.collapsible-section.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.collapsible-content {
+    padding: 1rem 1.25rem;
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    max-height: 2000px;
+    opacity: 1;
+}
+
+.collapsible-section.collapsed .collapsible-content {
+    max-height: 0;
+    padding: 0 1.25rem;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.collapsible-section.collapsed .collapsible-header {
+    border-bottom: none;
+}
+
+/* ========== Sidebar Toggle Button ========== */
+.sidebar-toggle-btn {
+    position: fixed;
+    top: 1rem;
+    left: calc(var(--sidebar-width) - 1rem);
+    z-index: 150;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-toggle-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-toggle-btn svg {
+    display: block;
+    color: var(--text-primary);
+    transition: transform 0.3s ease;
+}
+
+/* Sidebar collapsed state */
+body.sidebar-collapsed {
+    margin-left: 0;
+}
+
+body.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+}
+
+body.sidebar-collapsed .sidebar-toggle-btn {
+    left: 1rem;
+}
+
+body.sidebar-collapsed .sidebar-toggle-btn svg {
+    transform: rotate(180deg);
+}
+
+/* Hide toggle on mobile (use mobile menu instead) */
+@media (max-width: 768px) {
+    .sidebar-toggle-btn {
+        display: none;
+    }
+}

@@ -410,8 +410,6 @@ async function showRecipeDetail(recipeId) {
 
             content.innerHTML = `
                 <div class="recipe-detail-new">
-                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title}">` : ''}
-
                     <div class="recipe-header">
                         <h2>${escapeHtml(recipe.title)}</h2>
                         <div class="recipe-meta-row">
@@ -420,6 +418,8 @@ async function showRecipeDetail(recipeId) {
                             ${recipe.average_rating ? `<span class="meta-item">${renderStarRating(recipe.average_rating, true, recipe.rating_count)}</span>` : ''}
                         </div>
                     </div>
+
+                    ${recipe.image_url ? `<img src="${recipe.image_url}" class="recipe-detail-image" alt="${recipe.title}">` : ''}
 
                     <div class="recipe-actions-bar">
                         <div class="language-selector-inline">
@@ -510,18 +510,35 @@ function buildIngredientsListHtml(recipe, servings) {
     const ingredients = getIngredientsForLanguage(recipe, window.selectedLanguage);
     const scaledIngredients = scaleIngredients(ingredients, scale);
 
-    let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
+    let html = `<div class="collapsible-section">
+        <h3 class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span>Ingredients</span>
+            <svg class="collapse-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </h3>
+        <div class="collapsible-content">
+            <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
         html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
     });
-    html += '</ul>';
+    html += `</ul>
+        </div>
+    </div>`;
     return html;
 }
 
 function buildInstructionsHtml(recipe) {
     const instructions = getInstructionsForLanguage(recipe, window.selectedLanguage);
 
-    let html = '<h3>Instructions</h3>';
+    let html = `<div class="collapsible-section">
+        <h3 class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span>Instructions</span>
+            <svg class="collapse-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </h3>
+        <div class="collapsible-content">`;
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
@@ -531,7 +548,15 @@ function buildInstructionsHtml(recipe) {
     } else {
         html += '<p style="color: var(--text-secondary);">No instructions available</p>';
     }
+    html += `</div>
+    </div>`;
     return html;
+}
+
+// Toggle collapsible section
+function toggleCollapsible(header) {
+    const section = header.parentElement;
+    section.classList.toggle('collapsed');
 }
 
 function getIngredientsForLanguage(recipe, language) {
