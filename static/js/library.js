@@ -10,6 +10,7 @@ window.unitSystem = localStorage.getItem('unitSystem') || 'metric';
 
 // Unit conversion functions
 function convertToMetric(text) {
+    if (!text) return text;
     let converted = text;
 
     // Temperature: Fahrenheit to Celsius
@@ -19,38 +20,44 @@ function convertToMetric(text) {
     });
 
     // Cups to ml
-    converted = converted.replace(/(\d+\.?\d*)\s*cups?\b/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 240);
+    converted = converted.replace(/(\d+[\d./]*)\s*cups?\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const ml = Math.round(num * 240);
         return `${ml}ml`;
     });
 
     // Tablespoons to ml
-    converted = converted.replace(/(\d+\.?\d*)\s*(tbsp|tablespoons?)\b/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 15);
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:tbsp|tablespoons?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const ml = Math.round(num * 15);
         return `${ml}ml`;
     });
 
     // Teaspoons to ml
-    converted = converted.replace(/(\d+\.?\d*)\s*(tsp|teaspoons?)\b/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 5);
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:tsp|teaspoons?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const ml = Math.round(num * 5);
         return `${ml}ml`;
     });
 
     // Fluid ounces to ml
-    converted = converted.replace(/(\d+\.?\d*)\s*(fl\.?\s*oz|fluid\s*ounces?)\b/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 30);
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:fl\.?\s*oz|fluid\s*ounces?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const ml = Math.round(num * 30);
         return `${ml}ml`;
     });
 
-    // Ounces (weight) to grams
-    converted = converted.replace(/(\d+\.?\d*)\s*oz\b/gi, (match, amount) => {
-        const g = Math.round(parseFloat(amount) * 28);
+    // Ounces (weight) to grams - must come after fl oz
+    converted = converted.replace(/(\d+[\d./]*)\s*oz\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const g = Math.round(num * 28);
         return `${g}g`;
     });
 
     // Pounds to grams/kg
-    converted = converted.replace(/(\d+\.?\d*)\s*(lbs?|pounds?)\b/gi, (match, amount) => {
-        const g = Math.round(parseFloat(amount) * 454);
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:lbs?|pounds?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const g = Math.round(num * 454);
         if (g >= 1000) {
             return `${(g / 1000).toFixed(1)}kg`;
         }
@@ -58,26 +65,30 @@ function convertToMetric(text) {
     });
 
     // Inches to cm
-    converted = converted.replace(/(\d+\.?\d*)\s*(inches?|in\.?)\b/gi, (match, amount) => {
-        const cm = Math.round(parseFloat(amount) * 2.54 * 10) / 10;
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:inches?|inch|in\.?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const cm = Math.round(num * 2.54 * 10) / 10;
         return `${cm}cm`;
     });
 
     // Quarts to liters
-    converted = converted.replace(/(\d+\.?\d*)\s*(quarts?|qt\.?)\b/gi, (match, amount) => {
-        const l = Math.round(parseFloat(amount) * 0.946 * 10) / 10;
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:quarts?|qt\.?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const l = Math.round(num * 0.946 * 10) / 10;
         return `${l}L`;
     });
 
     // Pints to ml
-    converted = converted.replace(/(\d+\.?\d*)\s*(pints?|pt\.?)\b/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 473);
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:pints?|pt\.?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const ml = Math.round(num * 473);
         return `${ml}ml`;
     });
 
     // Gallons to liters
-    converted = converted.replace(/(\d+\.?\d*)\s*(gallons?|gal\.?)\b/gi, (match, amount) => {
-        const l = Math.round(parseFloat(amount) * 3.785 * 10) / 10;
+    converted = converted.replace(/(\d+[\d./]*)\s*(?:gallons?|gal\.?)\b/gi, (match, amount) => {
+        const num = parseFraction(amount);
+        const l = Math.round(num * 3.785 * 10) / 10;
         return `${l}L`;
     });
 
@@ -85,6 +96,7 @@ function convertToMetric(text) {
 }
 
 function convertToImperial(text) {
+    if (!text) return text;
     let converted = text;
 
     // Temperature: Celsius to Fahrenheit
@@ -94,7 +106,7 @@ function convertToImperial(text) {
     });
 
     // ml to cups/tbsp/tsp (choose appropriate unit)
-    converted = converted.replace(/(\d+\.?\d*)\s*ml\b/gi, (match, amount) => {
+    converted = converted.replace(/(\d+[\d.]*)\s*ml\b/gi, (match, amount) => {
         const ml = parseFloat(amount);
         if (ml >= 240) {
             const cups = Math.round(ml / 240 * 10) / 10;
@@ -109,30 +121,51 @@ function convertToImperial(text) {
     });
 
     // Liters to quarts
-    converted = converted.replace(/(\d+\.?\d*)\s*L\b/g, (match, amount) => {
+    converted = converted.replace(/(\d+[\d.]*)\s*L\b/g, (match, amount) => {
         const quarts = Math.round(parseFloat(amount) * 1.057 * 10) / 10;
         return `${quarts} qt`;
     });
 
     // kg to pounds
-    converted = converted.replace(/(\d+\.?\d*)\s*kg\b/gi, (match, amount) => {
+    converted = converted.replace(/(\d+[\d.]*)\s*kg\b/gi, (match, amount) => {
         const lbs = Math.round(parseFloat(amount) * 2.205 * 10) / 10;
         return `${lbs} lbs`;
     });
 
     // grams to ounces
-    converted = converted.replace(/(\d+\.?\d*)\s*g\b/gi, (match, amount) => {
+    converted = converted.replace(/(\d+[\d.]*)\s*g\b/gi, (match, amount) => {
         const oz = Math.round(parseFloat(amount) / 28 * 10) / 10;
         return `${oz} oz`;
     });
 
     // cm to inches
-    converted = converted.replace(/(\d+\.?\d*)\s*cm\b/gi, (match, amount) => {
+    converted = converted.replace(/(\d+[\d.]*)\s*cm\b/gi, (match, amount) => {
         const inches = Math.round(parseFloat(amount) / 2.54 * 10) / 10;
         return `${inches} in`;
     });
 
     return converted;
+}
+
+// Helper to parse fractions like "1/2" or "1 1/2"
+function parseFraction(str) {
+    if (!str) return 0;
+    str = str.trim();
+
+    // Check for mixed number like "1 1/2"
+    const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixedMatch) {
+        return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
+    }
+
+    // Check for simple fraction like "1/2"
+    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
+    if (fractionMatch) {
+        return parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
+    }
+
+    // Regular number
+    return parseFloat(str) || 0;
 }
 
 function convertUnits(text) {
