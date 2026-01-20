@@ -166,17 +166,23 @@
         .ingredients-simple {
             list-style: none;
             padding: 0;
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 0.5rem;
         }
 
         .ingredients-simple li {
-            padding: 0.75rem 1rem;
+            padding: 0.6rem 0.8rem;
             background: var(--background);
             border-radius: 0.5rem;
-            font-size: 1.125rem;
+            font-size: 1rem;
             border: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 600px) {
+            .ingredients-simple {
+                grid-template-columns: 1fr;
+            }
         }
 
         .instructions-simple {
