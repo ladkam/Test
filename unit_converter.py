@@ -131,3 +131,50 @@ class UnitConverter:
                 return match.group(0)  # Return original if conversion fails
 
         return self.measurement_pattern.sub(replace_measurement, text)
+
+    def convert_to_metric_only(self, text: str) -> str:
+        """
+        Convert all imperial measurements in text to metric (without showing original).
+
+        Args:
+            text: Text containing measurements
+
+        Returns:
+            Text with imperial measurements converted to metric only
+        """
+        if not text:
+            return text
+
+        def replace_measurement(match):
+            amount_str = match.group(1)
+            unit = match.group(2)
+
+            try:
+                amount = self.convert_fraction_to_decimal(amount_str)
+                converted_amount, metric_unit = self.convert_measurement(amount, unit)
+
+                # Format the output (metric only, no original)
+                if isinstance(converted_amount, float) and converted_amount == int(converted_amount):
+                    converted_amount = int(converted_amount)
+                return f"{converted_amount} {metric_unit}"
+            except (ValueError, ZeroDivisionError):
+                return match.group(0)  # Return original if conversion fails
+
+        return self.measurement_pattern.sub(replace_measurement, text)
+
+
+# Global converter instance
+_converter = UnitConverter()
+
+
+def convert_to_metric(text: str) -> str:
+    """
+    Convenience function to convert text to metric units.
+
+    Args:
+        text: Text containing measurements
+
+    Returns:
+        Text with all imperial measurements converted to metric
+    """
+    return _converter.convert_to_metric_only(text)

@@ -5,114 +5,6 @@
 let allRecipes = [];
 let filteredRecipes = [];
 
-// Helper to parse fractions like "1/2" or "1 1/2" - must be defined first
-function parseFraction(str) {
-    if (!str) return 0;
-    str = String(str).trim();
-
-    // Check for mixed number like "1 1/2"
-    const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-    if (mixedMatch) {
-        return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
-    }
-
-    // Check for simple fraction like "1/2"
-    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
-    if (fractionMatch) {
-        return parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
-    }
-
-    // Regular number
-    return parseFloat(str) || 0;
-}
-
-// Unit conversion functions
-function convertToMetric(text) {
-    if (!text) return text;
-    let converted = String(text);
-
-    // Temperature: Fahrenheit to Celsius
-    converted = converted.replace(/(\d+)\s*°?\s*F\b/gi, (match, temp) => {
-        const celsius = Math.round((parseFloat(temp) - 32) * 5 / 9);
-        return `${celsius}°C`;
-    });
-
-    // Cups to ml
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*cups?\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const ml = Math.round(num * 240);
-        return `${ml}ml`;
-    });
-
-    // Tablespoons to ml
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:tbsp|tablespoons?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const ml = Math.round(num * 15);
-        return `${ml}ml`;
-    });
-
-    // Teaspoons to ml
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:tsp|teaspoons?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const ml = Math.round(num * 5);
-        return `${ml}ml`;
-    });
-
-    // Fluid ounces to ml
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:fl\.?\s*oz|fluid\s*ounces?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const ml = Math.round(num * 30);
-        return `${ml}ml`;
-    });
-
-    // Ounces (weight) to grams - must come after fl oz
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*oz\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const g = Math.round(num * 28);
-        return `${g}g`;
-    });
-
-    // Pounds to grams/kg
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:lbs?|pounds?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const g = Math.round(num * 454);
-        if (g >= 1000) {
-            return `${(g / 1000).toFixed(1)}kg`;
-        }
-        return `${g}g`;
-    });
-
-    // Inches to cm
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:inches?|inch|in\.?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const cm = Math.round(num * 2.54 * 10) / 10;
-        return `${cm}cm`;
-    });
-
-    // Quarts to liters
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:quarts?|qt\.?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const l = Math.round(num * 0.946 * 10) / 10;
-        return `${l}L`;
-    });
-
-    // Pints to ml
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:pints?|pt\.?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const ml = Math.round(num * 473);
-        return `${ml}ml`;
-    });
-
-    // Gallons to liters
-    converted = converted.replace(/(\d+(?:[./]\d+)?)\s*(?:gallons?|gal\.?)\b/gi, (match, amount) => {
-        const num = parseFraction(amount);
-        const l = Math.round(num * 3.785 * 10) / 10;
-        return `${l}L`;
-    });
-
-    return converted;
-}
-
 // Load recipes on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadRecipes();
@@ -628,8 +520,7 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        const convertedIng = convertToMetric(ing);
-        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertedIng)}</span></li>`;
+        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
     });
     html += `</ul>
         </div>
@@ -651,8 +542,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            const convertedInst = convertToMetric(inst);
-            html += `<li>${escapeHtml(convertedInst)}</li>`;
+            html += `<li>${escapeHtml(inst)}</li>`;
         });
         html += '</ol>';
     } else {
