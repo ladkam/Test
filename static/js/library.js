@@ -223,19 +223,8 @@ function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
         const scaledIngredients = scaleIngredients(originalList, scale);
 
         html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
-        scaledIngredients.forEach((ing, idx) => {
-            const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
-            html += `
-                <li class="ingredient-item">
-                    <span class="ingredient-text">${escapeHtml(ing)}</span>
-                    <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Substitute
-                    </button>
-                </li>
-            `;
+        scaledIngredients.forEach(ing => {
+            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
         });
         html += '</ul></div>';
     }
@@ -380,8 +369,6 @@ async function showRecipeDetail(recipeId) {
                         <div id="instructionsSection" class="instructions-section">
                             ${buildInstructionsHtml(recipe)}
                         </div>
-
-                        <div id="substitutionResult" class="substitution-result" style="display: none;"></div>
                     </div>
 
                     <div class="tab-panel" id="rating-panel" style="display: none;">
@@ -446,18 +433,7 @@ function buildIngredientsListHtml(recipe, servings) {
 
     let html = '<h3>Ingredients</h3><ul class="ingredients-list">';
     scaledIngredients.forEach(ing => {
-        const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
-        html += `
-            <li class="ingredient-item">
-                <span class="ingredient-text">${escapeHtml(ing)}</span>
-                <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                    Substitute
-                </button>
-            </li>
-        `;
+        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
     });
     html += '</ul>';
     return html;
@@ -672,58 +648,6 @@ async function deleteRecipe(recipeId) {
     } catch (error) {
         showError('Error deleting recipe: ' + error.message);
     }
-}
-
-async function substituteIngredient(ingredient, recipeId) {
-    const resultDiv = document.getElementById('substitutionResult');
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<div class="loading">Finding substitutes...</div>';
-
-    try {
-        const recipe = window.currentRecipeData;
-        const response = await fetch('/api/ingredients/substitute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ingredient: ingredient,
-                recipe_context: {
-                    title: recipe.title,
-                    type: recipe.tags ? recipe.tags.join(', ') : ''
-                }
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            resultDiv.innerHTML = `
-                <div class="substitution-box">
-                    <h3>Substitutes for: ${escapeHtml(data.ingredient)}</h3>
-                    <div class="substitution-suggestions">
-                        ${formatSuggestions(data.suggestions)}
-                    </div>
-                    <button onclick="closeSubstitution()" class="btn btn-secondary btn-sm" style="margin-top: 1rem;">Close</button>
-                </div>
-            `;
-        } else {
-            resultDiv.innerHTML = `<div class="alert alert-error">${escapeHtml(data.message)}</div>`;
-            setTimeout(() => resultDiv.style.display = 'none', 3000);
-        }
-    } catch (error) {
-        resultDiv.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(error.message)}</div>`;
-        setTimeout(() => resultDiv.style.display = 'none', 3000);
-    }
-}
-
-function formatSuggestions(text) {
-    // Convert markdown-style numbered list to HTML
-    let html = text.replace(/\n/g, '<br>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    return `<div class="suggestion-text">${html}</div>`;
-}
-
-function closeSubstitution() {
-    document.getElementById('substitutionResult').style.display = 'none';
 }
 
 function showError(message) {

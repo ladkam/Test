@@ -3,6 +3,7 @@
  */
 
 let currentImageData = null;
+let currentRecipeImage = null;
 let cameraStream = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -274,6 +275,9 @@ async function processImage() {
 }
 
 function openReviewModal(recipeData) {
+    // Store the image for saving later
+    currentRecipeImage = recipeData.image || null;
+
     // Populate form with extracted data
     document.getElementById('reviewTitle').value = recipeData.title || '';
 
@@ -287,6 +291,18 @@ function openReviewModal(recipeData) {
     document.getElementById('reviewPrepTime').value = parseTime(recipeData.prep_time);
     document.getElementById('reviewCookTime').value = parseTime(recipeData.cook_time);
 
+    // Set detected language
+    const languageField = document.getElementById('reviewLanguage');
+    if (languageField) {
+        languageField.value = recipeData.language || 'Unknown';
+    }
+
+    // Set servings if available
+    const servingsField = document.getElementById('reviewServings');
+    if (servingsField) {
+        servingsField.value = recipeData.servings || '';
+    }
+
     // Join ingredients and instructions as multiline text
     const ingredients = Array.isArray(recipeData.ingredients)
         ? recipeData.ingredients.join('\n')
@@ -297,6 +313,15 @@ function openReviewModal(recipeData) {
         ? recipeData.instructions.join('\n')
         : (recipeData.instructions || '');
     document.getElementById('reviewInstructions').value = instructions;
+
+    // Show image preview in modal if available
+    const imagePreviewEl = document.getElementById('reviewImagePreview');
+    if (imagePreviewEl && currentRecipeImage) {
+        imagePreviewEl.src = currentRecipeImage;
+        imagePreviewEl.style.display = 'block';
+    } else if (imagePreviewEl) {
+        imagePreviewEl.style.display = 'none';
+    }
 
     // Show modal
     document.getElementById('reviewModal').style.display = 'flex';
@@ -311,6 +336,12 @@ async function saveExtractedRecipe(event) {
     const ingredientsText = document.getElementById('reviewIngredients').value;
     const instructionsText = document.getElementById('reviewInstructions').value;
     const shouldTranslate = document.getElementById('translateAfterSave').checked;
+
+    // Get language and servings if fields exist
+    const languageField = document.getElementById('reviewLanguage');
+    const servingsField = document.getElementById('reviewServings');
+    const detectedLanguage = languageField ? languageField.value : 'Unknown';
+    const servings = servingsField ? servingsField.value : '';
 
     // Parse multiline text to arrays
     const ingredients = ingredientsText.split('\n').map(i => i.trim()).filter(i => i);
@@ -338,7 +369,7 @@ async function saveExtractedRecipe(event) {
         });
     }
 
-    // Prepare recipe data
+    // Prepare recipe data with image and detected language
     const recipeData = {
         title: title,
         content: contentFormatted,
@@ -348,11 +379,12 @@ async function saveExtractedRecipe(event) {
         prep_time: prepTime ? `${prepTime} minutes` : null,
         cook_time: cookTime ? `${cookTime} minutes` : null,
         total_time: (prepTime && cookTime) ? `${parseInt(prepTime) + parseInt(cookTime)} minutes` : null,
-        servings: '',
-        image: '',
+        servings: servings,
+        image: currentRecipeImage || '',
         url: '',
         author: 'Imported from photo',
-        language: 'Original'
+        language: detectedLanguage,
+        source_language: detectedLanguage
     };
 
     try {

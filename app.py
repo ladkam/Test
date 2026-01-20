@@ -740,70 +740,23 @@ def shopping_list_page():
 
 @app.route('/family')
 @app.route('/family/<language>')
+@app.route('/recipe-translator')
+@app.route('/recipe-translator/<language>')
+@login_required
 def family_view(language='en'):
-    """Render family/guest view with PIN access for shareable recipes only."""
+    """Recipe Translator - translate NYT recipes with metric conversion."""
     # Supported languages
     supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
     if language not in supported_languages:
         language = 'en'  # Default to English
 
-    # Check if PIN is verified in session
-    pin_verified = session.get('family_pin_verified', False)
-
-    return render_template('family_view.html', language=language, pin_verified=pin_verified)
-
-
-@app.route('/api/family/verify-pin', methods=['POST'])
-def verify_family_pin():
-    """Verify family access PIN."""
-    data = request.json
-    entered_pin = data.get('pin', '')
-
-    # Get PIN from settings (default: 1234)
-    correct_pin = SettingsModel.get('family_access_pin', '1234')
-
-    if entered_pin == correct_pin:
-        session['family_pin_verified'] = True
-        return jsonify({'success': True, 'message': 'Access granted'})
-    else:
-        return jsonify({'success': False, 'message': 'Incorrect PIN'}), 401
-
-
-@app.route('/api/family/planner', methods=['GET'])
-def get_family_plan():
-    """Get current week's plan with only shareable recipes (no login required, but requires PIN verification)."""
-    from datetime import date, timedelta
-
-    # Check if PIN is verified
-    if not session.get('family_pin_verified', False):
-        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
-
-    # Get Monday of current week
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
-
-    # Find plan for this week
-    plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
-
-    if not plan:
-        return jsonify({'success': True, 'recipes': []})
-
-    # Get all recipes in the plan, but ONLY shareable ones
-    plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
-    recipes = []
-    for pr in plan_recipes:
-        if pr.recipe and pr.recipe.is_shareable:
-            recipes.append(pr.recipe.to_dict())
-
-    return jsonify({'success': True, 'recipes': recipes})
+    return render_template('family_view.html', language=language)
 
 
 @app.route('/api/family/translate', methods=['POST'])
+@login_required
 def translate_recipe_family():
-    """Translate a NYT recipe with metric conversion (requires PIN verification)."""
-    # Check if PIN is verified
-    if not session.get('family_pin_verified', False):
-        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
+    """Translate a NYT recipe with metric conversion."""
 
     try:
         data = request.json
@@ -1262,21 +1215,25 @@ def extract_recipe_from_image():
         # Prepare the prompt for recipe extraction
         prompt = """Extract the recipe from this image. Please provide:
 1. Recipe Title
-2. Prep Time (if mentioned)
-3. Cook Time (if mentioned)
-4. Ingredients (list each ingredient on a separate line)
-5. Instructions (list each step on a separate line)
+2. Language - Identify the language of the text in the image (e.g., English, French, Spanish, German, Italian, etc.)
+3. Prep Time (if mentioned)
+4. Cook Time (if mentioned)
+5. Servings (if mentioned)
+6. Ingredients (list each ingredient on a separate line)
+7. Instructions (list each step on a separate line)
 
 Format your response as JSON with this structure:
 {
     "title": "Recipe Name",
+    "language": "English",
     "prep_time": "15 minutes",
     "cook_time": "30 minutes",
+    "servings": "4 servings",
     "ingredients": ["ingredient 1", "ingredient 2", ...],
     "instructions": ["step 1", "step 2", ...]
 }
 
-If any field is not visible in the image, omit it or leave it empty."""
+If any field is not visible in the image, omit it or leave it empty. Make sure to correctly identify the language of the recipe text."""
 
         # Call Groq vision API
         headers = {
@@ -1333,6 +1290,9 @@ If any field is not visible in the image, omit it or leave it empty."""
                     'message': 'Could not parse recipe data from image',
                     'raw_content': content
                 }), 400
+
+            # Include the image in the response
+            recipe_data['image'] = image_data
 
             return jsonify({
                 'success': True,
@@ -1791,6 +1751,126 @@ def get_shopping_list():
         return jsonify({'success': True, 'shopping_list': shopping_list})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error generating shopping list: {str(e)}'}), 500
+
+
+@app.route('/api/planner/shopping-list/combined', methods=['GET'])
+@login_required
+def get_combined_shopping_list():
+    """Generate a combined/aggregated shopping list using AI to merge similar ingredients."""
+    from datetime import date, timedelta
+
+    try:
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if not plan:
+            return jsonify({'success': True, 'combined_list': [], 'by_recipe': []})
+
+        # Get all recipes in the plan
+        plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
+
+        # Collect all ingredients with recipe context
+        all_ingredients = []
+        by_recipe = []
+
+        for pr in plan_recipes:
+            if pr.recipe and pr.recipe.ingredients:
+                recipe_title = pr.recipe.title
+                ingredients = pr.recipe.ingredients
+
+                # Scale ingredients based on servings
+                recipe_servings = 1
+                if pr.recipe.servings:
+                    import re
+                    match = re.search(r'\d+', str(pr.recipe.servings))
+                    if match:
+                        recipe_servings = int(match.group(0))
+
+                scale = pr.servings / recipe_servings if recipe_servings > 0 else 1
+
+                for ing in ingredients:
+                    all_ingredients.append({
+                        'ingredient': ing,
+                        'recipe': recipe_title,
+                        'scale': scale
+                    })
+
+                by_recipe.append({
+                    'recipe': recipe_title,
+                    'servings': pr.servings,
+                    'ingredients': ingredients
+                })
+
+        if not all_ingredients:
+            return jsonify({'success': True, 'combined_list': [], 'by_recipe': []})
+
+        # Use AI to combine and aggregate ingredients
+        ai_provider = settings.get_ai_provider()
+        if ai_provider == 'groq':
+            api_key = get_api_key('groq_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
+            translator = GroqTranslator(api_key=api_key)
+        else:
+            api_key = get_api_key('mistral_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
+            translator = MistralTranslator(api_key=api_key)
+
+        # Build the prompt
+        ingredients_text = "\n".join([
+            f"- {item['ingredient']} (x{item['scale']:.1f} scale, from: {item['recipe']})"
+            for item in all_ingredients
+        ])
+
+        prompt = f"""Combine these recipe ingredients into a single shopping list.
+
+Rules:
+1. Merge same ingredients together and sum their quantities
+2. Convert all measurements to metric (cups→ml, oz→g, lbs→kg, tbsp→ml, tsp→ml)
+3. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
+4. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
+5. Apply the scale factor to quantities before combining
+6. Items without clear quantities (like "salt to taste") should be listed once
+7. Round metric values sensibly (no decimals for ml/g unless needed)
+
+Ingredients:
+{ingredients_text}
+
+Return ONLY a JSON array of objects, each with "item" (string) and "display" (formatted string for display like "500g chicken breast" or "3 eggs"):
+[{{"item": "chicken breast", "display": "500g chicken breast"}}, ...]"""
+
+        # Call AI
+        try:
+            response = translator.translate_text(prompt, "JSON")
+
+            # Parse JSON from response
+            import re
+            json_match = re.search(r'\[[\s\S]*\]', response)
+            if json_match:
+                combined_list = json.loads(json_match.group())
+            else:
+                # Fallback: return ingredients as-is
+                combined_list = [{"item": ing['ingredient'], "display": ing['ingredient']} for ing in all_ingredients]
+
+        except Exception as e:
+            print(f"AI aggregation error: {e}")
+            # Fallback: return ingredients as-is without combining
+            combined_list = [{"item": ing['ingredient'], "display": ing['ingredient']} for ing in all_ingredients]
+
+        return jsonify({
+            'success': True,
+            'combined_list': combined_list,
+            'by_recipe': by_recipe
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error generating combined list: {str(e)}'}), 500
 
 
 @app.route('/api/recipes/<int:recipe_id>/translate', methods=['POST'])
