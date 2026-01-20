@@ -39,18 +39,19 @@ class UnitConverter:
         'lbs': ('g', 453.592),
 
         # Temperature (special case, handled separately)
+        # Only convert explicitly marked Fahrenheit to avoid misconverting Celsius
         'fahrenheit': ('celsius', None),
-        'f': ('celsius', None),
         '°f': ('celsius', None),
     }
 
     def __init__(self):
         # Pattern to match measurements like "2 cups", "1/2 teaspoon", "350°F"
+        # Only match explicit °F or fahrenheit for temperature (not "degrees" which could be Celsius)
         self.measurement_pattern = re.compile(
             r'(\d+(?:/\d+)?(?:\.\d+)?)\s*(?:to\s+\d+(?:/\d+)?(?:\.\d+)?\s*)?'
             r'(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|'
             r'fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
-            r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit|f)\b',
+            r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit)\b',
             re.IGNORECASE
         )
 
@@ -78,8 +79,8 @@ class UnitConverter:
         """
         unit_lower = unit.lower().strip()
 
-        # Handle temperature separately
-        if unit_lower in ['fahrenheit', 'f', '°f']:
+        # Handle temperature separately (only explicit Fahrenheit)
+        if unit_lower in ['fahrenheit', '°f']:
             celsius = self.fahrenheit_to_celsius(amount)
             return celsius, '°C'
 
