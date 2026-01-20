@@ -284,114 +284,6 @@
     </div>
 
     <script>
-        // Helper to parse fractions like "1/2" or "1 1/2"
-        function parseFraction(str) {
-            if (!str) return 0;
-            str = str.trim();
-
-            // Check for mixed number like "1 1/2"
-            const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-            if (mixedMatch) {
-                return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
-            }
-
-            // Check for simple fraction like "1/2"
-            const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
-            if (fractionMatch) {
-                return parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
-            }
-
-            // Regular number
-            return parseFloat(str) || 0;
-        }
-
-        // Unit conversion functions
-        function convertToMetric(text) {
-            if (!text) return text;
-            let converted = text;
-
-            // Temperature: Fahrenheit to Celsius
-            converted = converted.replace(/(\d+)\s*°?\s*F\b/gi, (match, temp) => {
-                const celsius = Math.round((parseFloat(temp) - 32) * 5 / 9);
-                return `${celsius}°C`;
-            });
-
-            // Cups to ml
-            converted = converted.replace(/(\d+[\d./]*)\s*cups?\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const ml = Math.round(num * 240);
-                return `${ml}ml`;
-            });
-
-            // Tablespoons to ml
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:tbsp|tablespoons?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const ml = Math.round(num * 15);
-                return `${ml}ml`;
-            });
-
-            // Teaspoons to ml
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:tsp|teaspoons?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const ml = Math.round(num * 5);
-                return `${ml}ml`;
-            });
-
-            // Fluid ounces to ml
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:fl\.?\s*oz|fluid\s*ounces?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const ml = Math.round(num * 30);
-                return `${ml}ml`;
-            });
-
-            // Ounces (weight) to grams - must come after fl oz
-            converted = converted.replace(/(\d+[\d./]*)\s*oz\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const g = Math.round(num * 28);
-                return `${g}g`;
-            });
-
-            // Pounds to grams/kg
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:lbs?|pounds?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const g = Math.round(num * 454);
-                if (g >= 1000) {
-                    return `${(g / 1000).toFixed(1)}kg`;
-                }
-                return `${g}g`;
-            });
-
-            // Inches to cm
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:inches?|inch|in\.?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const cm = Math.round(num * 2.54 * 10) / 10;
-                return `${cm}cm`;
-            });
-
-            // Quarts to liters
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:quarts?|qt\.?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const l = Math.round(num * 0.946 * 10) / 10;
-                return `${l}L`;
-            });
-
-            // Pints to ml
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:pints?|pt\.?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const ml = Math.round(num * 473);
-                return `${ml}ml`;
-            });
-
-            // Gallons to liters
-            converted = converted.replace(/(\d+[\d./]*)\s*(?:gallons?|gal\.?)\b/gi, (match, amount) => {
-                const num = parseFraction(amount);
-                const l = Math.round(num * 3.785 * 10) / 10;
-                return `${l}L`;
-            });
-
-            return converted;
-        }
-
         // Get week date range
         function getWeekDateRange() {
             const today = new Date();
@@ -504,7 +396,7 @@
                                     <div class="recipe-section">
                                         <h3>Ingredients</h3>
                                         <ul class="ingredients-simple">
-                                            ${ingredients.map(ing => `<li>${escapeHtml(convertToMetric(ing))}</li>`).join('')}
+                                            ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
@@ -513,7 +405,7 @@
                                     <div class="recipe-section">
                                         <h3>Instructions</h3>
                                         <ol class="instructions-simple">
-                                            ${instructions.map(inst => `<li>${escapeHtml(convertToMetric(inst))}</li>`).join('')}
+                                            ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
                                         </ol>
                                     </div>
                                 ` : ''}
@@ -536,7 +428,7 @@
                                     <div class="recipe-section">
                                         <h3>Ingredients</h3>
                                         <ul class="ingredients-simple">
-                                            ${ingredients.map(ing => `<li>${escapeHtml(convertToMetric(ing))}</li>`).join('')}
+                                            ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
@@ -545,7 +437,7 @@
                                     <div class="recipe-section">
                                         <h3>Instructions</h3>
                                         <ol class="instructions-simple">
-                                            ${instructions.map(inst => `<li>${escapeHtml(convertToMetric(inst))}</li>`).join('')}
+                                            ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
                                         </ol>
                                     </div>
                                 ` : ''}
