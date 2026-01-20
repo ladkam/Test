@@ -433,10 +433,6 @@ async function showRecipeDetail(recipeId) {
                     </div>
 
                     <div class="tab-panel active" id="recipe-panel">
-                        <div class="servings-adjuster-section">
-                            ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
-                        </div>
-
                         <div id="ingredientsSection" class="ingredients-section">
                             ${buildIngredientsListHtml(recipe, window.currentServings)}
                         </div>
