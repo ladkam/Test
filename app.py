@@ -1186,10 +1186,79 @@ def update_recipe(recipe_id):
 
         db.session.commit()
 
+        # Re-translate to existing languages if content was changed
+        retranslation_results = []
+        content_changed = any(key in data for key in ['title', 'content', 'ingredients', 'instructions'])
+
+        if content_changed and recipe.translations:
+            try:
+                from groq_translator import GroqTranslator
+                from mistral_translator import MistralTranslator
+                import settings
+
+                # Get translator
+                ai_provider = settings.get_ai_provider()
+                if ai_provider == 'groq':
+                    api_key = get_api_key('groq_api_key')
+                    if api_key:
+                        translator = GroqTranslator(api_key=api_key)
+                    else:
+                        translator = None
+                else:
+                    api_key = get_api_key('mistral_api_key')
+                    if api_key:
+                        translator = MistralTranslator(api_key=api_key)
+                    else:
+                        translator = None
+
+                if translator:
+                    # Re-translate to each existing language
+                    for translation in recipe.translations:
+                        try:
+                            language_name = translation.language_name
+
+                            # Translate title
+                            translation.title = translator.translate_text(recipe.title, language_name)
+
+                            # Translate ingredients
+                            if recipe.ingredients:
+                                translation.ingredients = [
+                                    translator.translate_text(ing, language_name)
+                                    for ing in recipe.ingredients
+                                ]
+
+                            # Translate instructions
+                            if recipe.instructions:
+                                translation.instructions = [
+                                    translator.translate_text(inst, language_name)
+                                    for inst in recipe.instructions
+                                ]
+
+                            # Translate content
+                            if recipe.content:
+                                translation.content = translator.translate_text(recipe.content, language_name)
+
+                            retranslation_results.append({
+                                'language': language_name,
+                                'success': True
+                            })
+                        except Exception as trans_err:
+                            retranslation_results.append({
+                                'language': translation.language_name,
+                                'success': False,
+                                'error': str(trans_err)
+                            })
+
+                    db.session.commit()
+            except Exception as e:
+                # Don't fail the whole update if retranslation fails
+                print(f"Warning: Failed to retranslate: {e}")
+
         return jsonify({
             'success': True,
             'message': 'Recipe updated successfully',
-            'recipe': recipe.to_dict()
+            'recipe': recipe.to_dict(),
+            'retranslations': retranslation_results if retranslation_results else None
         })
     except Exception as e:
         db.session.rollback()

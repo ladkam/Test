@@ -183,6 +183,88 @@ function getHealthScoreIcon(grade) {
     return icons[grade] || '🍽️';
 }
 
+function buildNutritionSection(recipe) {
+    let html = '';
+
+    // Health Score section
+    if (recipe.health_score && recipe.health_score.grade) {
+        html += `
+            <div class="nutrition-health-score">
+                <h3>Health Score</h3>
+                <div class="health-score-display">
+                    <span class="health-score-badge grade-${recipe.health_score.grade.toLowerCase()}">
+                        ${getHealthScoreIcon(recipe.health_score.grade)} ${recipe.health_score.grade} ${recipe.health_score.score}
+                    </span>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${recipe.health_score.details || ''}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Nutrition macros section
+    if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+        const nutrition = recipe.nutrition;
+
+        html += `
+            <div class="nutrition-macros">
+                <h3>Nutrition Facts</h3>
+                <div class="macros-grid">
+        `;
+
+        // Define macro display order and formatting
+        const macroConfig = [
+            { key: 'calories', label: 'Calories', unit: 'kcal', icon: '🔥' },
+            { key: 'protein', label: 'Protein', unit: 'g', icon: '💪' },
+            { key: 'carbohydrates', altKey: 'carbs', label: 'Carbohydrates', unit: 'g', icon: '🍞' },
+            { key: 'fat', altKey: 'totalFat', label: 'Fat', unit: 'g', icon: '🧈' },
+            { key: 'saturatedFat', label: 'Saturated Fat', unit: 'g', icon: '🥓' },
+            { key: 'fiber', altKey: 'dietaryFiber', label: 'Fiber', unit: 'g', icon: '🥬' },
+            { key: 'sugar', label: 'Sugar', unit: 'g', icon: '🍬' },
+            { key: 'sodium', label: 'Sodium', unit: 'mg', icon: '🧂' },
+            { key: 'cholesterol', label: 'Cholesterol', unit: 'mg', icon: '🫀' },
+            { key: 'potassium', label: 'Potassium', unit: 'mg', icon: '🍌' },
+            { key: 'vitaminA', label: 'Vitamin A', unit: '%', icon: '👁️' },
+            { key: 'vitaminC', label: 'Vitamin C', unit: '%', icon: '🍊' },
+            { key: 'calcium', label: 'Calcium', unit: '%', icon: '🦴' },
+            { key: 'iron', label: 'Iron', unit: '%', icon: '🩸' }
+        ];
+
+        let hasMacros = false;
+        macroConfig.forEach(macro => {
+            let value = nutrition[macro.key];
+            if (value === undefined && macro.altKey) {
+                value = nutrition[macro.altKey];
+            }
+
+            if (value !== undefined && value !== null && value !== '') {
+                hasMacros = true;
+                // Handle numeric values
+                const displayValue = typeof value === 'number' ? value : parseFloat(value) || value;
+                html += `
+                    <div class="macro-item">
+                        <span class="macro-icon">${macro.icon}</span>
+                        <span class="macro-label">${macro.label}</span>
+                        <span class="macro-value">${displayValue}${macro.unit}</span>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasMacros) {
+            html += '<p style="color: var(--text-secondary); grid-column: 1 / -1;">No detailed nutrition data available</p>';
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+    } else if (!recipe.health_score) {
+        html += '<p style="color: var(--text-secondary);">No nutrition information available</p>';
+    }
+
+    return html;
+}
+
 function formatTime(minutes) {
     if (!minutes) return '';
     if (minutes < 60) return `${minutes} min`;
@@ -314,15 +396,8 @@ async function showRecipeDetail(recipeId) {
             const availableLanguages = getAvailableLanguages(recipe);
             const languageOptions = buildLanguageSelector(availableLanguages);
 
-            // Build health score display
-            const healthScoreHtml = recipe.health_score ? `
-                <div class="health-score-display">
-                    <span class="health-score-badge grade-${recipe.health_score.grade.toLowerCase()}">
-                        ${getHealthScoreIcon(recipe.health_score.grade)} ${recipe.health_score.grade} ${recipe.health_score.score}
-                    </span>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${recipe.health_score.details || ''}</p>
-                </div>
-            ` : '<p style="color: var(--text-secondary);">No nutrition information available</p>';
+            // Build nutrition section with all macros
+            const nutritionHtml = buildNutritionSection(recipe);
 
             content.innerHTML = `
                 <div class="recipe-detail-new">
@@ -358,10 +433,6 @@ async function showRecipeDetail(recipeId) {
                     </div>
 
                     <div class="tab-panel active" id="recipe-panel">
-                        <div class="servings-adjuster-section">
-                            ${recipe.servings ? buildServingsAdjuster(recipe.servings) : ''}
-                        </div>
-
                         <div id="ingredientsSection" class="ingredients-section">
                             ${buildIngredientsListHtml(recipe, window.currentServings)}
                         </div>
@@ -376,8 +447,7 @@ async function showRecipeDetail(recipeId) {
                     </div>
 
                     <div class="tab-panel" id="nutrition-panel" style="display: none;">
-                        <h3>Health Score</h3>
-                        ${healthScoreHtml}
+                        ${nutritionHtml}
                     </div>
 
                     <div class="tab-panel" id="translations-panel" style="display: none;">
