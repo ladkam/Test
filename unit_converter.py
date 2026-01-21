@@ -67,11 +67,11 @@ class UnitConverter:
         # Unicode fraction characters for pattern matching
         unicode_fracs = ''.join(self.UNICODE_FRACTIONS.keys())
 
-        # Pattern to match measurements like "2 cups", "1/2 teaspoon", "2¼ cups", "350°F"
+        # Pattern to match measurements like "2 cups", "1/2 teaspoon", "2¼ cups", "350°F", "6-ounce"
         # Supports: integers, decimals, fractions (1/2), unicode fractions (½),
-        # and mixed numbers (2¼, 2 1/2)
+        # and mixed numbers (2¼, 2 1/2). Allows hyphen or space between number and unit.
         self.measurement_pattern = re.compile(
-            r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?)\s*'
+            r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?)[\s-]*'
             r'(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|'
             r'fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
             r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit)\b',
