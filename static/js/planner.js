@@ -281,7 +281,7 @@ async function markAsMade(recipeId) {
         const data = await response.json();
 
         if (data.success) {
-            showSuccess('Recipe marked as made! 🎉');
+            alert('Recipe marked as made! 🎉');
             await loadCurrentPlan();
             displayAvailableRecipes();
         } else {
