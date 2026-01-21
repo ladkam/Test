@@ -90,7 +90,7 @@ function displayCombinedList(combinedList) {
         html += `<li>
                     <label>
                         <input type="checkbox" id="combined-${index}">
-                        <span class="ingredient-text">${escapeHtml(displayText)}</span>
+                        <span class="ingredient-text">${escapeHtml(convertToMetric(displayText))}</span>
                     </label>
                  </li>`;
     });
@@ -139,7 +139,7 @@ function displayByRecipeList(shoppingList) {
             html += `<li>
                         <label>
                             <input type="checkbox" id="check-${index}-${ingIndex}">
-                            <span class="ingredient-text">${escapeHtml(ing)}</span>
+                            <span class="ingredient-text">${escapeHtml(convertToMetric(ing))}</span>
                         </label>
                      </li>`;
         });
@@ -207,7 +207,7 @@ async function copyShoppingList() {
             if (item.ingredients && item.ingredients.length > 0) {
                 text += `${item.recipe}\n`;
                 item.ingredients.forEach(ing => {
-                    text += `  ☐ ${ing}\n`;
+                    text += `  ☐ ${convertToMetric(ing)}\n`;
                 });
                 text += '\n';
             }

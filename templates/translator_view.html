@@ -396,6 +396,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
         const pinVerified = {{ 'true' if pin_verified else 'false' }};
         let currentRecipe = null;
@@ -518,13 +519,13 @@
             // Ingredients
             const ingredientsList = document.getElementById('ingredientsList');
             ingredientsList.innerHTML = recipe.translated_ingredients.map(ing => {
-                return `<li>${escapeHtml(ing)}</li>`;
+                return `<li>${escapeHtml(convertToMetric(ing))}</li>`;
             }).join('');
 
             // Instructions
             const instructionsList = document.getElementById('instructionsList');
             instructionsList.innerHTML = recipe.translated_instructions.map(inst => {
-                return `<li>${escapeHtml(inst)}</li>`;
+                return `<li>${escapeHtml(convertToMetric(inst))}</li>`;
             }).join('');
 
             // Show recipe

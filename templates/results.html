@@ -66,6 +66,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
         // Recipe data from backend
         const recipeData = {
@@ -145,7 +146,8 @@
 
         // Display recipe
         function displayRecipe() {
-            document.getElementById('recipeContent').innerHTML = markdownToHtml(recipeData.content);
+            const convertedContent = convertToMetric(recipeData.content);
+            document.getElementById('recipeContent').innerHTML = markdownToHtml(convertedContent);
         }
 
         // Initial display

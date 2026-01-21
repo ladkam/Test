@@ -521,10 +521,11 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        const escapedIng = escapeHtml(ing).replace(/'/g, '&apos;');
+        const metricIng = convertToMetric(ing);
+        const escapedIng = escapeHtml(metricIng).replace(/'/g, '&apos;');
         html += `
             <li class="ingredient-item">
-                <span class="ingredient-text">${escapeHtml(ing)}</span>
+                <span class="ingredient-text">${escapeHtml(metricIng)}</span>
                 <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -554,7 +555,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(inst)}</li>`;
+            html += `<li>${escapeHtml(convertToMetric(inst))}</li>`;
         });
         html += '</ol>';
     } else {
