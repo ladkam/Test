@@ -1591,9 +1591,17 @@ def get_current_plan():
     if not plan:
         return jsonify({'success': True, 'recipes': []})
 
-    # Get all recipes in the plan
+    # Get all recipes in the plan with servings from PlanRecipe
     plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
-    recipes = [pr.recipe.to_dict() for pr in plan_recipes if pr.recipe]
+    recipes = []
+    for pr in plan_recipes:
+        if pr.recipe:
+            recipe_dict = pr.recipe.to_dict()
+            # Store original servings and override with PlanRecipe servings
+            recipe_dict['original_servings'] = recipe_dict.get('servings')
+            recipe_dict['servings'] = pr.servings
+            recipe_dict['plan_recipe_id'] = pr.id  # Include for future use
+            recipes.append(recipe_dict)
 
     return jsonify({'success': True, 'recipes': recipes})
 

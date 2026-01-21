@@ -410,10 +410,17 @@ async function showRecipeDetail(recipeId) {
             const modal = document.getElementById('recipeModal');
             const content = document.getElementById('modalContent');
 
+            // Check if this recipe is in the current plan and use plan servings
+            const planRecipe = currentPlan.find(r => r.id === recipeId);
+            const planServings = planRecipe ? parseServings(planRecipe.servings) : null;
+            const originalServings = planRecipe && planRecipe.original_servings
+                ? parseServings(planRecipe.original_servings)
+                : parseServings(recipe.servings);
+
             // Store recipe data
             window.currentRecipeData = recipe;
-            window.originalServings = parseServings(recipe.servings);
-            window.currentServings = window.originalServings;
+            window.originalServings = originalServings;
+            window.currentServings = planServings || originalServings;
             window.selectedLanguage = 'original';
 
             // Get available translations

@@ -328,24 +328,74 @@
             }
         }
 
+        // Scale ingredients based on servings multiplier
+        function scaleIngredients(ingredients, scale) {
+            if (scale === 1) return ingredients;
+
+            return ingredients.map(ing => {
+                // Match numbers (including fractions like 1/2, 1.5, etc.)
+                return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
+                    let num;
+                    if (match.includes('/')) {
+                        // Handle fractions
+                        const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
+                        num = numerator / denominator;
+                    } else {
+                        num = parseFloat(match);
+                    }
+
+                    const scaled = num * scale;
+
+                    // Format nicely
+                    if (scaled % 1 === 0) {
+                        return scaled.toString();
+                    } else if (Math.abs(scaled - 0.5) < 0.01) {
+                        return '1/2';
+                    } else if (Math.abs(scaled - 0.25) < 0.01) {
+                        return '1/4';
+                    } else if (Math.abs(scaled - 0.75) < 0.01) {
+                        return '3/4';
+                    } else if (Math.abs(scaled - 0.33) < 0.01) {
+                        return '1/3';
+                    } else if (Math.abs(scaled - 0.67) < 0.01) {
+                        return '2/3';
+                    } else {
+                        return scaled.toFixed(1);
+                    }
+                });
+            });
+        }
+
+        function parseServings(servingsStr) {
+            if (!servingsStr) return null;
+            const match = String(servingsStr).match(/\d+/);
+            return match ? parseInt(match[0]) : null;
+        }
+
         function getTranslatedIngredients(recipe) {
-            // If English is selected, use original ingredients
+            let ingredients;
+
+            // Get ingredients in the selected language
             if (currentLanguage === 'en') {
-                return recipe.ingredients || [];
+                ingredients = recipe.ingredients || [];
+            } else if (recipe.translations && recipe.translations[currentLanguage] && recipe.translations[currentLanguage].ingredients) {
+                ingredients = recipe.translations[currentLanguage].ingredients;
+            } else {
+                ingredients = recipe.ingredients || [];
             }
 
-            // Try to get translation for selected language
-            if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
-                return recipe.ingredients || [];
+            // Scale ingredients if servings have been adjusted
+            if (recipe.servings && recipe.original_servings) {
+                const currentServings = parseServings(recipe.servings);
+                const originalServings = parseServings(recipe.original_servings);
+
+                if (currentServings && originalServings && currentServings !== originalServings) {
+                    const scale = currentServings / originalServings;
+                    ingredients = scaleIngredients(ingredients, scale);
+                }
             }
 
-            const translation = recipe.translations[currentLanguage];
-            if (translation && translation.ingredients) {
-                return translation.ingredients;
-            }
-
-            // Fallback to original if translation not available
-            return recipe.ingredients || [];
+            return ingredients;
         }
 
         function getTranslatedInstructions(recipe) {
