@@ -3394,9 +3394,9 @@ textarea:focus {
         background: var(--card-background);
         border-radius: 50%;
         font-size: 1.5rem;
-        padding: 0.75rem;
-        min-width: 48px;
-        min-height: 48px;
+        padding: 0;
+        width: 48px;
+        height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -3408,6 +3408,11 @@ textarea:focus {
     .close:active {
         transform: scale(0.95);
         background: var(--background);
+    }
+
+    /* Hide substitute buttons on mobile to reduce clutter */
+    .btn-substitute {
+        display: none !important;
     }
 
     /* Ensure modal content scrolls properly */
