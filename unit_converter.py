@@ -28,16 +28,11 @@ class UnitConverter:
     }
 
     # Conversion factors
+    # Note: teaspoon/tablespoon are universal and not converted
     CONVERSIONS = {
         # Volume
         'cup': ('ml', 236.588),
         'cups': ('ml', 236.588),
-        'tablespoon': ('ml', 14.787),
-        'tablespoons': ('ml', 14.787),
-        'tbsp': ('ml', 14.787),
-        'teaspoon': ('ml', 4.929),
-        'teaspoons': ('ml', 4.929),
-        'tsp': ('ml', 4.929),
         'fluid ounce': ('ml', 29.574),
         'fluid ounces': ('ml', 29.574),
         'fl oz': ('ml', 29.574),
@@ -67,13 +62,13 @@ class UnitConverter:
         # Unicode fraction characters for pattern matching
         unicode_fracs = ''.join(self.UNICODE_FRACTIONS.keys())
 
-        # Pattern to match measurements like "2 cups", "1/2 teaspoon", "2¼ cups", "350°F", "6-ounce"
+        # Pattern to match measurements like "2 cups", "2¼ cups", "350°F", "6-ounce"
         # Supports: integers, decimals, fractions (1/2), unicode fractions (½),
         # and mixed numbers (2¼, 2 1/2). Allows hyphen or space between number and unit.
+        # Note: teaspoon/tablespoon are universal and not matched for conversion
         self.measurement_pattern = re.compile(
             r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?)[\s-]*'
-            r'(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|'
-            r'fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
+            r'(cup|cups|fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
             r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit)\b',
             re.IGNORECASE
         )
