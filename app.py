@@ -1161,15 +1161,20 @@ def update_recipe(recipe_id):
                 total_mins += minutes
             return total_mins if total_mins > 0 else None
 
+        # Import unit converter for metric conversion
+        from unit_converter import convert_to_metric
+
         # Update recipe fields
         if 'title' in data:
             recipe.title = data['title']
         if 'content' in data:
             recipe.content = data['content']
         if 'ingredients' in data:
-            recipe.ingredients = data['ingredients']
+            # Convert ingredients to metric at save time
+            recipe.ingredients = [convert_to_metric(ing) for ing in data['ingredients']]
         if 'instructions' in data:
-            recipe.instructions = data['instructions']
+            # Convert instructions to metric at save time
+            recipe.instructions = [convert_to_metric(inst) for inst in data['instructions']]
         if 'prep_time' in data:
             recipe.prep_time = parse_time_to_minutes(data['prep_time'])
         if 'cook_time' in data:
@@ -1458,12 +1463,17 @@ def save_recipe():
         if source_url and 'nytimes.com' in source_url.lower():
             is_shareable = False
 
+        # Convert ingredients and instructions to metric
+        from unit_converter import convert_to_metric
+        ingredients = [convert_to_metric(ing) for ing in data.get('ingredients', [])]
+        instructions = [convert_to_metric(inst) for inst in data.get('instructions', [])]
+
         # Create new recipe (original content only)
         new_recipe = Recipe(
             title=data.get('title', ''),
             content=data.get('content_original', '') or data.get('content', ''),
-            ingredients=data.get('ingredients', []),
-            instructions=data.get('instructions', []),
+            ingredients=ingredients,
+            instructions=instructions,
             prep_time=parse_time_to_minutes(data.get('prep_time')),
             cook_time=parse_time_to_minutes(data.get('cook_time')),
             total_time=parse_time_to_minutes(data.get('total_time')),

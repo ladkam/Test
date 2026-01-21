@@ -6,7 +6,6 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import JSON
-from unit_converter import convert_to_metric
 
 db = SQLAlchemy()
 
@@ -95,16 +94,12 @@ class Recipe(db.Model):
             if rating_count > 0:
                 average_rating = round(total_rating / rating_count, 1)
 
-        # Convert ingredients and instructions to metric
-        ingredients_metric = [convert_to_metric(ing) for ing in (self.ingredients or [])]
-        instructions_metric = [convert_to_metric(inst) for inst in (self.instructions or [])]
-
         result = {
             'id': self.id,
             'title': self.title,
             'content': self.content,
-            'ingredients': ingredients_metric,
-            'instructions': instructions_metric,
+            'ingredients': self.ingredients,
+            'instructions': self.instructions,
             'prep_time': self.prep_time,
             'cook_time': self.cook_time,
             'total_time': self.total_time,
@@ -178,18 +173,14 @@ class RecipeTranslation(db.Model):
 
     def to_dict(self):
         """Convert translation to dictionary."""
-        # Convert ingredients and instructions to metric
-        ingredients_metric = [convert_to_metric(ing) for ing in (self.ingredients or [])]
-        instructions_metric = [convert_to_metric(inst) for inst in (self.instructions or [])]
-
         return {
             'id': self.id,
             'language_code': self.language_code,
             'language_name': self.language_name,
             'title': self.title,
             'content': self.content,
-            'ingredients': ingredients_metric,
-            'instructions': instructions_metric,
+            'ingredients': self.ingredients,
+            'instructions': self.instructions,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
