@@ -319,3 +319,40 @@ class RecipeRating(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+class RecipeMadeHistory(db.Model):
+    """Track when recipes are made/cooked."""
+    __tablename__ = 'recipe_made_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # When was it made
+    date_made = db.Column(db.Date, nullable=False)
+
+    # How many servings were made
+    servings = db.Column(db.Integer)
+
+    # Optional notes about this cooking session
+    notes = db.Column(db.Text)
+
+    # Link to plan recipe if it was from a weekly plan
+    plan_recipe_id = db.Column(db.Integer, db.ForeignKey('plan_recipes.id'))
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        """Convert to dictionary."""
+        return {
+            'id': self.id,
+            'recipe_id': self.recipe_id,
+            'user_id': self.user_id,
+            'date_made': self.date_made.isoformat() if self.date_made else None,
+            'servings': self.servings,
+            'notes': self.notes,
+            'plan_recipe_id': self.plan_recipe_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

@@ -71,11 +71,18 @@ function displayCurrentPlan() {
 
         return `
         <div class="plan-item" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
-            <button onclick="event.stopPropagation(); removeFromPlan(${recipe.id})" class="btn-remove-overlay" title="Remove from plan">
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                    <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
-            </button>
+            <div class="plan-item-actions">
+                <button onclick="event.stopPropagation(); markAsMade(${recipe.id})" class="btn-mark-made" title="Mark as made">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                        <path d="M5 10l3 3l7-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button onclick="event.stopPropagation(); removeFromPlan(${recipe.id})" class="btn-remove-overlay" title="Remove from plan">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                        <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
 
             ${recipe.image_url
                 ? `<div class="plan-item-image-wrapper">
@@ -253,6 +260,35 @@ async function removeFromPlan(recipeId) {
         }
     } catch (error) {
         alert('Error removing recipe: ' + error.message);
+    }
+}
+
+async function markAsMade(recipeId) {
+    const recipe = currentPlan.find(r => r.id === recipeId);
+    const recipeName = recipe ? recipe.title : 'this recipe';
+
+    if (!confirm(`Mark "${recipeName}" as made? This will remove it from your plan and save it to your cooking history.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/planner/mark-as-made', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id: recipeId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess('Recipe marked as made! 🎉');
+            await loadCurrentPlan();
+            displayAvailableRecipes();
+        } else {
+            alert('Failed to mark recipe as made: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error marking recipe as made: ' + error.message);
     }
 }
 

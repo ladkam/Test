@@ -20,7 +20,7 @@ from recipe_scraper import NYTRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
-from models import db, User, Recipe, WeeklyPlan, PlanRecipe, Settings as SettingsModel
+from models import db, User, Recipe, WeeklyPlan, PlanRecipe, Settings as SettingsModel, RecipeMadeHistory
 import settings
 
 # Load environment variables
@@ -1705,6 +1705,58 @@ def clear_plan():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error clearing plan: {str(e)}'}), 500
+
+
+@app.route('/api/planner/mark-as-made', methods=['POST'])
+@login_required
+def mark_recipe_as_made():
+    """Mark a recipe as made, save to history, and remove from plan."""
+    from datetime import date, timedelta
+
+    try:
+        data = request.json
+        recipe_id = data.get('recipe_id')
+
+        if not recipe_id:
+            return jsonify({'success': False, 'message': 'Recipe ID required'}), 400
+
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if not plan:
+            return jsonify({'success': False, 'message': 'No plan found'}), 404
+
+        # Find the plan recipe
+        plan_recipe = PlanRecipe.query.filter_by(plan_id=plan.id, recipe_id=recipe_id).first()
+        if not plan_recipe:
+            return jsonify({'success': False, 'message': 'Recipe not in plan'}), 404
+
+        # Create history record
+        history = RecipeMadeHistory(
+            recipe_id=recipe_id,
+            user_id=current_user.id,
+            date_made=today,
+            servings=plan_recipe.servings,
+            plan_recipe_id=plan_recipe.id
+        )
+        db.session.add(history)
+
+        # Remove from plan
+        db.session.delete(plan_recipe)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Recipe marked as made and removed from plan',
+            'history_id': history.id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/planner/shopping-list', methods=['GET'])
