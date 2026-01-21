@@ -45,10 +45,102 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="imageUrl">Image URL</label>
-                    <input type="url" id="imageUrl" name="image_url" class="input-full"
-                           value="{{ recipe.image_url or '' }}" placeholder="https://...">
+                    <label>Recipe Image</label>
+                    <div class="image-upload-container">
+                        <div class="image-preview-box" id="imagePreviewBox">
+                            {% if recipe.image_url %}
+                                <img src="{{ recipe.image_url }}" alt="Recipe image" id="imagePreview">
+                            {% else %}
+                                <div class="no-image" id="noImagePlaceholder">
+                                    <span>📷</span>
+                                    <p>No image</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="image-upload-controls">
+                            <div class="upload-btn-wrapper">
+                                <button type="button" class="btn btn-secondary" id="uploadBtn">📤 Upload Image</button>
+                                <input type="file" id="imageFile" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                            </div>
+                            <span class="upload-divider">or</span>
+                            <input type="url" id="imageUrl" name="image_url" class="input-full"
+                                   value="{{ recipe.image_url or '' }}" placeholder="Paste image URL...">
+                            {% if recipe.image_url %}
+                            <button type="button" class="btn btn-outline btn-sm" id="removeImageBtn">🗑️ Remove</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <small>Upload an image or paste a URL</small>
                 </div>
+
+                <style>
+                    .image-upload-container {
+                        display: flex;
+                        gap: 1.5rem;
+                        align-items: flex-start;
+                    }
+                    .image-preview-box {
+                        width: 150px;
+                        height: 150px;
+                        border: 2px dashed var(--border-color);
+                        border-radius: var(--border-radius);
+                        overflow: hidden;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: var(--background);
+                        flex-shrink: 0;
+                    }
+                    .image-preview-box img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                    }
+                    .no-image {
+                        text-align: center;
+                        color: var(--text-secondary);
+                    }
+                    .no-image span {
+                        font-size: 2rem;
+                    }
+                    .no-image p {
+                        margin: 0.5rem 0 0;
+                        font-size: 0.875rem;
+                    }
+                    .image-upload-controls {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.75rem;
+                    }
+                    .upload-btn-wrapper {
+                        position: relative;
+                        display: inline-block;
+                    }
+                    .upload-btn-wrapper input[type="file"] {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
+                        opacity: 0;
+                        cursor: pointer;
+                    }
+                    .upload-divider {
+                        color: var(--text-secondary);
+                        font-size: 0.875rem;
+                        text-align: center;
+                    }
+                    @media (max-width: 600px) {
+                        .image-upload-container {
+                            flex-direction: column;
+                        }
+                        .image-preview-box {
+                            width: 100%;
+                            height: 200px;
+                        }
+                    }
+                </style>
 
                 <div class="form-group">
                     <label for="ingredients">Ingredients (one per line) *</label>
@@ -77,6 +169,87 @@
     </div>
 
     <script>
+        // Image upload handling
+        const imageFileInput = document.getElementById('imageFile');
+        const imageUrlInput = document.getElementById('imageUrl');
+        const imagePreviewBox = document.getElementById('imagePreviewBox');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+
+        function updateImagePreview(url) {
+            if (url) {
+                imagePreviewBox.innerHTML = `<img src="${url}" alt="Recipe image" id="imagePreview">`;
+                // Add remove button if not exists
+                if (!document.getElementById('removeImageBtn')) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-outline btn-sm';
+                    removeBtn.id = 'removeImageBtn';
+                    removeBtn.textContent = '🗑️ Remove';
+                    removeBtn.onclick = removeImage;
+                    imageUrlInput.parentElement.appendChild(removeBtn);
+                }
+            } else {
+                imagePreviewBox.innerHTML = `
+                    <div class="no-image" id="noImagePlaceholder">
+                        <span>📷</span>
+                        <p>No image</p>
+                    </div>`;
+                const removeBtn = document.getElementById('removeImageBtn');
+                if (removeBtn) removeBtn.remove();
+            }
+        }
+
+        function removeImage() {
+            imageUrlInput.value = '';
+            updateImagePreview(null);
+        }
+
+        if (removeImageBtn) {
+            removeImageBtn.onclick = removeImage;
+        }
+
+        imageFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Uploading...';
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    imageUrlInput.value = data.image_url;
+                    updateImagePreview(data.image_url);
+                } else {
+                    alert('Error uploading image: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error uploading image: ' + error.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '📤 Upload Image';
+                imageFileInput.value = '';
+            }
+        });
+
+        // Update preview when URL is manually entered
+        imageUrlInput.addEventListener('change', () => {
+            const url = imageUrlInput.value.trim();
+            updateImagePreview(url || null);
+        });
+
+        // Form submission
         document.getElementById('editRecipeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
