@@ -522,16 +522,9 @@ function buildIngredientsListHtml(recipe, servings) {
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
         const metricIng = convertToMetric(ing);
-        const escapedIng = escapeHtml(metricIng).replace(/'/g, '&apos;');
         html += `
             <li class="ingredient-item">
                 <span class="ingredient-text">${escapeHtml(metricIng)}</span>
-                <button class="btn-substitute" onclick="substituteIngredient('${escapedIng}', ${recipe.id})" title="Find substitutes">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                    Substitute
-                </button>
             </li>
         `;
     });

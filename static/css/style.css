@@ -3423,11 +3423,6 @@ textarea:focus {
         background: var(--background);
     }
 
-    /* Hide substitute buttons on mobile to reduce clutter */
-    .btn-substitute {
-        display: none !important;
-    }
-
     /* Ensure modal content scrolls properly */
     .modal-content > div {
         max-height: inherit;
