@@ -3285,19 +3285,60 @@ textarea:focus {
     .recipe-actions-bar {
         flex-direction: column;
         align-items: stretch;
+        gap: 1rem;
+        padding: 1rem;
     }
 
     .language-selector-inline {
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .language-selector-inline label {
+        flex-shrink: 0;
     }
 
     .language-selector-inline select {
-        width: 100%;
+        flex: 1;
+        max-width: 200px;
+    }
+
+    /* Metric toggle improvements for mobile */
+    .metric-toggle {
+        justify-content: space-between;
+        padding: 0.75rem;
+        background: var(--background);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+
+    .metric-toggle label {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .toggle-switch {
+        width: 52px;
+        height: 28px;
+    }
+
+    .toggle-slider:before {
+        height: 22px;
+        width: 22px;
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(24px);
     }
 
     .action-buttons {
         flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .action-buttons button {
+        width: 100%;
     }
 
     .recipe-main-tabs {
