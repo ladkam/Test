@@ -3365,33 +3365,61 @@ textarea:focus {
 
     /* Modal improvements */
     .modal {
-        padding: 0.5rem;
+        padding: 0;
         align-items: flex-end; /* Slide from bottom on mobile */
     }
 
     .modal-content {
-        max-height: 90vh;
+        max-height: 92vh;
         max-width: 100%;
-        border-radius: 1rem 1rem 0 0;
-        padding: 1.25rem;
+        width: 100%;
+        border-radius: 1.5rem 1.5rem 0 0;
+        padding: 1rem 1.25rem 1.5rem;
         margin: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     }
 
     .modal-large {
         max-width: 100%;
-        max-height: 95vh;
+        max-height: 92vh;
+        padding-bottom: 2rem; /* Extra padding at bottom for scrolling */
     }
 
     .close {
-        right: 1rem;
-        top: 1rem;
-        font-size: 1.75rem;
-        padding: 0.5rem;
-        min-width: 44px;
-        min-height: 44px;
+        position: sticky;
+        top: 0;
+        right: 0;
+        z-index: 10;
+        background: var(--card-background);
+        border-radius: 50%;
+        font-size: 1.5rem;
+        padding: 0.75rem;
+        min-width: 48px;
+        min-height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        margin-left: auto;
+        margin-bottom: 0.5rem;
+    }
+
+    .close:active {
+        transform: scale(0.95);
+        background: var(--background);
+    }
+
+    /* Ensure modal content scrolls properly */
+    .modal-content > div {
+        max-height: inherit;
+    }
+
+    /* Add safe area padding for notched devices */
+    @supports (padding: env(safe-area-inset-bottom)) {
+        .modal-content {
+            padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+        }
     }
 
     /* Recipe detail modal */
@@ -3403,6 +3431,12 @@ textarea:focus {
     .recipe-detail h2,
     .recipe-header h2 {
         font-size: 1.5rem;
+    }
+
+    /* Improve recipe detail new layout on mobile */
+    .recipe-detail-new {
+        max-height: none;
+        overflow: visible;
     }
 
     .recipe-detail-meta {
