@@ -4,6 +4,7 @@
 
 let allRecipes = [];
 let filteredRecipes = [];
+let selectedTags = [];
 
 // Load recipes on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,6 +45,7 @@ async function loadRecipes() {
         if (data.success) {
             allRecipes = data.recipes;
             filteredRecipes = [...allRecipes];
+            populateTagFilter();
             displayRecipes();
         } else {
             showError('Failed to load recipes');
@@ -76,7 +78,11 @@ function filterRecipes() {
             }
         }
 
-        return matchesSearch && matchesDuration;
+        // Tag filter
+        const matchesTags = selectedTags.length === 0 ||
+            (recipe.tags && selectedTags.every(tag => recipe.tags.includes(tag)));
+
+        return matchesSearch && matchesDuration && matchesTags;
     });
 
     displayRecipes();
@@ -85,6 +91,8 @@ function filterRecipes() {
 function clearFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('durationFilter').value = '';
+    selectedTags = [];
+    populateTagFilter(); // Refresh tag buttons
     filterRecipes();
 }
 
@@ -132,6 +140,11 @@ function createRecipeCard(recipe) {
     const time = formatTime(recipe.total_time);
     const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
     const ratingHtml = recipe.average_rating ? renderStarRating(recipe.average_rating, true, recipe.rating_count) : '';
+    const tagsHtml = recipe.tags && recipe.tags.length > 0 ? `
+        <div class="recipe-tags">
+            ${recipe.tags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
+        </div>
+    ` : '';
 
     return `
         <div class="recipe-card" data-recipe-id="${recipe.id}">
@@ -145,6 +158,7 @@ function createRecipeCard(recipe) {
                         ${recipe.source_language ? `<span class="recipe-card-lang">${escapeHtml(recipe.source_language)}</span>` : ''}
                         ${healthScoreHtml}
                     </div>
+                    ${tagsHtml}
                 </div>
             </div>
             <div class="recipe-card-actions">
@@ -417,6 +431,11 @@ async function showRecipeDetail(recipeId) {
                             ${recipe.servings ? `<span class="meta-item">🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
                             ${recipe.average_rating ? `<span class="meta-item">${renderStarRating(recipe.average_rating, true, recipe.rating_count)}</span>` : ''}
                         </div>
+                        ${recipe.tags && recipe.tags.length > 0 ? `
+                            <div class="recipe-tags" style="margin-top: 0.75rem;">
+                                ${recipe.tags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
+                            </div>
+                        ` : ''}
                         ${recipe.source_url ? `<a href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer" class="original-recipe-link">View original recipe</a>` : ''}
                     </div>
 
@@ -758,6 +777,44 @@ async function deleteRecipe(recipeId) {
     } catch (error) {
         showError('Error deleting recipe: ' + error.message);
     }
+}
+
+function populateTagFilter() {
+    // Collect all unique tags from recipes
+    const allTags = new Set();
+    allRecipes.forEach(recipe => {
+        if (recipe.tags && Array.isArray(recipe.tags)) {
+            recipe.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+
+    const tagFilterContainer = document.getElementById('tagFilterContainer');
+    const tagFilterOptions = document.getElementById('tagFilterOptions');
+
+    if (allTags.size === 0) {
+        tagFilterContainer.style.display = 'none';
+        return;
+    }
+
+    // Show tag filter and populate options
+    tagFilterContainer.style.display = 'block';
+    tagFilterOptions.innerHTML = Array.from(allTags).sort().map(tag => `
+        <button class="tag-filter-btn ${selectedTags.includes(tag) ? 'active' : ''}"
+                onclick="toggleTagFilter('${tag.replace(/'/g, "\\'")}')">
+            ${escapeHtml(tag)}
+        </button>
+    `).join('');
+}
+
+function toggleTagFilter(tag) {
+    const index = selectedTags.indexOf(tag);
+    if (index > -1) {
+        selectedTags.splice(index, 1);
+    } else {
+        selectedTags.push(tag);
+    }
+    populateTagFilter();
+    filterRecipes();
 }
 
 function showError(message) {

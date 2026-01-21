@@ -1191,6 +1191,8 @@ def update_recipe(recipe_id):
             recipe.author = data['author']
         if 'source_url' in data:
             recipe.source_url = data['source_url']
+        if 'tags' in data:
+            recipe.tags = data['tags']
 
         # Calculate total time
         if recipe.prep_time and recipe.cook_time:

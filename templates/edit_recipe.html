@@ -143,6 +143,15 @@
                 </style>
 
                 <div class="form-group">
+                    <label for="tags">Tags</label>
+                    <div class="tags-input-container">
+                        <div class="tags-display" id="tagsDisplay"></div>
+                        <input type="text" id="tagInput" class="input-full" placeholder="Add tags (press Enter)">
+                    </div>
+                    <small>Press Enter to add a tag. Click on a tag to remove it.</small>
+                </div>
+
+                <div class="form-group">
                     <label for="ingredients">Ingredients (one per line) *</label>
                     <textarea id="ingredients" name="ingredients" rows="10" class="input-full" required>{{ recipe.ingredients|join('\n') if recipe.ingredients else '' }}</textarea>
                     <small>Enter each ingredient on a new line</small>
@@ -169,6 +178,50 @@
     </div>
 
     <script>
+        // Tags management
+        let recipeTags = {{ recipe.tags|tojson|safe if recipe.tags else '[]'|safe }};
+        const tagsDisplay = document.getElementById('tagsDisplay');
+        const tagInput = document.getElementById('tagInput');
+
+        function renderTags() {
+            tagsDisplay.innerHTML = recipeTags.map(tag => `
+                <span class="tag-badge" onclick="removeTag('${tag.replace(/'/g, "\\'")}')">
+                    ${escapeHtml(tag)}
+                    <span class="tag-remove">×</span>
+                </span>
+            `).join('');
+        }
+
+        function addTag() {
+            const tag = tagInput.value.trim();
+            if (tag && !recipeTags.includes(tag)) {
+                recipeTags.push(tag);
+                renderTags();
+                tagInput.value = '';
+            }
+        }
+
+        function removeTag(tag) {
+            recipeTags = recipeTags.filter(t => t !== tag);
+            renderTags();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        tagInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag();
+            }
+        });
+
+        // Initialize tags display
+        renderTags();
+
         // Image upload handling
         const imageFileInput = document.getElementById('imageFile');
         const imageUrlInput = document.getElementById('imageUrl');
@@ -260,6 +313,7 @@
                 cook_time: document.getElementById('cookTime').value.trim(),
                 servings: document.getElementById('servings').value.trim(),
                 image_url: document.getElementById('imageUrl').value.trim(),
+                tags: recipeTags,
                 ingredients: document.getElementById('ingredients').value
                     .split('\n')
                     .map(line => line.trim())
