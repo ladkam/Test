@@ -299,8 +299,6 @@ async function generateShoppingList() {
     }
 }
 
-// convertToMetric is now provided by utils.js
-
 function displayShoppingList(shoppingList) {
     const content = document.getElementById('shoppingListContent');
 

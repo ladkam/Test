@@ -34,13 +34,6 @@
         <div class="recipe-header">
             <h1>{{ recipe.title }}</h1>
             <div class="recipe-actions">
-                <div class="metric-toggle">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="metricToggle" onchange="toggleMetricConversion()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <label for="metricToggle" style="cursor: pointer; user-select: none;">Metric</label>
-                </div>
                 <button id="saveToLibraryBtn" class="btn btn-primary" style="min-width: 180px;">
                     Save to Library
                 </button>
@@ -73,15 +66,12 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
         // Recipe data from backend
         const recipeData = {
             content: {{ recipe.content | tojson | safe }},
             title: {{ recipe.title | tojson | safe }}
         };
-
-        let useMetric = false;
 
         // Convert markdown to HTML (same function as app.js)
         function markdownToHtml(markdown) {
@@ -155,13 +145,7 @@
 
         // Display recipe
         function displayRecipe() {
-            const content = useMetric ? convertToMetric(recipeData.content) : recipeData.content;
-            document.getElementById('recipeContent').innerHTML = markdownToHtml(content);
-        }
-
-        function toggleMetricConversion() {
-            useMetric = document.getElementById('metricToggle').checked;
-            displayRecipe();
+            document.getElementById('recipeContent').innerHTML = markdownToHtml(recipeData.content);
         }
 
         // Initial display

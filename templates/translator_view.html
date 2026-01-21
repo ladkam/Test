@@ -374,13 +374,6 @@
 
         <div class="recipe-display" id="recipeDisplay">
             <div class="recipe-actions-top">
-                <div class="metric-toggle">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="metricToggle" onchange="toggleMetricConversion()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <label for="metricToggle" style="cursor: pointer; user-select: none;">Metric</label>
-                </div>
                 <button onclick="copyRecipe()">📋 Copy</button>
                 <button onclick="window.print()">🖨️ Print</button>
             </div>
@@ -403,11 +396,9 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
         const pinVerified = {{ 'true' if pin_verified else 'false' }};
         let currentRecipe = null;
-        let useMetric = false;
 
         // PIN verification
         async function verifyPin() {
@@ -524,18 +515,16 @@
             if (recipe.servings) metaHtml.push(`<span>🍽️ ${recipe.servings}</span>`);
             document.getElementById('recipeMeta').innerHTML = metaHtml.join('');
 
-            // Ingredients (apply metric conversion if enabled)
+            // Ingredients
             const ingredientsList = document.getElementById('ingredientsList');
             ingredientsList.innerHTML = recipe.translated_ingredients.map(ing => {
-                const displayIng = useMetric ? convertToMetric(ing) : ing;
-                return `<li>${escapeHtml(displayIng)}</li>`;
+                return `<li>${escapeHtml(ing)}</li>`;
             }).join('');
 
-            // Instructions (apply metric conversion if enabled, for temperatures)
+            // Instructions
             const instructionsList = document.getElementById('instructionsList');
             instructionsList.innerHTML = recipe.translated_instructions.map(inst => {
-                const displayInst = useMetric ? convertToMetric(inst) : inst;
-                return `<li>${escapeHtml(displayInst)}</li>`;
+                return `<li>${escapeHtml(inst)}</li>`;
             }).join('');
 
             // Show recipe
@@ -543,13 +532,6 @@
 
             // Scroll to recipe
             document.getElementById('recipeDisplay').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function toggleMetricConversion() {
-            useMetric = document.getElementById('metricToggle').checked;
-            if (currentRecipe) {
-                displayRecipe(currentRecipe);
-            }
         }
 
         function copyRecipe() {

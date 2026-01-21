@@ -60,8 +60,6 @@ async function loadCombinedShoppingList() {
     }
 }
 
-// convertToMetric is now provided by utils.js
-
 function displayCombinedList(combinedList) {
     const content = document.getElementById('shoppingListContent');
 
@@ -138,11 +136,10 @@ function displayByRecipeList(shoppingList) {
         html += `<ul class="shopping-list-items" id="items-${index}">`;
 
         ingredients.forEach((ing, ingIndex) => {
-            const metricIng = convertToMetric(ing);
             html += `<li>
                         <label>
                             <input type="checkbox" id="check-${index}-${ingIndex}">
-                            <span class="ingredient-text">${escapeHtml(metricIng)}</span>
+                            <span class="ingredient-text">${escapeHtml(ing)}</span>
                         </label>
                      </li>`;
         });
@@ -210,8 +207,7 @@ async function copyShoppingList() {
             if (item.ingredients && item.ingredients.length > 0) {
                 text += `${item.recipe}\n`;
                 item.ingredients.forEach(ing => {
-                    const metricIng = convertToMetric(ing);
-                    text += `  ☐ ${metricIng}\n`;
+                    text += `  ☐ ${ing}\n`;
                 });
                 text += '\n';
             }
