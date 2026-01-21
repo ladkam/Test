@@ -398,6 +398,8 @@
                                     ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
                                 </div>
 
+                                ${recipe.source_url ? `<a href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer" class="original-recipe-link">View original recipe</a>` : ''}
+
                                 ${ingredients.length > 0 ? `
                                     <div class="recipe-section">
                                         <h3>Ingredients</h3>
@@ -429,6 +431,8 @@
                                     ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
                                     ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
                                 </div>
+
+                                ${recipe.source_url ? `<a href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer" class="original-recipe-link">View original recipe</a>` : ''}
 
                                 ${ingredients.length > 0 ? `
                                     <div class="recipe-section">
