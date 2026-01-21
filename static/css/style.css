@@ -3107,6 +3107,18 @@ textarea:focus {
     gap: 0.25rem;
 }
 
+.original-recipe-link {
+    display: inline-block;
+    margin-top: 0.75rem;
+    color: var(--primary-color);
+    font-size: 0.875rem;
+    text-decoration: none;
+}
+
+.original-recipe-link:hover {
+    text-decoration: underline;
+}
+
 .recipe-actions-bar {
     display: flex;
     justify-content: space-between;
