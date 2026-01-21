@@ -86,6 +86,8 @@ with app.app_context():
         add_column_if_not_exists('recipes', 'is_shareable', 'BOOLEAN', 'TRUE')
         add_column_if_not_exists('recipes', 'nutrition', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'tags', 'TEXT', 'NULL')
+        add_column_if_not_exists('recipes', 'ingredients_original', 'TEXT', 'NULL')
+        add_column_if_not_exists('recipes', 'instructions_original', 'TEXT', 'NULL')
 
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
@@ -1170,10 +1172,12 @@ def update_recipe(recipe_id):
         if 'content' in data:
             recipe.content = data['content']
         if 'ingredients' in data:
-            # Convert ingredients to metric at save time
+            # Store original and convert to metric
+            recipe.ingredients_original = data['ingredients']
             recipe.ingredients = [convert_to_metric(ing) for ing in data['ingredients']]
         if 'instructions' in data:
-            # Convert instructions to metric at save time
+            # Store original and convert to metric
+            recipe.instructions_original = data['instructions']
             recipe.instructions = [convert_to_metric(inst) for inst in data['instructions']]
         if 'prep_time' in data:
             recipe.prep_time = parse_time_to_minutes(data['prep_time'])
@@ -1463,17 +1467,21 @@ def save_recipe():
         if source_url and 'nytimes.com' in source_url.lower():
             is_shareable = False
 
-        # Convert ingredients and instructions to metric
+        # Store original and convert to metric
         from unit_converter import convert_to_metric
-        ingredients = [convert_to_metric(ing) for ing in data.get('ingredients', [])]
-        instructions = [convert_to_metric(inst) for inst in data.get('instructions', [])]
+        ingredients_original = data.get('ingredients', [])
+        instructions_original = data.get('instructions', [])
+        ingredients_metric = [convert_to_metric(ing) for ing in ingredients_original]
+        instructions_metric = [convert_to_metric(inst) for inst in instructions_original]
 
-        # Create new recipe (original content only)
+        # Create new recipe with both original and metric versions
         new_recipe = Recipe(
             title=data.get('title', ''),
             content=data.get('content_original', '') or data.get('content', ''),
-            ingredients=ingredients,
-            instructions=instructions,
+            ingredients=ingredients_metric,
+            instructions=instructions_metric,
+            ingredients_original=ingredients_original,
+            instructions_original=instructions_original,
             prep_time=parse_time_to_minutes(data.get('prep_time')),
             cook_time=parse_time_to_minutes(data.get('cook_time')),
             total_time=parse_time_to_minutes(data.get('total_time')),

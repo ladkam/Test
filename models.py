@@ -46,8 +46,10 @@ class Recipe(db.Model):
     content = db.Column(db.Text, nullable=False)  # Full text/markdown
 
     # Structured data (stored as JSON)
-    ingredients = db.Column(JSON)  # Array of ingredient strings
-    instructions = db.Column(JSON)  # Array of instruction strings
+    ingredients = db.Column(JSON)  # Array of ingredient strings (metric)
+    instructions = db.Column(JSON)  # Array of instruction strings (metric)
+    ingredients_original = db.Column(JSON)  # Array of original ingredient strings (before conversion)
+    instructions_original = db.Column(JSON)  # Array of original instruction strings (before conversion)
 
     # Metadata
     prep_time = db.Column(db.Integer)  # in minutes
@@ -100,6 +102,8 @@ class Recipe(db.Model):
             'content': self.content,
             'ingredients': self.ingredients,
             'instructions': self.instructions,
+            'ingredients_original': self.ingredients_original,
+            'instructions_original': self.instructions_original,
             'prep_time': self.prep_time,
             'cook_time': self.cook_time,
             'total_time': self.total_time,
