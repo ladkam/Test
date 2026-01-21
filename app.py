@@ -2,12 +2,14 @@
 """
 Flask web application for Recipe Management System with Translation
 """
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session, send_from_directory
 from flask_cors import CORS
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from functools import wraps
+from werkzeug.utils import secure_filename
 import os
 import tempfile
+import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 import requests
@@ -32,6 +34,11 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 basedir = os.path.abspath(os.path.dirname(__file__))
 data_dir = os.path.join(basedir, 'data')
 os.makedirs(data_dir, exist_ok=True)  # Ensure data directory exists
+
+# Upload configuration
+UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure uploads directory exists
 
 default_db_path = f"sqlite:///{os.path.join(data_dir, 'recipes.db')}"
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', default_db_path)
@@ -79,6 +86,8 @@ with app.app_context():
         add_column_if_not_exists('recipes', 'is_shareable', 'BOOLEAN', 'TRUE')
         add_column_if_not_exists('recipes', 'nutrition', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'tags', 'TEXT', 'NULL')
+        add_column_if_not_exists('recipes', 'ingredients_original', 'TEXT', 'NULL')
+        add_column_if_not_exists('recipes', 'instructions_original', 'TEXT', 'NULL')
 
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
@@ -1154,15 +1163,22 @@ def update_recipe(recipe_id):
                 total_mins += minutes
             return total_mins if total_mins > 0 else None
 
+        # Import unit converter for metric conversion
+        from unit_converter import convert_to_metric
+
         # Update recipe fields
         if 'title' in data:
             recipe.title = data['title']
         if 'content' in data:
             recipe.content = data['content']
         if 'ingredients' in data:
-            recipe.ingredients = data['ingredients']
+            # Store original and convert to metric
+            recipe.ingredients_original = data['ingredients']
+            recipe.ingredients = [convert_to_metric(ing) for ing in data['ingredients']]
         if 'instructions' in data:
-            recipe.instructions = data['instructions']
+            # Store original and convert to metric
+            recipe.instructions_original = data['instructions']
+            recipe.instructions = [convert_to_metric(inst) for inst in data['instructions']]
         if 'prep_time' in data:
             recipe.prep_time = parse_time_to_minutes(data['prep_time'])
         if 'cook_time' in data:
@@ -1263,6 +1279,46 @@ def update_recipe(recipe_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error updating recipe: {str(e)}'}), 500
+
+
+def allowed_file(filename):
+    """Check if file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/api/upload-image', methods=['POST'])
+@login_required
+def upload_image():
+    """Upload a recipe image."""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'message': 'No image file provided'}), 400
+
+        file = request.files['image']
+
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'message': 'File type not allowed. Use PNG, JPG, JPEG, GIF, or WEBP'}), 400
+
+        # Generate unique filename to avoid conflicts
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+        file.save(filepath)
+
+        # Return the URL to access the uploaded image
+        image_url = url_for('static', filename=f'uploads/{filename}', _external=False)
+
+        return jsonify({
+            'success': True,
+            'image_url': image_url,
+            'filename': filename
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error uploading image: {str(e)}'}), 500
 
 
 @app.route('/api/recipes/ocr', methods=['POST'])
@@ -1411,12 +1467,21 @@ def save_recipe():
         if source_url and 'nytimes.com' in source_url.lower():
             is_shareable = False
 
-        # Create new recipe (original content only)
+        # Store original and convert to metric
+        from unit_converter import convert_to_metric
+        ingredients_original = data.get('ingredients', [])
+        instructions_original = data.get('instructions', [])
+        ingredients_metric = [convert_to_metric(ing) for ing in ingredients_original]
+        instructions_metric = [convert_to_metric(inst) for inst in instructions_original]
+
+        # Create new recipe with both original and metric versions
         new_recipe = Recipe(
             title=data.get('title', ''),
             content=data.get('content_original', '') or data.get('content', ''),
-            ingredients=data.get('ingredients', []),
-            instructions=data.get('instructions', []),
+            ingredients=ingredients_metric,
+            instructions=instructions_metric,
+            ingredients_original=ingredients_original,
+            instructions_original=instructions_original,
             prep_time=parse_time_to_minutes(data.get('prep_time')),
             cook_time=parse_time_to_minutes(data.get('cook_time')),
             total_time=parse_time_to_minutes(data.get('total_time')),
