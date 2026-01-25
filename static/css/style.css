@@ -316,6 +316,26 @@ body {
     gap: 0.5rem;
 }
 
+/* Nutrition badges for recipe cards */
+.recipe-nutrition-badges {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.nutrition-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
 /* Health Score Badge */
 .health-score-badge {
     display: inline-flex;

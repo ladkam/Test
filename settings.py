@@ -32,28 +32,25 @@ DEFAULT_SETTINGS = {
 3. Keep ONE blank line between sections (Ingredients, Instructions, etc.)
 4. Keep markdown headers (## for sections like "Ingrédients" and "Instructions")
 
+**CRITICAL MEASUREMENT RULES - READ CAREFULLY:**
+5. NEVER convert any measurements (tablespoons, teaspoons, cups, ml, grams, etc.)
+6. Keep ALL numbers and units EXACTLY as written - if you see "3 tablespoons", write "3 tablespoons"
+7. DO NOT convert tablespoons to ml, teaspoons to ml, or any unit to any other unit
+8. If original says "3 tablespoons" you MUST write "3 tablespoons" or "3 cucharadas" (translated)
+9. If original says "30ml" you MUST keep "30ml" exactly
+10. WRONG: Converting "3 tablespoons" → "45ml"
+11. CORRECT: Keeping "3 tablespoons" → "3 cucharadas"
+
 **Translation Guidelines:**
-5. Translate ALL text naturally and idiomatically in {language}
-6. Keep ALL numbers and measurements EXACTLY as shown in the original
-7. DO NOT convert tablespoons, teaspoons, or any measurements - keep them as-is
-8. If you see measurements in parentheses (like "237ml (1 cup)"), keep them exactly as shown
-9. Translate cooking terms accurately (sauté, blanch, fold, etc.)
-10. Use proper culinary vocabulary in {language}
+12. Translate text naturally and idiomatically in {language}
+13. Translate unit NAMES (tablespoon→cucharada, teaspoon→cucharadita) but NEVER change the number
+14. If measurements have parentheses like "237ml (1 cup)", keep both parts exactly
+15. Translate cooking terms accurately (sauté, blanch, fold, etc.)
+16. Use proper culinary vocabulary in {language}
 
-**Example Format:**
-## Ingrédients
-
-- First ingredient here
-- Second ingredient here
-- Third ingredient here
-
-## Instructions
-
-1. First step of instructions here.
-2. Second step here.
-3. Third step here.
-
-**Important:** Provide ONLY the translated recipe. No preamble, no explanations.
+**Example:**
+Input: "3 tablespoons olive oil"
+Output Spanish: "3 cucharadas de aceite de oliva" (NOT "45ml de aceite de oliva")
 
 ---
 
@@ -61,7 +58,7 @@ DEFAULT_SETTINGS = {
 
 ---
 
-Translated recipe:''',
+Translated recipe (remember: NEVER convert measurements, only translate the unit names):''',
     'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.',
     'ai_provider': 'mistral',  # 'mistral' or 'groq'
     'ai_model': 'open-mistral-nemo',

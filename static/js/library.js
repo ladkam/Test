@@ -138,8 +138,8 @@ function createRecipeCard(recipe) {
     const imageUrl = recipe.image_url || '';
     const title = recipe.title;
     const time = formatTime(recipe.total_time);
-    const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
     const ratingHtml = recipe.average_rating ? renderStarRating(recipe.average_rating, true, recipe.rating_count) : '';
+    const nutritionHtml = getNutritionBadges(recipe.nutrition);
     const tagsHtml = recipe.tags && recipe.tags.length > 0 ? `
         <div class="recipe-tags">
             ${recipe.tags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
@@ -154,10 +154,7 @@ function createRecipeCard(recipe) {
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
                     ${time ? `<p class="recipe-card-time">⏱️ ${time}</p>` : ''}
                     ${ratingHtml ? `<div class="recipe-card-rating">${ratingHtml}</div>` : ''}
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                        ${recipe.source_language ? `<span class="recipe-card-lang">${escapeHtml(recipe.source_language)}</span>` : ''}
-                        ${healthScoreHtml}
-                    </div>
+                    ${nutritionHtml}
                     ${tagsHtml}
                 </div>
             </div>
@@ -192,9 +189,36 @@ function getHealthScoreIcon(grade) {
         'B': '🥙',
         'C': '🍔',
         'D': '🍕',
-        'F': '🍰'
+        'F': '�'
     };
     return icons[grade] || '🍽️';
+}
+
+function getNutritionBadges(nutrition) {
+    if (!nutrition || typeof nutrition !== 'object') {
+        return '';
+    }
+
+    const badges = [];
+
+    // Extract and parse nutrition values
+    const parseValue = (val) => {
+        if (!val) return null;
+        const num = typeof val === 'string' ? parseFloat(val.replace(/[^\d.]/g, '')) : parseFloat(val);
+        return isNaN(num) ? null : Math.round(num);
+    };
+
+    const calories = parseValue(nutrition.calories);
+    const protein = parseValue(nutrition.protein);
+    const carbs = parseValue(nutrition.carbohydrates || nutrition.carbs);
+    const fat = parseValue(nutrition.fat || nutrition.totalFat);
+
+    if (calories) badges.push(`<span class="nutrition-badge">⚡ ${calories} cal</span>`);
+    if (protein) badges.push(`<span class="nutrition-badge">🥩 ${protein}g P</span>`);
+    if (carbs) badges.push(`<span class="nutrition-badge">🌾 ${carbs}g C</span>`);
+    if (fat) badges.push(`<span class="nutrition-badge">🥑 ${fat}g F</span>`);
+
+    return badges.length > 0 ? `<div class="recipe-nutrition-badges">${badges.join('')}</div>` : '';
 }
 
 function buildNutritionSection(recipe) {
