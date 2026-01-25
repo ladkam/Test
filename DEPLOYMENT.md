@@ -1,231 +1,334 @@
-# Deployment Guide - NYT Recipe Translator
+# Deployment Guide - Recipe Manager
 
-This guide covers the **easiest and cheapest** ways to deploy your recipe translator app.
+This guide explains how to persist your data (recipes, settings, secrets) both locally and in production.
 
----
+## 🔍 Current Setup Overview
 
-## 🏆 Option 1: Render (Recommended - FREE)
+**Everything is already persisting to a database!** Here's what's stored:
 
-**Best for:** Easy deployment, free tier, persistent storage
-**Cost:** Free forever
-**Setup time:** 5-10 minutes
+### Stored in Database (✅ Persists)
+- **Recipes** - All recipe data including ingredients, instructions, nutrition
+- **Translations** - Spanish and French translations for all recipes
+- **Users** - User accounts and authentication
+- **Settings** - API keys (Groq, Mistral), AI provider settings, NYT cookie
+- **Weekly Plans** - Your meal planning data
 
-### Steps:
+### Database Location
+- **Development**: `data/recipes.db` (SQLite file in your project)
+- **Production**: Managed PostgreSQL database (recommended)
 
-1. **Push your code to GitHub** (if not already done)
-
-2. **Go to [Render.com](https://render.com)** and sign up with your GitHub account
-
-3. **Create a New Web Service**
-   - Click "New +" → "Web Service"
-   - Connect your GitHub repository
-   - Select the `recipe-translator` repository
-
-4. **Configure the service:**
-   - **Name:** `recipe-translator` (or any name you like)
-   - **Environment:** `Python`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app`
-   - **Instance Type:** `Free`
-
-5. **Add Environment Variables:**
-   Click "Advanced" → "Add Environment Variable":
-   - `MISTRAL_API_KEY` = `your-mistral-api-key`
-   - `SECRET_KEY` = Click "Generate" to auto-generate
-   - `FLASK_DEBUG` = `False`
-
-6. **Click "Create Web Service"**
-
-7. **Wait 5-10 minutes** for deployment to complete
-
-8. **Your app will be live at:** `https://your-app-name.onrender.com`
-
-### Important Notes:
-- ✅ Free tier includes 750 hours/month (enough for 24/7 uptime)
-- ✅ Automatic HTTPS
-- ✅ Persistent disk for storing settings/users (enable in settings if needed)
-- ⚠️ App sleeps after 15 minutes of inactivity (wakes up in ~30 seconds on first request)
+### Why Database Files Don't Commit to Git
+Your `.gitignore` correctly excludes `*.db` files because:
+1. ✅ Database files are binary and don't work well with git
+2. ✅ Each developer should have their own local database
+3. ✅ Production uses a different database (PostgreSQL)
+4. ✅ Prevents accidentally committing sensitive user data
 
 ---
 
-## 🚀 Option 2: Railway (FREE with Credits)
+## 🏠 Local Development Setup
 
-**Best for:** Easy deployment, good free credits
-**Cost:** Free $5 credits/month (usually enough for small apps)
-**Setup time:** 5 minutes
+### 1. Create Your .env File
 
-### Steps:
+```bash
+# Copy the example file
+cp .env.example .env
 
-1. **Go to [Railway.app](https://railway.app)** and sign up with GitHub
+# Edit .env with your values
+nano .env  # or use your preferred editor
+```
 
-2. **Click "New Project" → "Deploy from GitHub repo"**
+### 2. Set Your Environment Variables
 
-3. **Select your repository**
+**Minimum required:**
+```env
+SECRET_KEY=your-secure-random-key-here
+```
 
-4. **Add Environment Variables:**
-   - `MISTRAL_API_KEY` = `your-mistral-api-key`
-   - `SECRET_KEY` = (generate a random string)
-   - `PORT` = `8080`
+**Optional (can also use Admin panel):**
+```env
+GROQ_API_KEY=your-groq-api-key
+MISTRAL_API_KEY=your-mistral-api-key
+```
 
-5. **Railway auto-detects Python and deploys**
+### 3. Generate a Secure Secret Key
 
-6. **Generate a domain:**
-   - Go to Settings → Generate Domain
-   - Your app will be live at: `https://your-app.up.railway.app`
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
 
-### Important Notes:
-- ✅ Very fast deployment
-- ✅ Automatic HTTPS
-- ✅ Doesn't sleep (unlike Render)
-- ⚠️ Free credits may run out if high traffic
+Copy the output and paste it as your `SECRET_KEY` in `.env`
 
----
+### 4. Your Data Persists Locally
 
-## 💰 Option 3: PythonAnywhere (FREE - Limited)
+Your database file at `data/recipes.db` persists all your data. As long as you don't delete this file, your data is safe.
 
-**Best for:** Python-specific hosting, simple setup
-**Cost:** Free tier available
-**Setup time:** 10-15 minutes
+**Backing up locally:**
+```bash
+# Create a backup
+cp data/recipes.db data/recipes.db.backup-$(date +%Y%m%d)
 
-### Steps:
-
-1. **Go to [PythonAnywhere.com](https://www.pythonanywhere.com)** and create a free account
-
-2. **Upload your code:**
-   - Go to "Files" → Upload files or clone from GitHub
-   - Or use: `git clone https://github.com/yourusername/your-repo.git`
-
-3. **Create a Web App:**
-   - Go to "Web" → "Add a new web app"
-   - Choose "Flask"
-   - Python version: 3.10
-
-4. **Configure WSGI file:**
-   - Edit the WSGI configuration file
-   - Point it to your `app.py`
-
-5. **Install dependencies:**
-   - Open a Bash console
-   - `cd` to your project directory
-   - `pip install -r requirements.txt`
-
-6. **Set environment variables:**
-   - In Web tab, scroll to "Environment variables"
-   - Add `MISTRAL_API_KEY`, `SECRET_KEY`, etc.
-
-7. **Reload the web app**
-
-### Important Notes:
-- ✅ 100% free tier available
-- ✅ No sleep mode
-- ⚠️ Custom domain not available on free tier
-- ⚠️ Limited to 512MB storage and 100 seconds CPU/day on free tier
+# Or backup with timestamp
+tar -czf backup-$(date +%Y%m%d-%H%M%S).tar.gz data/
+```
 
 ---
 
-## 🌐 Option 4: Fly.io (FREE Tier)
+## 🚀 Production Deployment
 
-**Best for:** Global deployment, Docker-based
-**Cost:** Free tier available
-**Setup time:** 10-15 minutes
+### Why Use PostgreSQL in Production?
 
-### Steps:
+SQLite is great for development, but production needs PostgreSQL because:
+- ✅ Better concurrency (multiple users at once)
+- ✅ Managed backups and disaster recovery
+- ✅ Better performance at scale
+- ✅ Hosted platforms provide it for free
 
-1. **Install Fly CLI:**
-   ```bash
-   curl -L https://fly.io/install.sh | sh
+### Option 1: Railway (Recommended - Easiest)
+
+1. **Sign up** at [railway.app](https://railway.app)
+
+2. **Create a new project** from GitHub repo
+
+3. **Add PostgreSQL database:**
+   - Click "+ New" → "Database" → "PostgreSQL"
+   - Railway automatically sets `DATABASE_URL` environment variable
+
+4. **Set environment variables:**
+   ```
+   SECRET_KEY=<generate-secure-key>
+   GROQ_API_KEY=<your-key> (optional, can use admin panel)
+   MISTRAL_API_KEY=<your-key> (optional, can use admin panel)
    ```
 
-2. **Login:**
-   ```bash
-   fly auth login
+5. **Deploy!**
+   - Railway automatically deploys on every git push
+   - Your app will migrate the database schema automatically
+
+### Option 2: Render
+
+1. **Sign up** at [render.com](https://render.com)
+
+2. **Create new Web Service** from GitHub
+
+3. **Create PostgreSQL database:**
+   - Click "New +" → "PostgreSQL"
+   - Copy the "Internal Database URL"
+
+4. **Set environment variables in your Web Service:**
+   ```
+   DATABASE_URL=<your-postgres-url>
+   SECRET_KEY=<generate-secure-key>
    ```
 
-3. **Launch your app:**
+5. **Deploy** - Render auto-deploys on git push
+
+### Option 3: Heroku
+
+1. **Install Heroku CLI** and login
+
+2. **Create app:**
    ```bash
-   fly launch
+   heroku create your-app-name
    ```
-   - Follow the prompts
-   - Choose a unique app name
-   - Select region closest to you
-   - Don't deploy yet
+
+3. **Add PostgreSQL:**
+   ```bash
+   heroku addons:create heroku-postgresql:mini
+   ```
 
 4. **Set environment variables:**
    ```bash
-   fly secrets set MISTRAL_API_KEY=your-key
-   fly secrets set SECRET_KEY=your-secret
+   heroku config:set SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+   heroku config:set GROQ_API_KEY=your-key
    ```
 
 5. **Deploy:**
    ```bash
-   fly deploy
+   git push heroku main
    ```
 
-### Important Notes:
-- ✅ Global CDN
-- ✅ No sleep mode
-- ✅ Great for production
-- ⚠️ Requires Dockerfile (Fly can auto-generate)
+---
+
+## 🔐 Managing Secrets in Production
+
+You have **two options** for API keys:
+
+### Option A: Environment Variables (Recommended for Production)
+
+Set on your hosting platform:
+```bash
+# Railway/Render - Set in dashboard
+GROQ_API_KEY=gsk_xxxxx
+MISTRAL_API_KEY=xxxxx
+
+# Heroku - Set via CLI
+heroku config:set GROQ_API_KEY=gsk_xxxxx
+```
+
+**Pros:**
+- ✅ More secure (not in database)
+- ✅ Easier to rotate keys
+- ✅ Better for CI/CD pipelines
+
+### Option B: Admin Panel (Easier for Non-Technical Users)
+
+After deployment:
+1. Go to `/admin` in your app
+2. Click "API Settings" tab
+3. Enter your API keys
+4. Click "Save"
+
+**Pros:**
+- ✅ No need to access hosting dashboard
+- ✅ Can change without redeploying
+- ✅ Stored encrypted in database
+
+**Note:** Environment variables take precedence over database values.
 
 ---
 
-## 📝 Preparation Checklist
+## 📊 Database Migration Between Environments
 
-Before deploying to any platform:
+### Export Data from SQLite (Development)
 
-- [ ] **Get your Mistral API key** from [console.mistral.ai](https://console.mistral.ai)
-- [ ] **Push code to GitHub** (most platforms deploy from GitHub)
-- [ ] **Create a strong SECRET_KEY** (or use auto-generate)
-- [ ] **Test locally first:** `python app.py`
-- [ ] **Check requirements.txt** is up to date
+```bash
+# Dump recipes to JSON
+python -c "
+from app import app, db, Recipe
+with app.app_context():
+    recipes = Recipe.query.all()
+    import json
+    with open('recipes_export.json', 'w') as f:
+        json.dump([r.to_dict() for r in recipes], f)
+"
+```
+
+### Import Data to PostgreSQL (Production)
+
+After deploying with PostgreSQL:
+
+```bash
+# Run on production (Railway/Render console or Heroku run)
+python -c "
+from app import app, db, Recipe
+import json
+with app.app_context():
+    with open('recipes_export.json', 'r') as f:
+        data = json.load(f)
+    for recipe_data in data:
+        # Import logic here
+        pass
+"
+```
+
+**Or use the admin panel:**
+1. Export recipes from local as JSON
+2. Import via admin panel in production
 
 ---
 
-## 🎯 Quick Comparison
+## 🔄 Automatic Backups (Production)
 
-| Platform | Cost | Sleep? | Custom Domain | Setup Difficulty |
-|----------|------|--------|---------------|------------------|
-| **Render** | Free | After 15min | ✅ Free | ⭐ Easy |
-| **Railway** | $5 credits | No | ✅ Free | ⭐ Easy |
-| **PythonAnywhere** | Free | No | ❌ Paid only | ⭐⭐ Medium |
-| **Fly.io** | Free | No | ✅ Free | ⭐⭐⭐ Advanced |
+### Railway
+- Automatic daily backups (paid plans)
+- Manual backups via dashboard
+
+### Render
+- Continuous data protection (paid plans)
+- Point-in-time recovery
+
+### Heroku
+```bash
+# Create manual backup
+heroku pg:backups:capture
+
+# Schedule automatic daily backups
+heroku pg:backups:schedule DATABASE_URL --at '02:00 America/Los_Angeles'
+
+# Download backup
+heroku pg:backups:download
+```
 
 ---
 
-## 🔐 Security Tips
+## ✅ Checklist for Production Deployment
 
-1. **Never commit .env file** - Already in `.gitignore` ✅
-2. **Use strong SECRET_KEY** in production
-3. **Change default admin password** after first login
-4. **Enable HTTPS** (automatic on all platforms above)
-5. **Keep dependencies updated:** `pip list --outdated`
+- [ ] Created `.env` file locally (from `.env.example`)
+- [ ] Generated secure `SECRET_KEY`
+- [ ] Set up PostgreSQL database on hosting platform
+- [ ] Set `DATABASE_URL` environment variable
+- [ ] Set `SECRET_KEY` environment variable
+- [ ] Set API keys (via env vars OR admin panel)
+- [ ] Pushed code to git repository
+- [ ] Connected hosting platform to GitHub repo
+- [ ] Verified database tables created automatically
+- [ ] Created admin user (happens automatically on first run)
+- [ ] Tested login with default credentials (admin/admin123)
+- [ ] Changed admin password immediately
+- [ ] Set up automatic backups (if available)
 
 ---
 
 ## 🆘 Troubleshooting
 
-### App won't start:
-- Check logs in platform dashboard
-- Verify all environment variables are set
-- Ensure `gunicorn` is in requirements.txt
+### "No module named 'psycopg2'"
 
-### Database errors:
-- Make sure the `data/` directory is persistent
-- Check file permissions
-- Render: Enable persistent disk in settings
+Add to `requirements.txt`:
+```
+psycopg2-binary==2.9.9
+```
 
-### API errors:
-- Verify `MISTRAL_API_KEY` is correct
-- Check API quota at console.mistral.ai
+### Database tables not created
+
+The app auto-creates tables on first run. Check logs:
+```bash
+# Railway - View in dashboard
+# Render - View in dashboard
+# Heroku
+heroku logs --tail
+```
+
+### "Database is locked" error
+
+This happens with SQLite in production (multiple users). Solution: **Use PostgreSQL instead.**
+
+### Lost database connection
+
+Check your `DATABASE_URL`:
+```bash
+# Heroku
+heroku config:get DATABASE_URL
+
+# Railway/Render - Check dashboard
+```
+
+### API keys not working
+
+Priority order:
+1. Environment variables (highest)
+2. Database (Settings table)
+3. Fallback to None
+
+Check both locations in Admin panel.
 
 ---
 
-## 📞 Need Help?
+## 📝 Summary
 
-- **Render Docs:** https://render.com/docs
-- **Railway Docs:** https://docs.railway.app
-- **Flask Deployment:** https://flask.palletsprojects.com/en/latest/deploying/
+**Development:**
+- ✅ Data persists in `data/recipes.db`
+- ✅ API keys in `.env` OR admin panel
+- ✅ Backup by copying `data/` folder
 
----
+**Production:**
+- ✅ Use managed PostgreSQL database
+- ✅ Set `DATABASE_URL` environment variable
+- ✅ Set secrets as environment variables
+- ✅ Enable automatic backups
+- ✅ Never use SQLite in production
 
-**Recommended:** Start with **Render** - it's the easiest and has the best free tier for this type of app! 🎉
+**Your data is safe as long as:**
+- 🔒 You have database backups
+- 🔒 Your hosting platform is reliable
+- 🔒 You use PostgreSQL in production

@@ -8,17 +8,31 @@ from typing import Tuple, Optional
 class UnitConverter:
     """Converts imperial cooking measurements to metric."""
 
+    # Unicode fraction mappings
+    UNICODE_FRACTIONS = {
+        '½': 0.5,
+        '¼': 0.25,
+        '¾': 0.75,
+        '⅓': 1/3,
+        '⅔': 2/3,
+        '⅛': 0.125,
+        '⅜': 0.375,
+        '⅝': 0.625,
+        '⅞': 0.875,
+        '⅕': 0.2,
+        '⅖': 0.4,
+        '⅗': 0.6,
+        '⅘': 0.8,
+        '⅙': 1/6,
+        '⅚': 5/6,
+    }
+
     # Conversion factors
+    # Note: teaspoon/tablespoon are universal and not converted
     CONVERSIONS = {
         # Volume
         'cup': ('ml', 236.588),
         'cups': ('ml', 236.588),
-        'tablespoon': ('ml', 14.787),
-        'tablespoons': ('ml', 14.787),
-        'tbsp': ('ml', 14.787),
-        'teaspoon': ('ml', 4.929),
-        'teaspoons': ('ml', 4.929),
-        'tsp': ('ml', 4.929),
         'fluid ounce': ('ml', 29.574),
         'fluid ounces': ('ml', 29.574),
         'fl oz': ('ml', 29.574),
@@ -39,26 +53,51 @@ class UnitConverter:
         'lbs': ('g', 453.592),
 
         # Temperature (special case, handled separately)
+        # Only convert explicitly marked Fahrenheit to avoid misconverting Celsius
         'fahrenheit': ('celsius', None),
-        'f': ('celsius', None),
         '°f': ('celsius', None),
     }
 
     def __init__(self):
-        # Pattern to match measurements like "2 cups", "1/2 teaspoon", "350°F"
+        # Unicode fraction characters for pattern matching
+        unicode_fracs = ''.join(self.UNICODE_FRACTIONS.keys())
+
+        # Pattern to match measurements like "2 cups", "2¼ cups", "350°F", "6-ounce"
+        # Supports: integers, decimals, fractions (1/2), unicode fractions (½),
+        # and mixed numbers (2¼, 2 1/2). Allows hyphen or space between number and unit.
+        # Note: teaspoon/tablespoon are universal and not matched for conversion
         self.measurement_pattern = re.compile(
-            r'(\d+(?:/\d+)?(?:\.\d+)?)\s*(?:to\s+\d+(?:/\d+)?(?:\.\d+)?\s*)?'
-            r'(cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp|'
-            r'fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
-            r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit|f)\b',
+            r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?)[\s-]*'
+            r'(cup|cups|fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
+            r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit)\b',
             re.IGNORECASE
         )
 
     def convert_fraction_to_decimal(self, fraction_str: str) -> float:
-        """Convert a fraction string like '1/2' or '2.5' to decimal."""
+        """Convert a fraction string like '1/2', '2.5', '2¼', or '2 1/2' to decimal."""
+        fraction_str = fraction_str.strip()
+
+        # Check for Unicode fractions in the string
+        for unicode_frac, value in self.UNICODE_FRACTIONS.items():
+            if unicode_frac in fraction_str:
+                # Handle mixed numbers like "2¼"
+                whole_part = fraction_str.replace(unicode_frac, '').strip()
+                if whole_part:
+                    return float(whole_part) + value
+                return value
+
+        # Handle mixed numbers like "2 1/2"
+        if ' ' in fraction_str and '/' in fraction_str:
+            parts = fraction_str.split()
+            whole = float(parts[0])
+            frac_parts = parts[1].split('/')
+            return whole + float(frac_parts[0]) / float(frac_parts[1])
+
+        # Handle simple fractions like "1/2"
         if '/' in fraction_str:
             parts = fraction_str.split('/')
             return float(parts[0]) / float(parts[1])
+
         return float(fraction_str)
 
     def fahrenheit_to_celsius(self, fahrenheit: float) -> int:
@@ -78,8 +117,8 @@ class UnitConverter:
         """
         unit_lower = unit.lower().strip()
 
-        # Handle temperature separately
-        if unit_lower in ['fahrenheit', 'f', '°f']:
+        # Handle temperature separately (only explicit Fahrenheit)
+        if unit_lower in ['fahrenheit', '°f']:
             celsius = self.fahrenheit_to_celsius(amount)
             return celsius, '°C'
 
@@ -131,3 +170,50 @@ class UnitConverter:
                 return match.group(0)  # Return original if conversion fails
 
         return self.measurement_pattern.sub(replace_measurement, text)
+
+    def convert_to_metric_only(self, text: str) -> str:
+        """
+        Convert all imperial measurements in text to metric (without showing original).
+
+        Args:
+            text: Text containing measurements
+
+        Returns:
+            Text with imperial measurements converted to metric only
+        """
+        if not text:
+            return text
+
+        def replace_measurement(match):
+            amount_str = match.group(1)
+            unit = match.group(2)
+
+            try:
+                amount = self.convert_fraction_to_decimal(amount_str)
+                converted_amount, metric_unit = self.convert_measurement(amount, unit)
+
+                # Format the output (metric only, no original)
+                if isinstance(converted_amount, float) and converted_amount == int(converted_amount):
+                    converted_amount = int(converted_amount)
+                return f"{converted_amount} {metric_unit}"
+            except (ValueError, ZeroDivisionError):
+                return match.group(0)  # Return original if conversion fails
+
+        return self.measurement_pattern.sub(replace_measurement, text)
+
+
+# Global converter instance
+_converter = UnitConverter()
+
+
+def convert_to_metric(text: str) -> str:
+    """
+    Convenience function to convert text to metric units.
+
+    Args:
+        text: Text containing measurements
+
+    Returns:
+        Text with all imperial measurements converted to metric
+    """
+    return _converter.convert_to_metric_only(text)

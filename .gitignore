@@ -45,9 +45,13 @@ recipes/
 # Flask
 instance/
 .webassets-cache
+*.log
 
 # User data and settings
-data/
+# Keep data/ folder structure but ignore database files
+data/*.db
+data/*.db.*
+data/*.backup*
 *.backup
 
 # OS

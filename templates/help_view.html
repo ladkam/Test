@@ -10,7 +10,7 @@
         /* Help View Specific Styles - Large, Clean, Simple */
         body {
             font-size: 1.125rem;
-            background: white;
+            background: var(--background);
         }
 
         .help-container {
@@ -37,12 +37,103 @@
             color: var(--text-secondary);
         }
 
+        .header-controls {
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .language-selector label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .language-selector select {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--background);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
         .recipe-card-simple {
             margin-bottom: 3rem;
-            padding: 2rem;
-            background: var(--background);
+            padding: 0;
+            background: var(--card-background);
             border-radius: var(--border-radius);
             break-inside: avoid;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .recipe-card-simple.collapsible {
+            cursor: default;
+        }
+
+        .recipe-header-collapsible {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background: var(--background);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .recipe-header-collapsible:hover {
+            background: var(--sidebar-hover);
+        }
+
+        .recipe-header-collapsible h2 {
+            font-size: 1.75rem;
+            color: var(--primary-color);
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .recipe-collapse-icon {
+            transition: transform 0.3s ease;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .recipe-card-simple.collapsed .recipe-collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .recipe-card-content {
+            padding: 2rem;
+            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            max-height: 5000px;
+            opacity: 1;
+        }
+
+        .recipe-card-simple.collapsed .recipe-card-content {
+            max-height: 0;
+            padding: 0 2rem;
+            opacity: 0;
+            overflow: hidden;
+        }
+
+        .recipe-image-simple {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
         }
 
         .recipe-card-simple h2 {
@@ -75,22 +166,18 @@
         .ingredients-simple {
             list-style: none;
             padding: 0;
+            margin: 0;
         }
 
         .ingredients-simple li {
-            padding: 0.75rem 0 0.75rem 2rem;
+            padding: 0.75rem 0;
+            font-size: 1rem;
             border-bottom: 1px solid var(--border-color);
-            position: relative;
-            font-size: 1.125rem;
+            color: var(--text-primary);
         }
 
-        .ingredients-simple li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: var(--primary-color);
-            font-weight: bold;
-            font-size: 1.25rem;
+        .ingredients-simple li:last-child {
+            border-bottom: none;
         }
 
         .instructions-simple {
@@ -164,10 +251,29 @@
     </style>
 </head>
 <body>
+    {% include '_sidebar.html' %}
+
     <div class="help-container">
         <div class="help-header">
             <h1>📖 This Week's Recipes</h1>
             <p id="weekDate"></p>
+            <div class="header-controls">
+                <div class="language-selector">
+                    <label for="languageSelect">🌍 Language:</label>
+                    <select id="languageSelect" onchange="changeLanguage()">
+                        <option value="en" {% if language == 'en' %}selected{% endif %}>English (Original)</option>
+                        <option value="es" {% if language == 'es' %}selected{% endif %}>Spanish 🇪🇸</option>
+                        <option value="fr" {% if language == 'fr' %}selected{% endif %}>French 🇫🇷</option>
+                        <option value="de" {% if language == 'de' %}selected{% endif %}>German 🇩🇪</option>
+                        <option value="it" {% if language == 'it' %}selected{% endif %}>Italian 🇮🇹</option>
+                        <option value="pt" {% if language == 'pt' %}selected{% endif %}>Portuguese 🇵🇹</option>
+                        <option value="nl" {% if language == 'nl' %}selected{% endif %}>Dutch 🇳🇱</option>
+                        <option value="ja" {% if language == 'ja' %}selected{% endif %}>Japanese 🇯🇵</option>
+                        <option value="zh" {% if language == 'zh' %}selected{% endif %}>Chinese 🇨🇳</option>
+                        <option value="ko" {% if language == 'ko' %}selected{% endif %}>Korean 🇰🇷</option>
+                    </select>
+                </div>
+            </div>
         </div>
 
         <div id="recipesList"></div>
@@ -201,6 +307,7 @@
                 const data = await response.json();
 
                 if (data.success && data.recipes && data.recipes.length > 0) {
+                    cachedRecipes = data.recipes;
                     displayRecipes(data.recipes);
                 } else {
                     document.getElementById('emptyState').style.display = 'block';
@@ -211,42 +318,196 @@
             }
         }
 
+        let currentLanguage = '{{ language }}' || 'en';
+        let cachedRecipes = null;
+
+        function changeLanguage() {
+            currentLanguage = document.getElementById('languageSelect').value;
+            if (cachedRecipes) {
+                displayRecipes(cachedRecipes);
+            }
+        }
+
+        // Scale ingredients based on servings multiplier
+        function scaleIngredients(ingredients, scale) {
+            if (scale === 1) return ingredients;
+
+            return ingredients.map(ing => {
+                // Match numbers (including fractions like 1/2, 1.5, etc.)
+                return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
+                    let num;
+                    if (match.includes('/')) {
+                        // Handle fractions
+                        const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
+                        num = numerator / denominator;
+                    } else {
+                        num = parseFloat(match);
+                    }
+
+                    const scaled = num * scale;
+
+                    // Format nicely
+                    if (scaled % 1 === 0) {
+                        return scaled.toString();
+                    } else if (Math.abs(scaled - 0.5) < 0.01) {
+                        return '1/2';
+                    } else if (Math.abs(scaled - 0.25) < 0.01) {
+                        return '1/4';
+                    } else if (Math.abs(scaled - 0.75) < 0.01) {
+                        return '3/4';
+                    } else if (Math.abs(scaled - 0.33) < 0.01) {
+                        return '1/3';
+                    } else if (Math.abs(scaled - 0.67) < 0.01) {
+                        return '2/3';
+                    } else {
+                        return scaled.toFixed(1);
+                    }
+                });
+            });
+        }
+
+        function parseServings(servingsStr) {
+            if (!servingsStr) return null;
+            const match = String(servingsStr).match(/\d+/);
+            return match ? parseInt(match[0]) : null;
+        }
+
+        function getTranslatedIngredients(recipe) {
+            let ingredients;
+
+            // Get ingredients in the selected language
+            if (currentLanguage === 'en') {
+                ingredients = recipe.ingredients || [];
+            } else if (recipe.translations && recipe.translations[currentLanguage] && recipe.translations[currentLanguage].ingredients) {
+                ingredients = recipe.translations[currentLanguage].ingredients;
+            } else {
+                ingredients = recipe.ingredients || [];
+            }
+
+            // Scale ingredients if servings have been adjusted
+            if (recipe.servings && recipe.original_servings) {
+                const currentServings = parseServings(recipe.servings);
+                const originalServings = parseServings(recipe.original_servings);
+
+                if (currentServings && originalServings && currentServings !== originalServings) {
+                    const scale = currentServings / originalServings;
+                    ingredients = scaleIngredients(ingredients, scale);
+                }
+            }
+
+            return ingredients;
+        }
+
+        function getTranslatedInstructions(recipe) {
+            // If English is selected, use original instructions
+            if (currentLanguage === 'en') {
+                return recipe.instructions || [];
+            }
+
+            // Try to get translation for selected language
+            if (!recipe.translations || Object.keys(recipe.translations).length === 0) {
+                return recipe.instructions || [];
+            }
+
+            const translation = recipe.translations[currentLanguage];
+            if (translation && translation.instructions) {
+                return translation.instructions;
+            }
+
+            // Fallback to original if translation not available
+            return recipe.instructions || [];
+        }
+
         function displayRecipes(recipes) {
             const container = document.getElementById('recipesList');
+            const isCollapsible = recipes.length > 1;
 
-            container.innerHTML = recipes.map(recipe => {
-                const ingredients = recipe.ingredients_translated || [];
-                const instructions = recipe.instructions_translated || [];
+            container.innerHTML = recipes.map((recipe, index) => {
+                const ingredients = getTranslatedIngredients(recipe);
+                const instructions = getTranslatedInstructions(recipe);
 
-                return `
-                    <div class="recipe-card-simple">
-                        <h2>${escapeHtml(recipe.title_translated || recipe.title_original)}</h2>
+                if (isCollapsible) {
+                    return `
+                        <div class="recipe-card-simple collapsible" data-recipe-index="${index}">
+                            <div class="recipe-header-collapsible" onclick="toggleRecipeCard(${index})">
+                                <h2>${escapeHtml(recipe.title)}</h2>
+                                <svg class="recipe-collapse-icon" width="24" height="24" viewBox="0 0 20 20" fill="none">
+                                    <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="recipe-card-content">
+                                ${recipe.image_url ? `<img src="${escapeHtml(recipe.image_url)}" alt="${escapeHtml(recipe.title)}" class="recipe-image-simple">` : ''}
 
-                        <div class="recipe-meta-simple">
-                            ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                            ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                                <div class="recipe-meta-simple">
+                                    ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                                    ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                                </div>
+
+                                ${recipe.source_url ? `<a href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer" class="original-recipe-link">View original recipe</a>` : ''}
+
+                                ${ingredients.length > 0 ? `
+                                    <div class="recipe-section">
+                                        <h3>Ingredients</h3>
+                                        <ul class="ingredients-simple">
+                                            ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+
+                                ${instructions.length > 0 ? `
+                                    <div class="recipe-section">
+                                        <h3>Instructions</h3>
+                                        <ol class="instructions-simple">
+                                            ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
+                                        </ol>
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
+                    `;
+                } else {
+                    return `
+                        <div class="recipe-card-simple">
+                            <div class="recipe-card-content">
+                                <h2 style="margin-top: 0;">${escapeHtml(recipe.title)}</h2>
+                                ${recipe.image_url ? `<img src="${escapeHtml(recipe.image_url)}" alt="${escapeHtml(recipe.title)}" class="recipe-image-simple">` : ''}
 
-                        ${ingredients.length > 0 ? `
-                            <div class="recipe-section">
-                                <h3>Ingredients</h3>
-                                <ul class="ingredients-simple">
-                                    ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
+                                <div class="recipe-meta-simple">
+                                    ${recipe.total_time ? `<span>⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
+                                    ${recipe.servings ? `<span>🍽️ ${escapeHtml(recipe.servings)}</span>` : ''}
+                                </div>
 
-                        ${instructions.length > 0 ? `
-                            <div class="recipe-section">
-                                <h3>Instructions</h3>
-                                <ol class="instructions-simple">
-                                    ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
-                                </ol>
+                                ${recipe.source_url ? `<a href="${escapeHtml(recipe.source_url)}" target="_blank" rel="noopener noreferrer" class="original-recipe-link">View original recipe</a>` : ''}
+
+                                ${ingredients.length > 0 ? `
+                                    <div class="recipe-section">
+                                        <h3>Ingredients</h3>
+                                        <ul class="ingredients-simple">
+                                            ${ingredients.map(ing => `<li>${escapeHtml(ing)}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+
+                                ${instructions.length > 0 ? `
+                                    <div class="recipe-section">
+                                        <h3>Instructions</h3>
+                                        <ol class="instructions-simple">
+                                            ${instructions.map(inst => `<li>${escapeHtml(inst)}</li>`).join('')}
+                                        </ol>
+                                    </div>
+                                ` : ''}
                             </div>
-                        ` : ''}
-                    </div>
-                `;
+                        </div>
+                    `;
+                }
             }).join('');
+        }
+
+        function toggleRecipeCard(index) {
+            const card = document.querySelector(`[data-recipe-index="${index}"]`);
+            if (card) {
+                card.classList.toggle('collapsed');
+            }
         }
 
         function formatTime(minutes) {

@@ -94,6 +94,50 @@ class GroqTranslator:
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to translate recipe: {str(e)}")
 
+    def translate_text(self, text: str, target_language: str) -> str:
+        """
+        Translate simple text to target language.
+
+        Args:
+            text: The text to translate
+            target_language: Target language (e.g., "Spanish", "French")
+
+        Returns:
+            Translated text
+        """
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a professional translator. Translate text accurately while preserving meaning."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Translate the following text to {target_language}. Provide only the translation, no explanations:\n\n{text}"
+                        }
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": 500
+                },
+                timeout=30
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            if 'choices' in data and len(data['choices']) > 0:
+                return data['choices'][0]['message']['content'].strip()
+            else:
+                raise Exception("Unexpected response format from Groq API")
+
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Failed to translate text: {str(e)}")
+
     def test_connection(self) -> bool:
         """
         Test the connection to Groq API.

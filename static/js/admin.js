@@ -160,6 +160,13 @@ const MODEL_OPTIONS = {
         { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra Fast)', free: true },
         { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Highest Quality)', free: true },
         { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)', free: true }
+    ],
+    gemini: [
+        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview) - Latest, fastest (FREE)', free: true },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash - Stable, production-ready (FREE)', free: true },
+        { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite - Cost-optimized (FREE)', free: true },
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview) - Best quality (PAID)', free: false },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro - Best reasoning (PAID)', free: false }
     ]
 };
 
@@ -189,12 +196,18 @@ function updateModelOptions() {
     // Update help text
     if (provider === 'mistral') {
         modelHelp.textContent = 'Mistral AI models. Free tier: open-mistral-nemo, open-mixtral-8x7b, open-mixtral-8x22b';
-    } else {
+    } else if (provider === 'groq') {
         modelHelp.textContent = 'Groq models (All free with generous limits). Llama 3.3 70B Versatile recommended for best quality.';
+    } else if (provider === 'gemini') {
+        modelHelp.textContent = 'Google Gemini models. FREE: 3 Flash, 2.5 Flash, 2.5 Flash-Lite. PAID: 3 Pro, 2.5 Pro. Recommended: 2.5 Flash (free, stable).';
     }
 }
 
 async function saveApiSettings() {
+    const groqApiKey = document.getElementById('groqApiKey').value.trim();
+    const mistralApiKey = document.getElementById('mistralApiKey').value.trim();
+    const geminiApiKey = document.getElementById('geminiApiKey').value.trim();
+    const translatorPin = document.getElementById('translatorPin').value.trim();
     const aiProvider = document.getElementById('aiProvider').value;
     const aiModel = document.getElementById('aiModel').value;
     const nytCookie = document.getElementById('nytCookie').value.trim();
@@ -204,6 +217,10 @@ async function saveApiSettings() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                groq_api_key: groqApiKey,
+                mistral_api_key: mistralApiKey,
+                gemini_api_key: geminiApiKey,
+                translator_pin: translatorPin,
                 ai_provider: aiProvider,
                 ai_model: aiModel,
                 nyt_cookie: nytCookie
@@ -226,7 +243,6 @@ async function saveApiSettings() {
 async function createUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value.trim();
-    const role = document.getElementById('newRole').value;
 
     if (!username || !password) {
         showAlert('Username and password are required', 'error');
@@ -237,7 +253,7 @@ async function createUser() {
         const response = await fetch('/api/admin/users/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role })
+            body: JSON.stringify({ username, password })
         });
 
         const data = await response.json();

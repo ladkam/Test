@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping List - Recipe Management</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="container">
+        <header class="planner-header">
+            <div>
+                <h1>🛒 Shopping List</h1>
+                <p class="subtitle">Your ingredients in English with metric measurements</p>
+            </div>
+            <div class="planner-actions">
+                <button onclick="printShoppingList()" class="btn btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Print
+                </button>
+                <button onclick="copyShoppingList()" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 4v12a2 2 0 002 2h8a2 2 0 002-2V7.242a2 2 0 00-.602-1.43L16.083 2.57A2 2 0 0014.685 2H10a2 2 0 00-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 18v2a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Copy to Clipboard
+                </button>
+            </div>
+        </header>
+
+        <!-- View Toggle -->
+        <div class="view-toggle" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <button id="viewCombined" class="btn-toggle active" style="flex: 1; padding: 0.75rem 1rem; border: 2px solid var(--primary-color); background: var(--primary-color); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align: middle; margin-right: 6px;">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Total List
+            </button>
+            <button id="viewByRecipe" class="btn-toggle" style="flex: 1; padding: 0.75rem 1rem; border: 2px solid var(--border-color); background: white; color: var(--text-primary); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align: middle; margin-right: 6px;">
+                    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                By Recipe
+            </button>
+        </div>
+
+        <style>
+            .btn-toggle:hover {
+                border-color: var(--primary-color) !important;
+            }
+            .btn-toggle.active {
+                background: var(--primary-color) !important;
+                color: white !important;
+                border-color: var(--primary-color) !important;
+            }
+            .btn-toggle:not(.active) {
+                background: white !important;
+                color: var(--text-primary) !important;
+            }
+            .item-count {
+                background: var(--primary-color);
+                color: white;
+                padding: 0.25rem 0.75rem;
+                border-radius: 20px;
+                font-size: 0.85rem;
+                font-weight: 600;
+            }
+            .combined-list li {
+                font-size: 1.05rem;
+            }
+        </style>
+
+        <div class="card">
+            <div id="shoppingListContent" class="shopping-list-container">
+                <div class="loading-center">
+                    <p>Loading shopping list...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/shopping_list.js') }}"></script>
+</body>
+</html>

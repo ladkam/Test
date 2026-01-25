@@ -8,20 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="top-nav">
-        <div class="nav-content">
-            <a href="{{ url_for('index') }}" class="nav-brand">Recipe Translator</a>
-            <div class="nav-links">
-                {% if current_user.is_authenticated %}
-                    <span class="nav-user">👤 {{ current_user.username }}</span>
-                    {% if current_user.is_admin() %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">⚙️ Admin</a>
-                    {% endif %}
-                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
+    {% include '_sidebar.html' %}
 
     <div class="container results-page">
         <a href="{{ url_for('index') }}" class="back-link">← Back to Home</a>
@@ -79,6 +66,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
         // Recipe data from backend
         const recipeData = {
@@ -156,8 +144,13 @@
             return html;
         }
 
-        // Display recipe
-        document.getElementById('recipeContent').innerHTML = markdownToHtml(recipeData.content);
+        // Display recipe (content is already converted by backend)
+        function displayRecipe() {
+            document.getElementById('recipeContent').innerHTML = markdownToHtml(recipeData.content);
+        }
+
+        // Initial display
+        displayRecipe();
 
         // Copy functionality
         async function copyRecipe() {

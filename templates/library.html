@@ -8,74 +8,136 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="top-nav">
-        <div class="nav-content">
-            <a href="{{ url_for('index') }}" class="nav-brand">Recipe Manager</a>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}" class="nav-link">Translator</a>
-                <a href="{{ url_for('library') }}" class="nav-link active">Library</a>
-                <a href="{{ url_for('planner') }}" class="nav-link">Weekly Planner</a>
-                {% if current_user.is_authenticated %}
-                    {% if current_user.is_admin() %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Admin</a>
-                    {% endif %}
-                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
+    {% include '_sidebar.html' %}
 
     <div class="container">
         <header class="library-header">
-            <h1>Recipe Library</h1>
-            <p class="subtitle">Browse and search your saved recipes</p>
+            <div class="library-header-content">
+                <h1>Recipe Library</h1>
+                <p class="subtitle">Browse and manage your saved recipes</p>
+            </div>
+            <div class="library-actions">
+                <a href="{{ url_for('import_recipe') }}" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Import Recipe
+                </a>
+            </div>
         </header>
 
         <!-- Search and Filters -->
-        <div class="card search-card">
-            <div class="search-filters">
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search recipes, ingredients..." class="input-full">
+        <div class="search-filters-card">
+            <div class="search-filters-row">
+                <div class="search-input-large">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search recipes, ingredients, or tags... (Press / to focus)" class="search-input">
                 </div>
-                <div class="filter-group">
-                    <label>Duration:</label>
-                    <select id="durationFilter" class="select-inline">
-                        <option value="">All</option>
-                        <option value="0-30">Under 30 min</option>
-                        <option value="30-60">30-60 min</option>
-                        <option value="60+">Over 1 hour</option>
-                    </select>
+
+                <select id="durationFilter" class="filter-select">
+                    <option value="">All durations</option>
+                    <option value="0-30">Quick (< 30 min)</option>
+                    <option value="30-60">Medium (30-60 min)</option>
+                    <option value="60+">Long (> 1 hour)</option>
+                </select>
+
+                <select id="sortFilter" class="filter-select">
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                    <option value="rating">Highest rated</option>
+                    <option value="time-asc">Quickest</option>
+                    <option value="time-desc">Longest</option>
+                </select>
+
+                <div class="view-toggle">
+                    <button class="view-toggle-btn active" data-view="grid" title="Grid view">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </button>
+                    <button class="view-toggle-btn" data-view="list" title="List view">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
-                <button id="clearFilters" class="btn btn-secondary btn-sm">Clear Filters</button>
+
+                <button id="clearFilters" class="btn btn-ghost btn-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                    Clear
+                </button>
+            </div>
+
+            <!-- Quick Filter Tags -->
+            <div id="tagFilterContainer" class="quick-filters" style="display: none;">
+                <span class="quick-filter-label">Tags:</span>
+                <div id="tagFilterOptions" class="tag-filter-options"></div>
             </div>
         </div>
 
-        <!-- Recipe Count -->
-        <div class="results-count">
-            <span id="recipeCount">0 recipes</span>
+        <!-- Results Header -->
+        <div class="results-header-row">
+            <div class="results-count">
+                <span id="recipeCount">0 recipes</span>
+            </div>
         </div>
 
         <!-- Recipe Grid -->
         <div id="recipeGrid" class="recipe-grid">
-            <div class="loading">Loading recipes...</div>
+            <!-- Skeleton loaders will be inserted by JS -->
         </div>
 
         <!-- Empty State -->
         <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    <line x1="12" y1="8" x2="12" y2="14"></line>
+                    <line x1="9" y1="11" x2="15" y2="11"></line>
+                </svg>
+            </div>
             <h3>No recipes found</h3>
-            <p>Start by translating and saving recipes from the translator page</p>
-            <a href="{{ url_for('index') }}" class="btn btn-primary">Go to Translator</a>
+            <p>Start building your collection by importing recipes</p>
+            <a href="{{ url_for('import_recipe') }}" class="btn btn-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Import Your First Recipe
+            </a>
         </div>
     </div>
 
     <!-- Recipe Detail Modal -->
     <div id="recipeModal" class="modal" style="display: none;">
         <div class="modal-content modal-large">
-            <span class="close">&times;</span>
+            <button class="close" aria-label="Close modal">&times;</button>
             <div id="modalContent"></div>
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/rating.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
     <script src="{{ url_for('static', filename='js/library.js') }}"></script>
 </body>
 </html>

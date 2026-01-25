@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    {% include '_sidebar.html' %}
+
     <div class="container admin-container">
         <header class="admin-header">
             <div>
@@ -114,13 +116,79 @@
         <div class="tab-content" id="api-settings-tab">
             <div class="card">
                 <h2>API Configuration</h2>
-                <p>Configure the AI provider, model, and NYT cookie for recipe scraping.</p>
+                <p>Configure API keys, AI provider, model, and NYT cookie for recipe scraping.</p>
+
+                <div class="form-group">
+                    <label for="groqApiKey">Groq API Key</label>
+                    <input
+                        type="password"
+                        id="groqApiKey"
+                        placeholder="Enter your Groq API key..."
+                        class="input-full"
+                        value="{{ groq_api_key or '' }}"
+                    >
+                    <small>
+                        Your Groq API key for AI translation and ingredient substitution.
+                        Get one at <a href="https://console.groq.com/" target="_blank">console.groq.com</a>
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="mistralApiKey">Mistral API Key</label>
+                    <input
+                        type="password"
+                        id="mistralApiKey"
+                        placeholder="Enter your Mistral API key..."
+                        class="input-full"
+                        value="{{ mistral_api_key or '' }}"
+                    >
+                    <small>
+                        Your Mistral API key for AI translation and ingredient substitution.
+                        Get one at <a href="https://console.mistral.ai/" target="_blank">console.mistral.ai</a>
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="geminiApiKey">Gemini API Key</label>
+                    <input
+                        type="password"
+                        id="geminiApiKey"
+                        placeholder="Enter your Gemini API key..."
+                        class="input-full"
+                        value="{{ gemini_api_key or '' }}"
+                    >
+                    <small>
+                        Your Google Gemini API key for AI translation (uses non-deprecated models).
+                        Get one at <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
+                    </small>
+                </div>
+
+                <hr style="margin: 2rem 0;">
+
+                <div class="form-group">
+                    <label for="translatorPin">NYT Translator PIN</label>
+                    <input
+                        type="text"
+                        id="translatorPin"
+                        placeholder="Enter translator access PIN..."
+                        class="input-full"
+                        value="{{ translator_pin or '1234' }}"
+                        maxlength="6"
+                    >
+                    <small>
+                        PIN code for the standalone NYT recipe translator (recommended: 4-6 digits).
+                        Share this PIN and the URL <strong>/translator</strong> with users who need to translate NYT recipes.
+                    </small>
+                </div>
+
+                <hr style="margin: 2rem 0;">
 
                 <div class="form-group">
                     <label for="aiProvider">AI Provider</label>
                     <select id="aiProvider" class="select-full" onchange="updateModelOptions()">
                         <option value="mistral" {% if ai_provider == 'mistral' %}selected{% endif %}>Mistral AI</option>
                         <option value="groq" {% if ai_provider == 'groq' %}selected{% endif %}>Groq</option>
+                        <option value="gemini" {% if ai_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
                     </select>
                     <small>Choose the AI provider for recipe translation.</small>
                 </div>
@@ -163,6 +231,7 @@
 
                 <div class="user-form">
                     <h3>Create New User</h3>
+                    <p class="subtitle" style="margin-bottom: 1rem;">All users have full admin access</p>
                     <div class="create-user-grid">
                         <div class="form-group">
                             <label for="newUsername">Username</label>
@@ -183,13 +252,6 @@
                             >
                         </div>
                         <div class="form-group">
-                            <label for="newRole">Role</label>
-                            <select id="newRole" class="select-full">
-                                <option value="user">User</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
                             <label>&nbsp;</label>
                             <button onclick="createUser()" class="btn btn-primary">
                                 👤 Create User
@@ -204,7 +266,6 @@
                         <thead>
                             <tr>
                                 <th>Username</th>
-                                <th>Role</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -212,18 +273,13 @@
                             {% for user in users %}
                             <tr>
                                 <td><strong>{{ user.username }}</strong></td>
-                                <td><span class="badge badge-{{ user.role }}">{{ user.role }}</span></td>
                                 <td class="user-actions">
                                     <button onclick="showChangePassword('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-secondary">
                                         🔑 Change Password
                                     </button>
-                                    {% if user.id != '1' %}
                                     <button onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-danger">
                                         🗑️ Delete
                                     </button>
-                                    {% else %}
-                                    <span class="text-muted" style="margin-left: 0.5rem;">(Default admin)</span>
-                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

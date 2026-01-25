@@ -1,11 +1,11 @@
 """
-Database models for Recipe Management System.
+Database models for Recipe Translation App with multi-language support.
 """
-from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import JSON
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+from sqlalchemy import JSON
 
 db = SQLAlchemy()
 
@@ -16,41 +16,40 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(200), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='user')  # 'admin' or 'user'
+
+    # Relationships
+    ratings = db.relationship('RecipeRating', back_populates='user', cascade='all, delete-orphan')
 
     def set_password(self, password):
         """Hash and set password."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Check if password matches hash."""
+        """Check password against hash."""
         return check_password_hash(self.password_hash, password)
 
     def is_admin(self):
-        """Check if user is admin."""
-        return self.role == 'admin'
+        """Check if user is admin. All users are admins."""
+        return True  # Everyone is an admin
 
 
 class Recipe(db.Model):
-    """Recipe model storing both original and translated versions."""
+    """Recipe model storing ORIGINAL content only."""
     __tablename__ = 'recipes'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Titles
-    title_original = db.Column(db.String(500), nullable=False)
-    title_translated = db.Column(db.String(500))
-
-    # Full content (markdown format)
-    content_original = db.Column(db.Text, nullable=False)
-    content_translated = db.Column(db.Text)
+    # Original content (language specified in source_language)
+    title = db.Column(db.String(500), nullable=False)
+    content = db.Column(db.Text, nullable=False)  # Full text/markdown
 
     # Structured data (stored as JSON)
-    ingredients_original = db.Column(JSON)  # Array of ingredient strings
-    ingredients_translated = db.Column(JSON)
-    instructions_original = db.Column(JSON)  # Array of instruction strings
-    instructions_translated = db.Column(JSON)
+    ingredients = db.Column(JSON)  # Array of ingredient strings (metric)
+    instructions = db.Column(JSON)  # Array of instruction strings (metric)
+    ingredients_original = db.Column(JSON)  # Array of original ingredient strings (before conversion)
+    instructions_original = db.Column(JSON)  # Array of original instruction strings (before conversion)
 
     # Metadata
     prep_time = db.Column(db.Integer)  # in minutes
@@ -62,29 +61,65 @@ class Recipe(db.Model):
     image_url = db.Column(db.String(1000))
     author = db.Column(db.String(200))
     source_url = db.Column(db.String(1000))
+    source_language = db.Column(db.String(50), default='English')  # Language of original recipe
+    is_shareable = db.Column(db.Boolean, default=True)  # Can be shared in family view (False for copyrighted sources like NYT)
     nutrition = db.Column(JSON)  # Nutrition data object
     tags = db.Column(JSON)  # Array of tags/keywords
-    language = db.Column(db.String(50))  # Target language
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    translations = db.relationship('RecipeTranslation', back_populates='recipe', cascade='all, delete-orphan')
     plan_recipes = db.relationship('PlanRecipe', back_populates='recipe', cascade='all, delete-orphan')
+    ratings = db.relationship('RecipeRating', back_populates='recipe', cascade='all, delete-orphan')
 
-    def to_dict(self):
+    def to_dict(self, include_translations=True, include_user_rating=None):
         """Convert recipe to dictionary."""
-        return {
+        # Calculate health score from nutrition data
+        health_score = None
+        if self.nutrition:
+            # Import here to avoid circular imports
+            from app import calculate_health_score
+            try:
+                health_score = calculate_health_score(self.nutrition)
+            except:
+                health_score = None
+
+        # Calculate average rating
+        average_rating = None
+        rating_count = 0
+        if self.ratings:
+            total_rating = sum(r.rating for r in self.ratings)
+            rating_count = len(self.ratings)
+            if rating_count > 0:
+                average_rating = round(total_rating / rating_count, 1)
+
+        # Helper to ensure JSON fields are arrays (handles double-serialized strings)
+        def ensure_array(val):
+            if val is None:
+                return []
+            if isinstance(val, list):
+                return val
+            if isinstance(val, str):
+                try:
+                    import json
+                    parsed = json.loads(val)
+                    if isinstance(parsed, list):
+                        return parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return []
+
+        result = {
             'id': self.id,
-            'title_original': self.title_original,
-            'title_translated': self.title_translated,
-            'content_original': self.content_original,
-            'content_translated': self.content_translated,
-            'ingredients_original': self.ingredients_original,
-            'ingredients_translated': self.ingredients_translated,
-            'instructions_original': self.instructions_original,
-            'instructions_translated': self.instructions_translated,
+            'title': self.title,
+            'content': self.content,
+            'ingredients': ensure_array(self.ingredients),
+            'instructions': ensure_array(self.instructions),
+            'ingredients_original': ensure_array(self.ingredients_original),
+            'instructions_original': ensure_array(self.instructions_original),
             'prep_time': self.prep_time,
             'cook_time': self.cook_time,
             'total_time': self.total_time,
@@ -92,9 +127,80 @@ class Recipe(db.Model):
             'image_url': self.image_url,
             'author': self.author,
             'source_url': self.source_url,
+            'source_language': self.source_language,
+            'is_shareable': self.is_shareable if hasattr(self, 'is_shareable') else True,
             'nutrition': self.nutrition,
+            'health_score': health_score,
             'tags': self.tags,
-            'language': self.language,
+            'average_rating': average_rating,
+            'rating_count': rating_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+        # Include user's rating if user_id provided
+        if include_user_rating:
+            user_rating = None
+            for r in self.ratings:
+                if r.user_id == include_user_rating:
+                    user_rating = r.to_dict()
+                    break
+            result['user_rating'] = user_rating
+
+        if include_translations:
+            result['translations'] = {
+                t.language_code: t.to_dict() for t in self.translations
+            }
+
+        return result
+
+    def get_translation(self, language_code):
+        """Get a specific translation by language code."""
+        for translation in self.translations:
+            if translation.language_code == language_code:
+                return translation
+        return None
+
+
+class RecipeTranslation(db.Model):
+    """Translation of a recipe in a specific language."""
+    __tablename__ = 'recipe_translations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+
+    # Language info
+    language_code = db.Column(db.String(10), nullable=False)  # 'es', 'fr'
+    language_name = db.Column(db.String(50), nullable=False)  # 'Spanish', 'French'
+
+    # Translated content
+    title = db.Column(db.String(500), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    ingredients = db.Column(JSON)  # Translated ingredients array
+    instructions = db.Column(JSON)  # Translated instructions array
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    recipe = db.relationship('Recipe', back_populates='translations')
+
+    # Unique constraint: one translation per language per recipe
+    __table_args__ = (
+        db.UniqueConstraint('recipe_id', 'language_code', name='uix_recipe_language'),
+    )
+
+    def to_dict(self):
+        """Convert translation to dictionary."""
+        return {
+            'id': self.id,
+            'language_code': self.language_code,
+            'language_name': self.language_name,
+            'title': self.title,
+            'content': self.content,
+            'ingredients': self.ingredients,
+            'instructions': self.instructions,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -116,7 +222,7 @@ class WeeklyPlan(db.Model):
     plan_recipes = db.relationship('PlanRecipe', back_populates='weekly_plan', cascade='all, delete-orphan')
 
     def to_dict(self):
-        """Convert weekly plan to dictionary."""
+        """Convert plan to dictionary."""
         return {
             'id': self.id,
             'week_start_date': self.week_start_date.isoformat(),
@@ -136,6 +242,7 @@ class PlanRecipe(db.Model):
     recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 1=Monday, 7=Sunday
     meal_order = db.Column(db.Integer, default=0)  # Order within the day
+    servings = db.Column(db.Integer, default=1)  # Number of servings for this meal
     notes = db.Column(db.Text)
 
     # Relationships
@@ -150,6 +257,118 @@ class PlanRecipe(db.Model):
             'recipe_id': self.recipe_id,
             'day_of_week': self.day_of_week,
             'meal_order': self.meal_order,
+            'servings': self.servings,
             'notes': self.notes,
             'recipe': self.recipe.to_dict() if self.recipe else None
+        }
+
+
+class Settings(db.Model):
+    """Application settings and configuration."""
+    __tablename__ = 'settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def get(key, default=None):
+        """Get a setting value by key."""
+        setting = Settings.query.filter_by(key=key).first()
+        return setting.value if setting else default
+
+    @staticmethod
+    def set(key, value):
+        """Set a setting value by key."""
+        setting = Settings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+            setting.updated_at = datetime.utcnow()
+        else:
+            setting = Settings(key=key, value=value)
+            db.session.add(setting)
+        db.session.commit()
+        return setting
+
+
+class RecipeRating(db.Model):
+    """User ratings for recipes."""
+    __tablename__ = 'recipe_ratings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # Rating data
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    notes = db.Column(db.Text)  # Personal cooking notes
+    would_make_again = db.Column(db.Boolean, default=True)
+    date_cooked = db.Column(db.Date)  # When they cooked it
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    recipe = db.relationship('Recipe', back_populates='ratings')
+    user = db.relationship('User', back_populates='ratings')
+
+    # Unique constraint: one rating per user per recipe
+    __table_args__ = (
+        db.UniqueConstraint('recipe_id', 'user_id', name='uix_recipe_user_rating'),
+    )
+
+    def to_dict(self):
+        """Convert rating to dictionary."""
+        return {
+            'id': self.id,
+            'recipe_id': self.recipe_id,
+            'user_id': self.user_id,
+            'rating': self.rating,
+            'notes': self.notes,
+            'would_make_again': self.would_make_again,
+            'date_cooked': self.date_cooked.isoformat() if self.date_cooked else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class RecipeMadeHistory(db.Model):
+    """Track when recipes are made/cooked."""
+    __tablename__ = 'recipe_made_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # When was it made
+    date_made = db.Column(db.Date, nullable=False)
+
+    # How many servings were made
+    servings = db.Column(db.Integer)
+
+    # Optional notes about this cooking session
+    notes = db.Column(db.Text)
+
+    # Link to plan recipe if it was from a weekly plan
+    plan_recipe_id = db.Column(db.Integer, db.ForeignKey('plan_recipes.id'))
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        """Convert to dictionary."""
+        return {
+            'id': self.id,
+            'recipe_id': self.recipe_id,
+            'user_id': self.user_id,
+            'date_made': self.date_made.isoformat() if self.date_made else None,
+            'servings': self.servings,
+            'notes': self.notes,
+            'plan_recipe_id': self.plan_recipe_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }

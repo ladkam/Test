@@ -1,0 +1,166 @@
+<!-- Mobile Menu Button -->
+<button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 12h18M3 6h18M3 18h18" stroke-linecap="round"/>
+    </svg>
+</button>
+
+<!-- Sidebar Toggle Button (Desktop) -->
+<button class="sidebar-toggle-btn" id="sidebar-toggle-btn" aria-label="Toggle sidebar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</button>
+
+<!-- Mobile Backdrop -->
+<div class="mobile-backdrop" id="mobile-backdrop"></div>
+
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <h1>Recipe Manager</h1>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="{{ url_for('planner') }}" class="sidebar-nav-link {% if request.endpoint == 'planner' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="14" height="14" rx="2" ry="2" fill="none"/>
+                <path d="M6 2v4M14 2v4M3 8h14" stroke-linecap="round"/>
+            </svg>
+            Weekly Planner
+        </a>
+
+        <a href="{{ url_for('shopping_list_page') }}" class="sidebar-nav-link {% if request.endpoint == 'shopping_list_page' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 5m2-5h10m0 0l2 5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Shopping List
+        </a>
+
+        <a href="{{ url_for('library') }}" class="sidebar-nav-link {% if request.endpoint == 'library' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h14M3 10h14M3 14h14" stroke-linecap="round"/>
+            </svg>
+            Library
+        </a>
+
+        <a href="{{ url_for('import_recipe') }}" class="sidebar-nav-link {% if request.endpoint == 'import_recipe' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 5v10m-5-5h10" stroke-linecap="round"/>
+                <circle cx="10" cy="10" r="8" fill="none"/>
+            </svg>
+            Import Recipe
+        </a>
+
+        <a href="{{ url_for('family_view') }}" class="sidebar-nav-link {% if request.endpoint == 'family_view' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 5h8M3 10h5M3 15h8M13 5l4 5-4 5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Recipe Translator
+        </a>
+
+        <a href="{{ url_for('help_view') }}" class="sidebar-nav-link {% if request.endpoint == 'help_view' %}active{% endif %}">
+            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="10" cy="10" r="8" fill="none"/>
+                <path d="M10 14v.01M10 11a2 2 0 012-2 2 2 0 00-4 0" stroke-linecap="round"/>
+            </svg>
+            Help
+        </a>
+
+        {% if current_user.is_authenticated %}
+            {% if current_user.is_admin() %}
+                <a href="{{ url_for('admin_dashboard') }}" class="sidebar-nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+                    <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 2l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Admin
+                </a>
+            {% endif %}
+
+            <a href="{{ url_for('logout') }}" class="sidebar-nav-link">
+                <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 3h4a2 2 0 012 2v10a2 2 0 01-2 2h-4M9 16l-5-5 5-5M14 11H4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Logout
+            </a>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <button id="theme-toggle" class="theme-toggle">
+            <span class="theme-toggle-label">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 3v1m0 12v1m7-7h-1M4 10H3m13.66-5.66l-.71.71M5.05 14.95l-.71.71m11.32 0l-.71-.71M5.05 5.05l-.71-.71" stroke-linecap="round"/>
+                    <circle cx="10" cy="10" r="3" fill="none"/>
+                </svg>
+                Dark Mode
+            </span>
+            <div class="theme-toggle-slider"></div>
+        </button>
+    </div>
+</aside>
+
+<!-- Theme toggle and mobile menu scripts -->
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script>
+// Mobile menu toggle
+(function() {
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('mobile-backdrop');
+
+    function toggleMenu() {
+        sidebar.classList.toggle('open');
+        backdrop.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    }
+
+    function closeMenu() {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Desktop sidebar toggle
+    function toggleSidebar() {
+        document.body.classList.toggle('sidebar-collapsed');
+        // Save preference to localStorage
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+    }
+
+    // Restore sidebar state from localStorage
+    function restoreSidebarState() {
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        if (isCollapsed) {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    }
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', toggleMenu);
+    }
+
+    if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    }
+
+    if (backdrop) {
+        backdrop.addEventListener('click', closeMenu);
+    }
+
+    // Close menu when clicking a nav link on mobile
+    const navLinks = document.querySelectorAll('.sidebar-nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                closeMenu();
+            }
+        });
+    });
+
+    // Restore sidebar state on page load
+    restoreSidebarState();
+})();
+</script>

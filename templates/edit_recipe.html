@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Recipe - Recipe Translator</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="container">
+        <header>
+            <h1>✏️ Edit Recipe</h1>
+        </header>
+
+        <div class="card">
+            <form id="editRecipeForm">
+                <input type="hidden" id="recipeId" value="{{ recipe.id }}">
+
+                <div class="form-group">
+                    <label for="title">Recipe Title *</label>
+                    <input type="text" id="title" name="title" class="input-full" value="{{ recipe.title }}" required>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="prepTime">Prep Time</label>
+                        <input type="text" id="prepTime" name="prep_time" class="input-full"
+                               value="{{ recipe.prep_time }}" placeholder="e.g., 15 minutes">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cookTime">Cook Time</label>
+                        <input type="text" id="cookTime" name="cook_time" class="input-full"
+                               value="{{ recipe.cook_time }}" placeholder="e.g., 30 minutes">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servings">Servings</label>
+                        <input type="text" id="servings" name="servings" class="input-full"
+                               value="{{ recipe.servings }}" placeholder="e.g., 4 servings">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Recipe Image</label>
+                    <div class="image-upload-container">
+                        <div class="image-preview-box" id="imagePreviewBox">
+                            {% if recipe.image_url %}
+                                <img src="{{ recipe.image_url }}" alt="Recipe image" id="imagePreview">
+                            {% else %}
+                                <div class="no-image" id="noImagePlaceholder">
+                                    <span>📷</span>
+                                    <p>No image</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="image-upload-controls">
+                            <div class="upload-btn-wrapper">
+                                <button type="button" class="btn btn-secondary" id="uploadBtn">📤 Upload Image</button>
+                                <input type="file" id="imageFile" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                            </div>
+                            <span class="upload-divider">or</span>
+                            <input type="url" id="imageUrl" name="image_url" class="input-full"
+                                   value="{{ recipe.image_url or '' }}" placeholder="Paste image URL...">
+                            {% if recipe.image_url %}
+                            <button type="button" class="btn btn-outline btn-sm" id="removeImageBtn">🗑️ Remove</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <small>Upload an image or paste a URL</small>
+                </div>
+
+                <style>
+                    .image-upload-container {
+                        display: flex;
+                        gap: 1.5rem;
+                        align-items: flex-start;
+                    }
+                    .image-preview-box {
+                        width: 150px;
+                        height: 150px;
+                        border: 2px dashed var(--border-color);
+                        border-radius: var(--border-radius);
+                        overflow: hidden;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: var(--background);
+                        flex-shrink: 0;
+                    }
+                    .image-preview-box img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                    }
+                    .no-image {
+                        text-align: center;
+                        color: var(--text-secondary);
+                    }
+                    .no-image span {
+                        font-size: 2rem;
+                    }
+                    .no-image p {
+                        margin: 0.5rem 0 0;
+                        font-size: 0.875rem;
+                    }
+                    .image-upload-controls {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.75rem;
+                    }
+                    .upload-btn-wrapper {
+                        position: relative;
+                        display: inline-block;
+                    }
+                    .upload-btn-wrapper input[type="file"] {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
+                        opacity: 0;
+                        cursor: pointer;
+                    }
+                    .upload-divider {
+                        color: var(--text-secondary);
+                        font-size: 0.875rem;
+                        text-align: center;
+                    }
+                    @media (max-width: 600px) {
+                        .image-upload-container {
+                            flex-direction: column;
+                        }
+                        .image-preview-box {
+                            width: 100%;
+                            height: 200px;
+                        }
+                    }
+                </style>
+
+                <div class="form-group">
+                    <label for="tags">Tags</label>
+                    <div class="tags-input-container">
+                        <div class="tags-display" id="tagsDisplay"></div>
+                        <input type="text" id="tagInput" class="input-full" placeholder="Add tags (press Enter)">
+                    </div>
+                    <small>Press Enter to add a tag. Click on a tag to remove it.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="ingredients">Ingredients (one per line) *</label>
+                    <textarea id="ingredients" name="ingredients" rows="10" class="input-full" required>{{ recipe.ingredients|join('\n') if recipe.ingredients else '' }}</textarea>
+                    <small>Enter each ingredient on a new line</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="instructions">Instructions (one step per line) *</label>
+                    <textarea id="instructions" name="instructions" rows="10" class="input-full" required>{{ recipe.instructions|join('\n') if recipe.instructions else '' }}</textarea>
+                    <small>Enter each instruction step on a new line</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Full Recipe Content</label>
+                    <textarea id="content" name="content" rows="15" class="input-full">{{ recipe.content or '' }}</textarea>
+                    <small>The full recipe text (markdown supported)</small>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    <a href="{{ url_for('library') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Tags management
+        let recipeTags = {{ recipe.tags|tojson|safe if recipe.tags else '[]'|safe }};
+        const tagsDisplay = document.getElementById('tagsDisplay');
+        const tagInput = document.getElementById('tagInput');
+
+        function renderTags() {
+            tagsDisplay.innerHTML = recipeTags.map(tag => `
+                <span class="tag-badge" onclick="removeTag('${tag.replace(/'/g, "\\'")}')">
+                    ${escapeHtml(tag)}
+                    <span class="tag-remove">×</span>
+                </span>
+            `).join('');
+        }
+
+        function addTag() {
+            const tag = tagInput.value.trim();
+            if (tag && !recipeTags.includes(tag)) {
+                recipeTags.push(tag);
+                renderTags();
+                tagInput.value = '';
+            }
+        }
+
+        function removeTag(tag) {
+            recipeTags = recipeTags.filter(t => t !== tag);
+            renderTags();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        tagInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag();
+            }
+        });
+
+        // Initialize tags display
+        renderTags();
+
+        // Image upload handling
+        const imageFileInput = document.getElementById('imageFile');
+        const imageUrlInput = document.getElementById('imageUrl');
+        const imagePreviewBox = document.getElementById('imagePreviewBox');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+
+        function updateImagePreview(url) {
+            if (url) {
+                imagePreviewBox.innerHTML = `<img src="${url}" alt="Recipe image" id="imagePreview">`;
+                // Add remove button if not exists
+                if (!document.getElementById('removeImageBtn')) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-outline btn-sm';
+                    removeBtn.id = 'removeImageBtn';
+                    removeBtn.textContent = '🗑️ Remove';
+                    removeBtn.onclick = removeImage;
+                    imageUrlInput.parentElement.appendChild(removeBtn);
+                }
+            } else {
+                imagePreviewBox.innerHTML = `
+                    <div class="no-image" id="noImagePlaceholder">
+                        <span>📷</span>
+                        <p>No image</p>
+                    </div>`;
+                const removeBtn = document.getElementById('removeImageBtn');
+                if (removeBtn) removeBtn.remove();
+            }
+        }
+
+        function removeImage() {
+            imageUrlInput.value = '';
+            updateImagePreview(null);
+        }
+
+        if (removeImageBtn) {
+            removeImageBtn.onclick = removeImage;
+        }
+
+        imageFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Uploading...';
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    imageUrlInput.value = data.image_url;
+                    updateImagePreview(data.image_url);
+                } else {
+                    alert('Error uploading image: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error uploading image: ' + error.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '📤 Upload Image';
+                imageFileInput.value = '';
+            }
+        });
+
+        // Update preview when URL is manually entered
+        imageUrlInput.addEventListener('change', () => {
+            const url = imageUrlInput.value.trim();
+            updateImagePreview(url || null);
+        });
+
+        // Form submission
+        document.getElementById('editRecipeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const recipeId = document.getElementById('recipeId').value;
+            const formData = {
+                title: document.getElementById('title').value.trim(),
+                prep_time: document.getElementById('prepTime').value.trim(),
+                cook_time: document.getElementById('cookTime').value.trim(),
+                servings: document.getElementById('servings').value.trim(),
+                image_url: document.getElementById('imageUrl').value.trim(),
+                tags: recipeTags,
+                ingredients: document.getElementById('ingredients').value
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0),
+                instructions: document.getElementById('instructions').value
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0),
+                content: document.getElementById('content').value.trim()
+            };
+
+            try {
+                const response = await fetch(`/api/recipes/${recipeId}/update`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Recipe updated successfully!');
+                    window.location.href = '/library';
+                } else {
+                    alert('Error updating recipe: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error updating recipe: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
