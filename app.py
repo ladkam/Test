@@ -1760,6 +1760,36 @@ def remove_from_plan():
         return jsonify({'success': False, 'message': f'Error removing recipe: {str(e)}'}), 500
 
 
+@app.route('/api/planner/update-servings', methods=['POST'])
+@login_required
+def update_plan_servings():
+    """Update servings for a recipe in the current week's plan."""
+    from datetime import date, timedelta
+
+    try:
+        data = request.json
+        recipe_id = data.get('recipe_id')
+        servings = data.get('servings', 1)
+
+        # Get Monday of current week
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+
+        # Find plan for this week
+        plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+        if plan:
+            plan_recipe = PlanRecipe.query.filter_by(plan_id=plan.id, recipe_id=recipe_id).first()
+            if plan_recipe:
+                plan_recipe.servings = servings
+                db.session.commit()
+                return jsonify({'success': True, 'message': 'Servings updated'})
+
+        return jsonify({'success': False, 'message': 'Recipe not in plan'}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error updating servings: {str(e)}'}), 500
+
+
 @app.route('/api/planner/clear', methods=['POST'])
 @login_required
 def clear_plan():
