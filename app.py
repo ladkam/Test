@@ -550,6 +550,7 @@ def download_recipe():
 
 
 @app.route('/api/test-mistral', methods=['GET'])
+@login_required
 def test_mistral():
     """Test Mistral API connection."""
     try:
@@ -909,8 +910,9 @@ def translate_recipe_family():
 
 @app.route('/translator')
 @app.route('/translator/<language>')
+@login_required
 def translator_view(language='es'):
-    """Render standalone NYT recipe translator with PIN access (no login required)."""
+    """Render standalone NYT recipe translator."""
     # Supported languages
     supported_languages = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
     if language not in supported_languages:
@@ -923,6 +925,7 @@ def translator_view(language='es'):
 
 
 @app.route('/api/translator/verify-pin', methods=['POST'])
+@login_required
 def verify_translator_pin():
     """Verify translator access PIN."""
     data = request.json
@@ -939,11 +942,9 @@ def verify_translator_pin():
 
 
 @app.route('/api/translator/translate', methods=['POST'])
+@login_required
 def translate_recipe_standalone():
-    """Translate a recipe from URL without saving to library (requires PIN verification)."""
-    # Check if PIN is verified
-    if not session.get('translator_pin_verified', False):
-        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
+    """Translate a recipe from URL without saving to library."""
 
     try:
         data = request.json
@@ -1029,9 +1030,9 @@ def translate_recipe_standalone():
 
 @app.route('/help')
 @app.route('/help/<language>')
+@login_required
 def help_view(language='en'):
-    """Render simplified help view for household staff (no login required).
-    NOTE: This is the old help view. Consider using /family instead for better access control."""
+    """Render simplified help view."""
     # Supported languages for help
     supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
     if language not in supported_languages:
