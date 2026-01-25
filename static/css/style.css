@@ -4042,17 +4042,18 @@ textarea:focus {
     background: var(--sidebar-active);
 }
 
-/* Old servings selector for backwards compatibility */
+/* Servings selector for modal */
 .servings-selector {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .servings-btn-large {
     width: 48px;
     height: 48px;
+    min-width: 48px;
     border-radius: 50%;
     border: 2px solid var(--primary-color);
     background: white;
@@ -4064,6 +4065,7 @@ textarea:focus {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .servings-btn-large:hover {
@@ -4072,15 +4074,26 @@ textarea:focus {
 }
 
 .servings-input {
-    width: 100px;
-    height: 60px;
+    width: 80px;
+    max-width: 80px;
+    min-width: 80px;
+    height: 48px;
     text-align: center;
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 600;
     border: 2px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 0.5rem;
+    padding: 0;
     color: var(--text-primary);
+    flex-shrink: 0;
+    -moz-appearance: textfield;
+}
+
+/* Hide number input spinners */
+.servings-input::-webkit-outer-spin-button,
+.servings-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .servings-input:focus {
