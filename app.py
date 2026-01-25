@@ -998,17 +998,21 @@ def translate_recipe_standalone():
 
         # Translate title, ingredients, and instructions
         translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = [translator.translate_text(ing, target_language) for ing in recipe_data.get('ingredients', [])]
-        translated_instructions = [translator.translate_text(inst, target_language) for inst in recipe_data.get('instructions', [])]
+        translated_ingredients = [convert_to_metric(translator.translate_text(ing, target_language)) for ing in recipe_data.get('ingredients', [])]
+        translated_instructions = [convert_to_metric(translator.translate_text(inst, target_language)) for inst in recipe_data.get('instructions', [])]
+
+        # Convert original ingredients/instructions to metric as well
+        original_ingredients = [convert_to_metric(ing) for ing in recipe_data.get('ingredients', [])]
+        original_instructions = [convert_to_metric(inst) for inst in recipe_data.get('instructions', [])]
 
         return jsonify({
             'success': True,
             'recipe': {
                 'title': recipe_data.get('title', ''),
                 'translated_title': translated_title,
-                'ingredients': recipe_data.get('ingredients', []),
+                'ingredients': original_ingredients,
                 'translated_ingredients': translated_ingredients,
-                'instructions': recipe_data.get('instructions', []),
+                'instructions': original_instructions,
                 'translated_instructions': translated_instructions,
                 'image_url': recipe_data.get('image', ''),
                 'prep_time': recipe_data.get('prep_time', ''),

@@ -564,10 +564,9 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        const metricIng = convertToMetric(ing);
         html += `
             <li class="ingredient-item">
-                <span class="ingredient-text">${escapeHtml(metricIng)}</span>
+                <span class="ingredient-text">${escapeHtml(ing)}</span>
             </li>
         `;
     });
@@ -591,7 +590,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(convertToMetric(inst))}</li>`;
+            html += `<li>${escapeHtml(inst)}</li>`;
         });
         html += '</ol>';
     } else {

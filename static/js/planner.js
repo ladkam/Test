@@ -355,7 +355,7 @@ function displayShoppingList(shoppingList) {
         html += `<ul class="shopping-list-items">`;
 
         item.ingredients.forEach(ing => {
-            html += `<li><label><input type="checkbox"> ${escapeHtml(convertToMetric(ing))}</label></li>`;
+            html += `<li><label><input type="checkbox"> ${escapeHtml(ing)}</label></li>`;
         });
 
         html += `</ul></div>`;
@@ -617,7 +617,7 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertToMetric(ing))}</span></li>`;
+        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
     });
     html += `</ul>
         </div>
@@ -639,7 +639,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(convertToMetric(inst))}</li>`;
+            html += `<li>${escapeHtml(inst)}</li>`;
         });
         html += '</ol>';
     } else {
@@ -807,7 +807,7 @@ function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
 
         html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
         scaledIngredients.forEach((ing) => {
-            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertToMetric(ing))}</span></li>`;
+            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
         });
         html += '</ul></div>';
     }
