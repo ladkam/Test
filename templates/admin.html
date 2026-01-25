@@ -231,6 +231,7 @@
 
                 <div class="user-form">
                     <h3>Create New User</h3>
+                    <p class="subtitle" style="margin-bottom: 1rem;">All users have full admin access</p>
                     <div class="create-user-grid">
                         <div class="form-group">
                             <label for="newUsername">Username</label>
@@ -251,13 +252,6 @@
                             >
                         </div>
                         <div class="form-group">
-                            <label for="newRole">Role</label>
-                            <select id="newRole" class="select-full">
-                                <option value="user">User</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
                             <label>&nbsp;</label>
                             <button onclick="createUser()" class="btn btn-primary">
                                 👤 Create User
@@ -272,7 +266,6 @@
                         <thead>
                             <tr>
                                 <th>Username</th>
-                                <th>Role</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -280,18 +273,13 @@
                             {% for user in users %}
                             <tr>
                                 <td><strong>{{ user.username }}</strong></td>
-                                <td><span class="badge badge-{{ user.role }}">{{ user.role }}</span></td>
                                 <td class="user-actions">
                                     <button onclick="showChangePassword('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-secondary">
                                         🔑 Change Password
                                     </button>
-                                    {% if user.id != '1' %}
                                     <button onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-danger">
                                         🗑️ Delete
                                     </button>
-                                    {% else %}
-                                    <span class="text-muted" style="margin-left: 0.5rem;">(Default admin)</span>
-                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

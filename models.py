@@ -31,8 +31,8 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def is_admin(self):
-        """Check if user is admin."""
-        return self.role == 'admin'
+        """Check if user is admin. All users are admins."""
+        return True  # Everyone is an admin
 
 
 class Recipe(db.Model):

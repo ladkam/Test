@@ -242,7 +242,6 @@ async function saveApiSettings() {
 async function createUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value.trim();
-    const role = document.getElementById('newRole').value;
 
     if (!username || !password) {
         showAlert('Username and password are required', 'error');
@@ -253,7 +252,7 @@ async function createUser() {
         const response = await fetch('/api/admin/users/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role })
+            body: JSON.stringify({ username, password })
         });
 
         const data = await response.json();

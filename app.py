@@ -707,7 +707,6 @@ def create_user():
     data = request.json
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
-    role = data.get('role', 'user')
 
     if not username or not password:
         return jsonify({'success': False, 'message': 'Username and password required'}), 400
@@ -717,8 +716,8 @@ def create_user():
     if existing_user:
         return jsonify({'success': False, 'message': 'Username already exists'}), 400
 
-    # Create new user
-    new_user = User(username=username, role=role)
+    # Create new user (all users are admins)
+    new_user = User(username=username, role='admin')
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
@@ -734,12 +733,6 @@ def delete_user_route(user_id):
         user = User.query.get(int(user_id))
         if not user:
             return jsonify({'success': False, 'message': 'User not found'}), 404
-
-        # Don't allow deleting the last admin
-        if user.role == 'admin':
-            admin_count = User.query.filter_by(role='admin').count()
-            if admin_count <= 1:
-                return jsonify({'success': False, 'message': 'Cannot delete the last admin user'}), 400
 
         db.session.delete(user)
         db.session.commit()
