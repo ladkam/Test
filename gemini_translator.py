@@ -16,12 +16,13 @@ except ImportError:
 class GeminiTranslator:
     """Translator using Google Gemini API."""
 
-    # Available non-deprecated models
+    # Available models (January 2026)
     AVAILABLE_MODELS = {
-        'gemini-2.0-flash-exp': 'Gemini 2.0 Flash (Experimental) - Latest and fastest',
-        'gemini-1.5-pro': 'Gemini 1.5 Pro - Stable, high-quality',
-        'gemini-1.5-flash': 'Gemini 1.5 Flash - Fast and efficient',
-        'gemini-1.5-flash-8b': 'Gemini 1.5 Flash-8B - Lightweight and quick'
+        'gemini-3-flash-preview': 'Gemini 3 Flash (Preview) - Latest, fastest frontier model',
+        'gemini-3-pro-preview': 'Gemini 3 Pro (Preview) - Latest, best quality',
+        'gemini-2.5-flash': 'Gemini 2.5 Flash - Stable, production-ready (Recommended)',
+        'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite - Cost-optimized',
+        'gemini-2.5-pro': 'Gemini 2.5 Pro - Best reasoning capabilities'
     }
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
@@ -30,7 +31,7 @@ class GeminiTranslator:
 
         Args:
             api_key: Google API key (defaults to GEMINI_API_KEY env var)
-            model: Model to use (defaults to gemini-2.0-flash-exp)
+            model: Model to use (defaults to gemini-2.5-flash)
         """
         if not GEMINI_AVAILABLE:
             raise ImportError(
@@ -49,8 +50,8 @@ class GeminiTranslator:
         # Configure the API
         genai.configure(api_key=self.api_key)
 
-        # Set model (default to the latest Flash model)
-        self.model_name = model or os.getenv('GEMINI_MODEL', 'gemini-2.0-flash-exp')
+        # Set model (default to stable production Flash model)
+        self.model_name = model or os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
         # Validate model
         if self.model_name not in self.AVAILABLE_MODELS:

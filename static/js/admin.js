@@ -162,10 +162,11 @@ const MODEL_OPTIONS = {
         { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)', free: true }
     ],
     gemini: [
-        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental) - Latest and fastest', free: true },
-        { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro - Stable, high-quality', free: true },
-        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash - Fast and efficient', free: true },
-        { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash-8B - Lightweight and quick', free: true }
+        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview) - Latest, fastest frontier model', free: true },
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview) - Latest, best quality', free: true },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash - Stable, production-ready', free: true },
+        { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite - Cost-optimized', free: true },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro - Best reasoning capabilities', free: true }
     ]
 };
 
@@ -198,7 +199,7 @@ function updateModelOptions() {
     } else if (provider === 'groq') {
         modelHelp.textContent = 'Groq models (All free with generous limits). Llama 3.3 70B Versatile recommended for best quality.';
     } else if (provider === 'gemini') {
-        modelHelp.textContent = 'Google Gemini models (All free with generous limits). Gemini 2.0 Flash recommended for best balance of speed and quality.';
+        modelHelp.textContent = 'Google Gemini models (All free with generous limits). Gemini 2.5 Flash recommended - stable and production-ready.';
     }
 }
 
