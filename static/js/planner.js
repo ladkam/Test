@@ -149,14 +149,14 @@ function displayAvailableRecipes() {
     }
 
     grid.innerHTML = filtered.map(recipe => {
-        const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
+        const nutritionHtml = getNutritionBadges(recipe.nutrition);
         return `
             <div class="available-recipe-card">
                 ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title}" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;" title="Click to view details">` : `<div class="available-recipe-placeholder" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;" title="Click to view details">No Image</div>`}
                 <div class="available-recipe-content">
                     <h4 onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;" title="Click to view details">${escapeHtml(recipe.title)}</h4>
                     ${recipe.total_time ? `<span class="recipe-time">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
-                    ${healthScoreHtml}
+                    ${nutritionHtml}
                 </div>
                 <div class="available-recipe-actions">
                     <button onclick="showRecipeDetail(${recipe.id})" class="btn btn-secondary btn-sm">View</button>
@@ -167,18 +167,31 @@ function displayAvailableRecipes() {
     }).join('');
 }
 
-function getHealthScoreBadge(healthScore) {
-    if (!healthScore || !healthScore.grade || !healthScore.score) {
+function getNutritionBadges(nutrition) {
+    if (!nutrition || typeof nutrition !== 'object') {
         return '';
     }
 
-    const gradeClass = `grade-${healthScore.grade.toLowerCase()}`;
-    const icon = getHealthScoreIcon(healthScore.grade);
+    const badges = [];
 
-    return `<span class="health-score-badge ${gradeClass}" title="${healthScore.details || ''}" style="margin-top: 0.5rem;">
-        <span class="health-score-icon">${icon}</span>
-        <span>${healthScore.grade} ${healthScore.score}</span>
-    </span>`;
+    // Extract and parse nutrition values
+    const parseValue = (val) => {
+        if (!val) return null;
+        const num = typeof val === 'string' ? parseFloat(val.replace(/[^\d.]/g, '')) : parseFloat(val);
+        return isNaN(num) ? null : Math.round(num);
+    };
+
+    const calories = parseValue(nutrition.calories);
+    const protein = parseValue(nutrition.protein);
+    const carbs = parseValue(nutrition.carbohydrates || nutrition.carbs);
+    const fat = parseValue(nutrition.fat || nutrition.totalFat);
+
+    if (calories) badges.push(`<span class="nutrition-badge">🔥 ${calories} cal</span>`);
+    if (protein) badges.push(`<span class="nutrition-badge">💪 ${protein}g P</span>`);
+    if (carbs) badges.push(`<span class="nutrition-badge">🍞 ${carbs}g C</span>`);
+    if (fat) badges.push(`<span class="nutrition-badge">🧈 ${fat}g F</span>`);
+
+    return badges.length > 0 ? `<div class="recipe-nutrition-badges">${badges.join('')}</div>` : '';
 }
 
 function getHealthScoreIcon(grade) {
@@ -704,21 +717,6 @@ function buildNutritionSection(recipe) {
     // Get servings count for per-serving calculation
     const servings = parseServings(recipe.servings) || 1;
 
-    // Health Score section
-    if (recipe.health_score && recipe.health_score.grade) {
-        html += `
-            <div class="nutrition-health-score">
-                <h3>Health Score</h3>
-                <div class="health-score-display">
-                    <span class="health-score-badge grade-${recipe.health_score.grade.toLowerCase()}">
-                        ${getHealthScoreIcon(recipe.health_score.grade)} ${recipe.health_score.grade} ${recipe.health_score.score}
-                    </span>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${recipe.health_score.details || ''}</p>
-                </div>
-            </div>
-        `;
-    }
-
     // Nutrition macros section
     if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
         const nutrition = recipe.nutrition;
@@ -777,7 +775,7 @@ function buildNutritionSection(recipe) {
                 </div>
             </div>
         `;
-    } else if (!recipe.health_score) {
+    } else {
         html += '<p style="color: var(--text-secondary);">No nutrition information available</p>';
     }
 
