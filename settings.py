@@ -34,9 +34,11 @@ DEFAULT_SETTINGS = {
 
 **Translation Guidelines:**
 5. Translate ALL text naturally and idiomatically in {language}
-6. Keep ALL numbers and measurements in parentheses EXACTLY as shown (already converted to metric)
-7. Translate cooking terms accurately (sauté, blanch, fold, etc.)
-8. Use proper culinary vocabulary in {language}
+6. Keep ALL numbers and measurements EXACTLY as shown in the original
+7. DO NOT convert tablespoons, teaspoons, or any measurements - keep them as-is
+8. If you see measurements in parentheses (like "237ml (1 cup)"), keep them exactly as shown
+9. Translate cooking terms accurately (sauté, blanch, fold, etc.)
+10. Use proper culinary vocabulary in {language}
 
 **Example Format:**
 ## Ingrédients
