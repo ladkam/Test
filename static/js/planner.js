@@ -60,65 +60,70 @@ function displayCurrentPlan() {
         planList.innerHTML = `
             <div class="empty-plan">
                 <p>No recipes in your plan yet</p>
-                <a href="/library" class="btn btn-primary">Browse Library</a>
+                <p class="text-muted">Add recipes from your library below</p>
             </div>
         `;
         return;
     }
 
     planList.innerHTML = currentPlan.map(recipe => {
-        const healthScoreBadge = getHealthScoreBadge(recipe.health_score);
+        const servingsNum = parseServings(recipe.servings);
+        const timeStr = recipe.total_time ? formatTime(recipe.total_time) : '';
 
         return `
-        <div class="plan-item" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;">
-            <div class="plan-item-actions">
-                <button onclick="event.stopPropagation(); markAsMade(${recipe.id})" class="btn-mark-made" title="Mark as made">
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                        <path d="M5 10l3 3l7-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-                <button onclick="event.stopPropagation(); removeFromPlan(${recipe.id})" class="btn-remove-overlay" title="Remove from plan">
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                        <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
-            </div>
-
+        <div class="plan-item-simple" data-recipe-id="${recipe.id}">
             ${recipe.image_url
-                ? `<div class="plan-item-image-wrapper">
-                     <img src="${recipe.image_url}" class="plan-item-image" alt="${recipe.title}">
-                   </div>`
-                : '<div class="plan-item-image-placeholder">🍽️</div>'}
+                ? `<img src="${recipe.image_url}" class="plan-item-image" alt="${escapeHtml(recipe.title)}">`
+                : `<div class="plan-item-placeholder">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                   </div>`}
 
-            <div class="plan-item-content">
-                <h3 class="plan-item-title">${escapeHtml(recipe.title)}</h3>
-
-                <div class="plan-item-meta">
-                    ${recipe.total_time ? `
-                        <span class="meta-badge">
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
-                                <path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                            ${formatTime(recipe.total_time)}
-                        </span>
-                    ` : ''}
-                    ${recipe.servings ? `
-                        <span class="meta-badge">
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
-                                <path d="M7 13h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                            ${escapeHtml(recipe.servings)}
-                        </span>
-                    ` : ''}
-                </div>
-
-                ${healthScoreBadge}
+            <div class="plan-item-info">
+                <div class="plan-item-title" onclick="showRecipeDetail(${recipe.id})">${escapeHtml(recipe.title)}</div>
+                <div class="plan-item-meta">${timeStr}</div>
             </div>
+
+            <div class="plan-item-servings">
+                <button class="servings-adjust-btn" onclick="adjustPlanServings(${recipe.id}, -1)">−</button>
+                <span class="servings-value">${servingsNum} servings</span>
+                <button class="servings-adjust-btn" onclick="adjustPlanServings(${recipe.id}, 1)">+</button>
+            </div>
+
+            <button class="plan-item-remove" onclick="removeFromPlan(${recipe.id})" title="Remove">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
         </div>
         `;
     }).join('');
+}
+
+// Adjust servings directly in the plan
+async function adjustPlanServings(recipeId, delta) {
+    const recipe = currentPlan.find(r => r.id === recipeId);
+    if (!recipe) return;
+
+    const currentServings = parseServings(recipe.servings);
+    const newServings = Math.max(1, currentServings + delta);
+
+    try {
+        const response = await fetch('/api/planner/update-servings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id: recipeId, servings: newServings })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            recipe.servings = `${newServings} servings`;
+            displayCurrentPlan();
+        }
+    } catch (error) {
+        console.error('Failed to update servings:', error);
+    }
 }
 
 function filterAvailableRecipes() {
