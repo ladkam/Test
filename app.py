@@ -998,17 +998,21 @@ def translate_recipe_standalone():
 
         # Translate title, ingredients, and instructions
         translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = [translator.translate_text(ing, target_language) for ing in recipe_data.get('ingredients', [])]
-        translated_instructions = [translator.translate_text(inst, target_language) for inst in recipe_data.get('instructions', [])]
+        translated_ingredients = [convert_to_metric(translator.translate_text(ing, target_language)) for ing in recipe_data.get('ingredients', [])]
+        translated_instructions = [convert_to_metric(translator.translate_text(inst, target_language)) for inst in recipe_data.get('instructions', [])]
+
+        # Convert original ingredients/instructions to metric as well
+        original_ingredients = [convert_to_metric(ing) for ing in recipe_data.get('ingredients', [])]
+        original_instructions = [convert_to_metric(inst) for inst in recipe_data.get('instructions', [])]
 
         return jsonify({
             'success': True,
             'recipe': {
                 'title': recipe_data.get('title', ''),
                 'translated_title': translated_title,
-                'ingredients': recipe_data.get('ingredients', []),
+                'ingredients': original_ingredients,
                 'translated_ingredients': translated_ingredients,
-                'instructions': recipe_data.get('instructions', []),
+                'instructions': original_instructions,
                 'translated_instructions': translated_instructions,
                 'image_url': recipe_data.get('image', ''),
                 'prep_time': recipe_data.get('prep_time', ''),
@@ -2004,12 +2008,13 @@ def get_combined_shopping_list():
 
 Rules:
 1. Merge same ingredients together and sum their quantities
-2. Convert all measurements to metric (cups→ml, oz→g, lbs→kg, tbsp→ml, tsp→ml)
-3. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
-4. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
-5. Apply the scale factor to quantities before combining
-6. Items without clear quantities (like "salt to taste") should be listed once
-7. Round metric values sensibly (no decimals for ml/g unless needed)
+2. Convert cups, ounces, pounds to metric (cups→ml, oz→g, lbs→kg)
+3. Keep tablespoons and teaspoons as-is (do NOT convert to ml)
+4. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
+5. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
+6. Apply the scale factor to quantities before combining
+7. Items without clear quantities (like "salt to taste") should be listed once
+8. Round metric values sensibly (no decimals for ml/g unless needed)
 
 Ingredients:
 {ingredients_text}

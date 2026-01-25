@@ -564,10 +564,9 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        const metricIng = convertToMetric(ing);
         html += `
             <li class="ingredient-item">
-                <span class="ingredient-text">${escapeHtml(metricIng)}</span>
+                <span class="ingredient-text">${escapeHtml(ing)}</span>
             </li>
         `;
     });
@@ -591,7 +590,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(convertToMetric(inst))}</li>`;
+            html += `<li>${escapeHtml(inst)}</li>`;
         });
         html += '</ol>';
     } else {
@@ -610,8 +609,11 @@ function toggleCollapsible(header) {
 
 function getIngredientsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return ingredients with selective metric conversion (cups→ml, oz→g, but NOT tbsp/tsp)
-        // The Python converter already does this correctly
+        // Return original ingredients (not metric-converted) for the original language
+        // Use ingredients_original if available, otherwise fall back to ingredients
+        if (Array.isArray(recipe.ingredients_original) && recipe.ingredients_original.length > 0) {
+            return recipe.ingredients_original;
+        }
         return Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
     }
 
@@ -627,8 +629,11 @@ function getIngredientsForLanguage(recipe, language) {
 
 function getInstructionsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return instructions with selective metric conversion (cups→ml, oz→g, but NOT tbsp/tsp)
-        // The Python converter already does this correctly
+        // Return original instructions (not metric-converted) for the original language
+        // Use instructions_original if available, otherwise fall back to instructions
+        if (Array.isArray(recipe.instructions_original) && recipe.instructions_original.length > 0) {
+            return recipe.instructions_original;
+        }
         return Array.isArray(recipe.instructions) ? recipe.instructions : [];
     }
 

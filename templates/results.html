@@ -144,10 +144,9 @@
             return html;
         }
 
-        // Display recipe
+        // Display recipe (content is already converted by backend)
         function displayRecipe() {
-            const convertedContent = convertToMetric(recipeData.content);
-            document.getElementById('recipeContent').innerHTML = markdownToHtml(convertedContent);
+            document.getElementById('recipeContent').innerHTML = markdownToHtml(recipeData.content);
         }
 
         // Initial display

@@ -355,7 +355,7 @@ function displayShoppingList(shoppingList) {
         html += `<ul class="shopping-list-items">`;
 
         item.ingredients.forEach(ing => {
-            html += `<li><label><input type="checkbox"> ${escapeHtml(convertToMetric(ing))}</label></li>`;
+            html += `<li><label><input type="checkbox"> ${escapeHtml(ing)}</label></li>`;
         });
 
         html += `</ul></div>`;
@@ -570,8 +570,11 @@ function buildLanguageSelector(languages) {
 
 function getIngredientsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return ingredients with selective metric conversion (cups→ml, oz→g, but NOT tbsp/tsp)
-        // The Python converter already does this correctly
+        // Return original ingredients (not metric-converted) for the original language
+        // Use ingredients_original if available, otherwise fall back to ingredients
+        if (Array.isArray(recipe.ingredients_original) && recipe.ingredients_original.length > 0) {
+            return recipe.ingredients_original;
+        }
         return Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
     }
 
@@ -587,8 +590,11 @@ function getIngredientsForLanguage(recipe, language) {
 
 function getInstructionsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return instructions with selective metric conversion (cups→ml, oz→g, but NOT tbsp/tsp)
-        // The Python converter already does this correctly
+        // Return original instructions (not metric-converted) for the original language
+        // Use instructions_original if available, otherwise fall back to instructions
+        if (Array.isArray(recipe.instructions_original) && recipe.instructions_original.length > 0) {
+            return recipe.instructions_original;
+        }
         return Array.isArray(recipe.instructions) ? recipe.instructions : [];
     }
 
@@ -617,7 +623,7 @@ function buildIngredientsListHtml(recipe, servings) {
         <div class="collapsible-content">
             <ul class="ingredients-list">`;
     scaledIngredients.forEach(ing => {
-        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertToMetric(ing))}</span></li>`;
+        html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
     });
     html += `</ul>
         </div>
@@ -639,7 +645,7 @@ function buildInstructionsHtml(recipe) {
     if (instructions && instructions.length > 0) {
         html += '<ol class="instructions-list">';
         instructions.forEach(inst => {
-            html += `<li>${escapeHtml(convertToMetric(inst))}</li>`;
+            html += `<li>${escapeHtml(inst)}</li>`;
         });
         html += '</ol>';
     } else {
@@ -807,7 +813,7 @@ function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
 
         html = '<div class="ingredients-section" id="ingredientsSection"><h3>Ingredients</h3><ul class="ingredients-list">';
         scaledIngredients.forEach((ing) => {
-            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(convertToMetric(ing))}</span></li>`;
+            html += `<li class="ingredient-item"><span class="ingredient-text">${escapeHtml(ing)}</span></li>`;
         });
         html += '</ul></div>';
     }
