@@ -17,12 +17,14 @@ class GeminiTranslator:
     """Translator using Google Gemini API."""
 
     # Available models (January 2026)
+    # FREE: 3 Flash, 2.5 Flash, 2.5 Flash-Lite
+    # PAID: 3 Pro, 2.5 Pro
     AVAILABLE_MODELS = {
-        'gemini-3-flash-preview': 'Gemini 3 Flash (Preview) - Latest, fastest frontier model',
-        'gemini-3-pro-preview': 'Gemini 3 Pro (Preview) - Latest, best quality',
-        'gemini-2.5-flash': 'Gemini 2.5 Flash - Stable, production-ready (Recommended)',
-        'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite - Cost-optimized',
-        'gemini-2.5-pro': 'Gemini 2.5 Pro - Best reasoning capabilities'
+        'gemini-3-flash-preview': 'Gemini 3 Flash (Preview) - Latest, fastest (FREE)',
+        'gemini-2.5-flash': 'Gemini 2.5 Flash - Stable, production-ready (FREE, Recommended)',
+        'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite - Cost-optimized (FREE)',
+        'gemini-3-pro-preview': 'Gemini 3 Pro (Preview) - Best quality (PAID)',
+        'gemini-2.5-pro': 'Gemini 2.5 Pro - Best reasoning (PAID)'
     }
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
