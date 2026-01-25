@@ -2008,12 +2008,13 @@ def get_combined_shopping_list():
 
 Rules:
 1. Merge same ingredients together and sum their quantities
-2. Convert all measurements to metric (cups→ml, oz→g, lbs→kg, tbsp→ml, tsp→ml)
-3. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
-4. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
-5. Apply the scale factor to quantities before combining
-6. Items without clear quantities (like "salt to taste") should be listed once
-7. Round metric values sensibly (no decimals for ml/g unless needed)
+2. Convert cups, ounces, pounds to metric (cups→ml, oz→g, lbs→kg)
+3. Keep tablespoons and teaspoons as-is (do NOT convert to ml)
+4. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
+5. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
+6. Apply the scale factor to quantities before combining
+7. Items without clear quantities (like "salt to taste") should be listed once
+8. Round metric values sensibly (no decimals for ml/g unless needed)
 
 Ingredients:
 {ingredients_text}
