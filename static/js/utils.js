@@ -5,7 +5,8 @@
 
 /**
  * Convert imperial measurements to metric
- * Handles cups, tablespoons, teaspoons, ounces, pounds, and Fahrenheit
+ * Handles cups, ounces, pounds, and Fahrenheit
+ * Note: Teaspoon/tablespoon/coffeespoon are universal and NOT converted
  * @param {string} text - Text containing imperial measurements
  * @returns {string} Text with measurements converted to metric
  */
@@ -20,17 +21,8 @@ function convertToMetric(text) {
         return `${ml}ml `;
     });
 
-    // Tablespoon conversions (1 tbsp = 15ml)
-    converted = converted.replace(/(\d+\.?\d*)\s*(tbsp?|tablespoons?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 15);
-        return `${ml}ml `;
-    });
-
-    // Teaspoon conversions (1 tsp = 5ml)
-    converted = converted.replace(/(\d+\.?\d*)\s*(tsp?|teaspoons?)\s+/gi, (match, amount) => {
-        const ml = Math.round(parseFloat(amount) * 5);
-        return `${ml}ml `;
-    });
+    // Note: Teaspoon/tablespoon/coffeespoon are universal cooking measurements
+    // and are intentionally NOT converted to metric (ml)
 
     // Ounce (fluid) conversions (1 fl oz = 30ml)
     converted = converted.replace(/(\d+\.?\d*)\s*(fl\.?\s*oz|fluid ounces?)\s+/gi, (match, amount) => {
