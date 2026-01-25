@@ -96,14 +96,30 @@ class Recipe(db.Model):
             if rating_count > 0:
                 average_rating = round(total_rating / rating_count, 1)
 
+        # Helper to ensure JSON fields are arrays (handles double-serialized strings)
+        def ensure_array(val):
+            if val is None:
+                return []
+            if isinstance(val, list):
+                return val
+            if isinstance(val, str):
+                try:
+                    import json
+                    parsed = json.loads(val)
+                    if isinstance(parsed, list):
+                        return parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return []
+
         result = {
             'id': self.id,
             'title': self.title,
             'content': self.content,
-            'ingredients': self.ingredients or [],
-            'instructions': self.instructions or [],
-            'ingredients_original': self.ingredients_original or [],
-            'instructions_original': self.instructions_original or [],
+            'ingredients': ensure_array(self.ingredients),
+            'instructions': ensure_array(self.instructions),
+            'ingredients_original': ensure_array(self.ingredients_original),
+            'instructions_original': ensure_array(self.instructions_original),
             'prep_time': self.prep_time,
             'cook_time': self.cook_time,
             'total_time': self.total_time,
