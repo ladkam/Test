@@ -2480,6 +2480,11 @@ textarea:focus {
     color: var(--text-primary);
 }
 
+.available-recipe-content h4[onclick]:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
 .recipe-time {
     font-size: 0.875rem;
     color: var(--text-secondary);
@@ -2487,6 +2492,17 @@ textarea:focus {
 
 .available-recipe-card .btn {
     margin: 0 1rem 1rem 1rem;
+}
+
+.available-recipe-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 1rem 1rem 1rem;
+}
+
+.available-recipe-actions .btn {
+    flex: 1;
+    margin: 0;
 }
 
 /* Shopping List */

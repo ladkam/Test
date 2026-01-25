@@ -147,13 +147,16 @@ function displayAvailableRecipes() {
         const healthScoreHtml = getHealthScoreBadge(recipe.health_score);
         return `
             <div class="available-recipe-card">
-                ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title}">` : '<div class="available-recipe-placeholder">No Image</div>'}
+                ${recipe.image_url ? `<img src="${recipe.image_url}" class="available-recipe-image" alt="${recipe.title}" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;" title="Click to view details">` : `<div class="available-recipe-placeholder" onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;" title="Click to view details">No Image</div>`}
                 <div class="available-recipe-content">
-                    <h4>${escapeHtml(recipe.title)}</h4>
+                    <h4 onclick="showRecipeDetail(${recipe.id})" style="cursor: pointer;" title="Click to view details">${escapeHtml(recipe.title)}</h4>
                     ${recipe.total_time ? `<span class="recipe-time">⏱️ ${formatTime(recipe.total_time)}</span>` : ''}
                     ${healthScoreHtml}
                 </div>
-                <button onclick="addToPlan(${recipe.id})" class="btn btn-primary btn-sm">Add to Plan</button>
+                <div class="available-recipe-actions">
+                    <button onclick="showRecipeDetail(${recipe.id})" class="btn btn-secondary btn-sm">View</button>
+                    <button onclick="addToPlan(${recipe.id})" class="btn btn-primary btn-sm">Add to Plan</button>
+                </div>
             </div>
         `;
     }).join('');
