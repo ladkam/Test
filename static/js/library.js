@@ -296,6 +296,9 @@ function createRecipeCard(recipe) {
         </div>
     ` : '';
 
+    // Nutrition macros
+    const nutritionHtml = getNutritionBadges(recipe.nutrition);
+
     return `
         <div class="recipe-card" data-recipe-id="${recipe.id}">
             <div class="card-clickable">
@@ -324,6 +327,7 @@ function createRecipeCard(recipe) {
                 <div class="recipe-card-content">
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
                     ${tagsHtml}
+                    ${nutritionHtml}
                     ${previewIngredients ? `<p class="recipe-card-preview">${escapeHtml(previewIngredients)}...</p>` : ''}
                 </div>
             </div>
@@ -396,21 +400,6 @@ function buildNutritionSection(recipe) {
     // Get servings count for per-serving calculation
     const servings = parseServings(recipe.servings) || 1;
 
-    // Health Score section
-    if (recipe.health_score && recipe.health_score.grade) {
-        html += `
-            <div class="nutrition-health-score">
-                <h3>Health Score</h3>
-                <div class="health-score-display">
-                    <span class="health-score-badge grade-${recipe.health_score.grade.toLowerCase()}">
-                        ${getHealthScoreIcon(recipe.health_score.grade)} ${recipe.health_score.grade} ${recipe.health_score.score}
-                    </span>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${recipe.health_score.details || ''}</p>
-                </div>
-            </div>
-        `;
-    }
-
     // Nutrition macros section
     if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
         const nutrition = recipe.nutrition;
@@ -474,7 +463,7 @@ function buildNutritionSection(recipe) {
                 </div>
             </div>
         `;
-    } else if (!recipe.health_score) {
+    } else {
         html += '<p style="color: var(--text-secondary);">No nutrition information available</p>';
     }
 
