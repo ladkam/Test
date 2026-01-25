@@ -5,19 +5,52 @@
 let allRecipes = [];
 let filteredRecipes = [];
 let selectedTags = [];
+let currentSort = 'newest';
+let currentView = 'grid';
 
 // Load recipes on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadRecipes();
 
-    // Search input
-    document.getElementById('searchInput').addEventListener('input', filterRecipes);
+    // Search input with debounce
+    const searchInput = document.getElementById('searchInput');
+    let searchTimeout;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(filterRecipes, 150);
+    });
 
     // Duration filter
-    document.getElementById('durationFilter').addEventListener('change', filterRecipes);
+    const durationFilter = document.getElementById('durationFilter');
+    if (durationFilter) {
+        durationFilter.addEventListener('change', filterRecipes);
+    }
+
+    // Sort filter
+    const sortFilter = document.getElementById('sortFilter');
+    if (sortFilter) {
+        sortFilter.addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            sortRecipes();
+            displayRecipes();
+        });
+    }
+
+    // View toggle buttons
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentView = btn.dataset.view;
+            displayRecipes();
+        });
+    });
 
     // Clear filters
-    document.getElementById('clearFilters').addEventListener('click', clearFilters);
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', clearFilters);
+    }
 
     // Modal close
     const closeButtons = document.querySelectorAll('.close');
@@ -35,9 +68,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // "/" to focus search
+        if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+            searchInput.focus();
+        }
+        // Escape to clear search
+        if (e.key === 'Escape' && document.activeElement === searchInput) {
+            searchInput.value = '';
+            filterRecipes();
+            searchInput.blur();
+        }
+    });
 });
 
 async function loadRecipes() {
+    const grid = document.getElementById('recipeGrid');
+
+    // Show skeleton loaders while loading
+    grid.innerHTML = generateSkeletonCards(6);
+    grid.style.display = 'grid';
+
     try {
         const response = await fetch('/api/recipes');
         const data = await response.json();
@@ -45,32 +99,75 @@ async function loadRecipes() {
         if (data.success) {
             allRecipes = data.recipes;
             filteredRecipes = [...allRecipes];
+            sortRecipes();
             populateTagFilter();
             displayRecipes();
         } else {
-            showError('Failed to load recipes');
+            if (window.toast) {
+                window.toast.error('Failed to load recipes');
+            }
         }
     } catch (error) {
-        showError('Error loading recipes: ' + error.message);
+        if (window.toast) {
+            window.toast.error('Error loading recipes: ' + error.message);
+        }
     }
 }
 
+function generateSkeletonCards(count) {
+    return Array(count).fill(0).map(() => `
+        <div class="skeleton-card">
+            <div class="skeleton-image"></div>
+            <div class="skeleton-content">
+                <div class="skeleton skeleton-title"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text"></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function sortRecipes() {
+    filteredRecipes.sort((a, b) => {
+        switch (currentSort) {
+            case 'newest':
+                return (b.id || 0) - (a.id || 0);
+            case 'oldest':
+                return (a.id || 0) - (b.id || 0);
+            case 'name-asc':
+                return (a.title || '').localeCompare(b.title || '');
+            case 'name-desc':
+                return (b.title || '').localeCompare(a.title || '');
+            case 'rating':
+                return (b.average_rating || 0) - (a.average_rating || 0);
+            case 'time-asc':
+                return (a.total_time || 999) - (b.total_time || 999);
+            case 'time-desc':
+                return (b.total_time || 0) - (a.total_time || 0);
+            default:
+                return 0;
+        }
+    });
+}
+
 function filterRecipes() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const durationFilter = document.getElementById('durationFilter').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    const durationFilterEl = document.getElementById('durationFilter');
+    const durationFilter = durationFilterEl ? durationFilterEl.value : '';
 
     filteredRecipes = allRecipes.filter(recipe => {
-        // Search filter
+        // Search filter - search in title, ingredients, and tags
         const matchesSearch = !searchTerm ||
             recipe.title?.toLowerCase().includes(searchTerm) ||
-            (recipe.ingredients || []).some(ing => ing.toLowerCase().includes(searchTerm));
+            (recipe.ingredients || []).some(ing => ing.toLowerCase().includes(searchTerm)) ||
+            (recipe.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
 
         // Duration filter
         let matchesDuration = true;
         if (durationFilter) {
             const totalTime = recipe.total_time || 0;
             if (durationFilter === '0-30') {
-                matchesDuration = totalTime <= 30;
+                matchesDuration = totalTime > 0 && totalTime <= 30;
             } else if (durationFilter === '30-60') {
                 matchesDuration = totalTime > 30 && totalTime <= 60;
             } else if (durationFilter === '60+') {
@@ -85,6 +182,7 @@ function filterRecipes() {
         return matchesSearch && matchesDuration && matchesTags;
     });
 
+    sortRecipes();
     displayRecipes();
 }
 
@@ -103,7 +201,12 @@ function displayRecipes() {
 
     // Update count
     const count = filteredRecipes.length;
-    countEl.textContent = `${count} ${count === 1 ? 'recipe' : 'recipes'}`;
+    const total = allRecipes.length;
+    if (count === total) {
+        countEl.innerHTML = `<strong>${count}</strong> ${count === 1 ? 'recipe' : 'recipes'}`;
+    } else {
+        countEl.innerHTML = `<strong>${count}</strong> of ${total} recipes`;
+    }
 
     if (filteredRecipes.length === 0) {
         grid.style.display = 'none';
@@ -111,6 +214,8 @@ function displayRecipes() {
         return;
     }
 
+    // Apply view class
+    grid.className = `recipe-grid ${currentView === 'list' ? 'list-view' : ''}`;
     grid.style.display = 'grid';
     emptyState.style.display = 'none';
 
@@ -118,9 +223,29 @@ function displayRecipes() {
 
     // Attach event listeners
     document.querySelectorAll('.recipe-card').forEach(card => {
-        card.querySelector('.card-clickable').addEventListener('click', () => {
-            const recipeId = card.dataset.recipeId;
-            showRecipeDetail(recipeId);
+        const clickable = card.querySelector('.card-clickable');
+        if (clickable) {
+            clickable.addEventListener('click', () => {
+                const recipeId = card.dataset.recipeId;
+                showRecipeDetail(recipeId);
+            });
+        }
+
+        // Quick action buttons
+        card.querySelectorAll('[data-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const recipeId = card.dataset.recipeId;
+
+                if (action === 'delete') {
+                    deleteRecipe(recipeId);
+                } else if (action === 'edit') {
+                    window.location.href = `/recipes/${recipeId}/edit`;
+                } else if (action === 'plan') {
+                    addToPlan(recipeId);
+                }
+            });
         });
 
         const deleteBtn = card.querySelector('.btn-delete');
@@ -134,34 +259,78 @@ function displayRecipes() {
     });
 }
 
+function addToPlan(recipeId) {
+    // Redirect to planner with recipe to add
+    window.location.href = `/planner?add=${recipeId}`;
+}
+
 function createRecipeCard(recipe) {
     const imageUrl = recipe.image_url || '';
-    const title = recipe.title;
+    const title = recipe.title || 'Untitled Recipe';
     const time = formatTime(recipe.total_time);
-    const ratingHtml = recipe.average_rating ? renderStarRating(recipe.average_rating, true, recipe.rating_count) : '';
-    const nutritionHtml = getNutritionBadges(recipe.nutrition);
-    const tagsHtml = recipe.tags && recipe.tags.length > 0 ? `
-        <div class="recipe-tags">
-            ${recipe.tags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
+    const ingredients = recipe.ingredients || [];
+    const previewIngredients = ingredients.slice(0, 3).map(i => i.split(',')[0]).join(', ');
+
+    // Rating badge
+    const ratingBadge = recipe.average_rating ? `
+        <span class="recipe-card-badge recipe-card-rating">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            ${recipe.average_rating.toFixed(1)}
+        </span>
+    ` : '';
+
+    // Time badge
+    const timeBadge = time ? `
+        <span class="recipe-card-badge recipe-card-badge-time">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            ${time}
+        </span>
+    ` : '';
+
+    // Tags (show first 2)
+    const tags = recipe.tags || [];
+    const tagsHtml = tags.length > 0 ? `
+        <div class="recipe-card-tags">
+            ${tags.slice(0, 2).map(tag => `<span class="tag-badge-sm">${escapeHtml(tag)}</span>`).join('')}
+            ${tags.length > 2 ? `<span class="tag-badge-sm tag-more">+${tags.length - 2}</span>` : ''}
         </div>
     ` : '';
 
     return `
         <div class="recipe-card" data-recipe-id="${recipe.id}">
             <div class="card-clickable">
-                ${imageUrl ? `<img src="${imageUrl}" alt="${title}" class="recipe-card-image">` : '<div class="recipe-card-image-placeholder">No Image</div>'}
+                <div class="recipe-card-image-container">
+                    ${imageUrl
+                        ? `<img src="${imageUrl}" alt="${escapeHtml(title)}" class="recipe-card-image" loading="lazy">`
+                        : '<div class="recipe-card-image-placeholder"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>'
+                    }
+                    <div class="recipe-card-badges">
+                        <span class="recipe-card-badges-left">${timeBadge}</span>
+                        <span class="recipe-card-badges-right">${ratingBadge}</span>
+                    </div>
+                    <div class="recipe-card-overlay">
+                        <div class="recipe-card-quick-actions">
+                            <button class="btn btn-sm" data-action="edit" title="Edit recipe">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Edit
+                            </button>
+                            <button class="btn btn-sm" data-action="plan" title="Add to meal plan">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
+                                Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="recipe-card-content">
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
-                    ${time ? `<p class="recipe-card-time">⏱️ ${time}</p>` : ''}
-                    ${ratingHtml ? `<div class="recipe-card-rating">${ratingHtml}</div>` : ''}
-                    ${nutritionHtml}
                     ${tagsHtml}
+                    ${previewIngredients ? `<p class="recipe-card-preview">${escapeHtml(previewIngredients)}...</p>` : ''}
                 </div>
             </div>
             <div class="recipe-card-actions">
-                <button class="btn-delete" title="Delete recipe">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1m2 0v9a2 2 0 01-2 2H5a2 2 0 01-2-2V4h10z" stroke="currentColor" stroke-width="1.5"/>
+                <button class="btn-delete" title="Delete recipe" data-action="delete">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>
                     </svg>
                 </button>
             </div>
