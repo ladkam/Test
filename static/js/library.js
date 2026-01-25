@@ -610,7 +610,8 @@ function toggleCollapsible(header) {
 
 function getIngredientsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        return recipe.ingredients || [];
+        // Return original ingredients (before conversion) if available
+        return recipe.ingredients_original || recipe.ingredients || [];
     }
 
     if (recipe.translations && recipe.translations[language]) {
@@ -622,7 +623,8 @@ function getIngredientsForLanguage(recipe, language) {
 
 function getInstructionsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        return recipe.instructions || [];
+        // Return original instructions (before conversion) if available
+        return recipe.instructions_original || recipe.instructions || [];
     }
 
     if (recipe.translations && recipe.translations[language]) {
