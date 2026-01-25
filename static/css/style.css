@@ -3445,16 +3445,19 @@ textarea:focus {
 }
 
 .plan-item-simple .plan-item-image {
-    width: 80px;
-    height: 80px;
+    width: 80px !important;
+    height: 80px !important;
+    min-width: 80px;
+    max-width: 80px;
     border-radius: var(--border-radius-sm);
     object-fit: cover;
     flex-shrink: 0;
 }
 
 .plan-item-simple .plan-item-placeholder {
-    width: 80px;
-    height: 80px;
+    width: 80px !important;
+    height: 80px !important;
+    min-width: 80px;
     border-radius: var(--border-radius-sm);
     background: var(--border-color);
     display: flex;
