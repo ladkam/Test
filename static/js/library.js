@@ -611,27 +611,41 @@ function toggleCollapsible(header) {
 function getIngredientsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
         // Return original ingredients (before conversion) if available
-        return recipe.ingredients_original || recipe.ingredients || [];
+        const original = recipe.ingredients_original;
+        if (Array.isArray(original) && original.length > 0) {
+            return original;
+        }
+        return Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
     }
 
     if (recipe.translations && recipe.translations[language]) {
-        return recipe.translations[language].ingredients || recipe.ingredients || [];
+        const translated = recipe.translations[language].ingredients;
+        if (Array.isArray(translated)) {
+            return translated;
+        }
     }
 
-    return recipe.ingredients || [];
+    return Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
 }
 
 function getInstructionsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
         // Return original instructions (before conversion) if available
-        return recipe.instructions_original || recipe.instructions || [];
+        const original = recipe.instructions_original;
+        if (Array.isArray(original) && original.length > 0) {
+            return original;
+        }
+        return Array.isArray(recipe.instructions) ? recipe.instructions : [];
     }
 
     if (recipe.translations && recipe.translations[language]) {
-        return recipe.translations[language].instructions || recipe.instructions || [];
+        const translated = recipe.translations[language].instructions;
+        if (Array.isArray(translated)) {
+            return translated;
+        }
     }
 
-    return recipe.instructions || [];
+    return Array.isArray(recipe.instructions) ? recipe.instructions : [];
 }
 
 function switchRecipeLanguage() {
