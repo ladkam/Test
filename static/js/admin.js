@@ -160,6 +160,12 @@ const MODEL_OPTIONS = {
         { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra Fast)', free: true },
         { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Highest Quality)', free: true },
         { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)', free: true }
+    ],
+    gemini: [
+        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental) - Latest and fastest', free: true },
+        { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro - Stable, high-quality', free: true },
+        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash - Fast and efficient', free: true },
+        { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash-8B - Lightweight and quick', free: true }
     ]
 };
 
@@ -189,14 +195,17 @@ function updateModelOptions() {
     // Update help text
     if (provider === 'mistral') {
         modelHelp.textContent = 'Mistral AI models. Free tier: open-mistral-nemo, open-mixtral-8x7b, open-mixtral-8x22b';
-    } else {
+    } else if (provider === 'groq') {
         modelHelp.textContent = 'Groq models (All free with generous limits). Llama 3.3 70B Versatile recommended for best quality.';
+    } else if (provider === 'gemini') {
+        modelHelp.textContent = 'Google Gemini models (All free with generous limits). Gemini 2.0 Flash recommended for best balance of speed and quality.';
     }
 }
 
 async function saveApiSettings() {
     const groqApiKey = document.getElementById('groqApiKey').value.trim();
     const mistralApiKey = document.getElementById('mistralApiKey').value.trim();
+    const geminiApiKey = document.getElementById('geminiApiKey').value.trim();
     const translatorPin = document.getElementById('translatorPin').value.trim();
     const aiProvider = document.getElementById('aiProvider').value;
     const aiModel = document.getElementById('aiModel').value;
@@ -209,6 +218,7 @@ async function saveApiSettings() {
             body: JSON.stringify({
                 groq_api_key: groqApiKey,
                 mistral_api_key: mistralApiKey,
+                gemini_api_key: geminiApiKey,
                 translator_pin: translatorPin,
                 ai_provider: aiProvider,
                 ai_model: aiModel,

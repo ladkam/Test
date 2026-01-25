@@ -17,9 +17,15 @@ import json
 import re
 
 from recipe_scraper import NYTRecipeScraper
+from menshealth_scraper import MensHealthRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
+try:
+    from gemini_translator import GeminiTranslator
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
 from models import db, User, Recipe, WeeklyPlan, PlanRecipe, Settings as SettingsModel, RecipeMadeHistory
 import settings
 
@@ -357,6 +363,7 @@ def admin_dashboard():
     # Get API keys from database
     groq_api_key = SettingsModel.get('groq_api_key', '')
     mistral_api_key = SettingsModel.get('mistral_api_key', '')
+    gemini_api_key = SettingsModel.get('gemini_api_key', '')
     translator_pin = SettingsModel.get('translator_access_pin', '1234')
 
     return render_template(
@@ -370,6 +377,7 @@ def admin_dashboard():
         nyt_cookie=nyt_cookie,
         groq_api_key=groq_api_key,
         mistral_api_key=mistral_api_key,
+        gemini_api_key=gemini_api_key,
         translator_pin=translator_pin
     )
 
@@ -396,16 +404,24 @@ def translate_recipe():
         if not url:
             return jsonify({'error': 'URL is required'}), 400
 
-        if 'cooking.nytimes.com' not in url:
-            return jsonify({'error': 'Please provide a valid NYT Cooking URL'}), 400
+        # Determine which scraper to use based on URL
+        is_nyt = 'cooking.nytimes.com' in url
+        is_menshealth = 'menshealth.com' in url.lower()
+
+        if not is_nyt and not is_menshealth:
+            return jsonify({'error': 'Please provide a valid NYT Cooking or Men\'s Health recipe URL'}), 400
 
         language = data.get('language', os.getenv('TARGET_LANGUAGE', 'English'))
         convert_units = data.get('convert_units', True)
         do_translate = data.get('translate', True)
 
-        # Step 1: Scrape the recipe (uses global NYT cookie from settings)
+        # Step 1: Scrape the recipe
         try:
-            scraper = NYTRecipeScraper()
+            if is_nyt:
+                scraper = NYTRecipeScraper()
+            else:  # Men's Health
+                scraper = MensHealthRecipeScraper()
+
             recipe = scraper.scrape_recipe(url)
             recipe_text = scraper.format_recipe(recipe)
         except Exception as e:
@@ -432,6 +448,13 @@ def translate_recipe():
                     if not api_key:
                         return jsonify({'error': 'Groq API key not configured. Please add it in the admin panel.'}), 500
                     translator = GroqTranslator(api_key=api_key)
+                elif ai_provider == 'gemini':
+                    if not GEMINI_AVAILABLE:
+                        return jsonify({'error': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
+                    api_key = get_api_key('gemini_api_key')
+                    if not api_key:
+                        return jsonify({'error': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
+                    translator = GeminiTranslator(api_key=api_key)
                 else:  # Default to Mistral
                     api_key = get_api_key('mistral_api_key')
                     if not api_key:
@@ -544,6 +567,26 @@ def test_mistral():
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
+@app.route('/api/test-gemini', methods=['GET'])
+def test_gemini():
+    """Test Gemini API connection."""
+    try:
+        if not GEMINI_AVAILABLE:
+            return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 400
+        api_key = get_api_key('gemini_api_key')
+        if not api_key:
+            return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 400
+        translator = GeminiTranslator(api_key=api_key)
+        if translator.test_connection():
+            return jsonify({'success': True, 'message': 'Gemini API connection successful'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to connect to Gemini API'}), 500
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
 # Admin API routes
 @app.route('/api/admin/languages', methods=['GET', 'POST', 'DELETE'])
 @admin_required
@@ -603,6 +646,7 @@ def manage_api_settings():
             'nyt_cookie': settings.get_nyt_cookie(),
             'groq_api_key': SettingsModel.get('groq_api_key', ''),
             'mistral_api_key': SettingsModel.get('mistral_api_key', ''),
+            'gemini_api_key': SettingsModel.get('gemini_api_key', ''),
             'translator_pin': SettingsModel.get('translator_access_pin', '1234')
         })
 
@@ -612,12 +656,15 @@ def manage_api_settings():
         # Handle API keys and PINs
         groq_api_key = data.get('groq_api_key')
         mistral_api_key = data.get('mistral_api_key')
+        gemini_api_key = data.get('gemini_api_key')
         translator_pin = data.get('translator_pin')
 
         if groq_api_key is not None:
             SettingsModel.set('groq_api_key', groq_api_key)
         if mistral_api_key is not None:
             SettingsModel.set('mistral_api_key', mistral_api_key)
+        if gemini_api_key is not None:
+            SettingsModel.set('gemini_api_key', gemini_api_key)
         if translator_pin is not None:
             SettingsModel.set('translator_access_pin', translator_pin)
 
@@ -821,6 +868,13 @@ def translate_recipe_family():
             if not api_key:
                 return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
             translator = GroqTranslator(api_key=api_key)
+        elif ai_provider == 'gemini':
+            if not GEMINI_AVAILABLE:
+                return jsonify({'success': False, 'message': 'Gemini translator not installed'}), 500
+            api_key = get_api_key('gemini_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = GeminiTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
@@ -936,6 +990,13 @@ def translate_recipe_standalone():
             if not api_key:
                 return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
             translator = GroqTranslator(api_key=api_key)
+        elif ai_provider == 'gemini':
+            if not GEMINI_AVAILABLE:
+                return jsonify({'success': False, 'message': 'Gemini translator not installed'}), 500
+            api_key = get_api_key('gemini_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = GeminiTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
@@ -1220,6 +1281,15 @@ def update_recipe(recipe_id):
                     api_key = get_api_key('groq_api_key')
                     if api_key:
                         translator = GroqTranslator(api_key=api_key)
+                    else:
+                        translator = None
+                elif ai_provider == 'gemini':
+                    if GEMINI_AVAILABLE:
+                        api_key = get_api_key('gemini_api_key')
+                        if api_key:
+                            translator = GeminiTranslator(api_key=api_key)
+                        else:
+                            translator = None
                     else:
                         translator = None
                 else:
@@ -1529,6 +1599,15 @@ def save_recipe():
                         api_key = get_api_key('groq_api_key')
                         if api_key:
                             translator = GroqTranslator(api_key=api_key)
+                        else:
+                            translator = None
+                    elif ai_provider == 'gemini':
+                        if GEMINI_AVAILABLE:
+                            api_key = get_api_key('gemini_api_key')
+                            if api_key:
+                                translator = GeminiTranslator(api_key=api_key)
+                            else:
+                                translator = None
                         else:
                             translator = None
                     else:
@@ -1909,6 +1988,13 @@ def get_combined_shopping_list():
             if not api_key:
                 return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
             translator = GroqTranslator(api_key=api_key)
+        elif ai_provider == 'gemini':
+            if not GEMINI_AVAILABLE:
+                return jsonify({'success': False, 'message': 'Gemini translator not installed'}), 500
+            api_key = get_api_key('gemini_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
+            translator = GeminiTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
@@ -2020,6 +2106,13 @@ def create_recipe_translation(recipe_id):
             if not api_key:
                 return jsonify({'success': False, 'message': 'Groq API key not configured. Please add it in the admin panel.'}), 500
             translator = GroqTranslator(api_key=api_key)
+        elif ai_provider == 'gemini':
+            if not GEMINI_AVAILABLE:
+                return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
+            api_key = get_api_key('gemini_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
+            translator = GeminiTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
