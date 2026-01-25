@@ -570,11 +570,8 @@ function buildLanguageSelector(languages) {
 
 function getIngredientsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return original ingredients (before conversion) if available
-        const original = recipe.ingredients_original;
-        if (Array.isArray(original) && original.length > 0) {
-            return original;
-        }
+        // Return ingredients with selective metric conversion (cups→ml, oz→g, but NOT tbsp/tsp)
+        // The Python converter already does this correctly
         return Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
     }
 
@@ -590,11 +587,8 @@ function getIngredientsForLanguage(recipe, language) {
 
 function getInstructionsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return original instructions (before conversion) if available
-        const original = recipe.instructions_original;
-        if (Array.isArray(original) && original.length > 0) {
-            return original;
-        }
+        // Return instructions with selective metric conversion (cups→ml, oz→g, but NOT tbsp/tsp)
+        // The Python converter already does this correctly
         return Array.isArray(recipe.instructions) ? recipe.instructions : [];
     }
 
