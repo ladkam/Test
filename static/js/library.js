@@ -609,11 +609,8 @@ function toggleCollapsible(header) {
 
 function getIngredientsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return original ingredients (not metric-converted) for the original language
-        // Use ingredients_original if available, otherwise fall back to ingredients
-        if (Array.isArray(recipe.ingredients_original) && recipe.ingredients_original.length > 0) {
-            return recipe.ingredients_original;
-        }
+        // Return metric-converted ingredients for the original language
+        // (cups→ml, oz→g, but tablespoons/teaspoons preserved)
         return Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
     }
 
@@ -629,11 +626,7 @@ function getIngredientsForLanguage(recipe, language) {
 
 function getInstructionsForLanguage(recipe, language) {
     if (language === 'original' || !language) {
-        // Return original instructions (not metric-converted) for the original language
-        // Use instructions_original if available, otherwise fall back to instructions
-        if (Array.isArray(recipe.instructions_original) && recipe.instructions_original.length > 0) {
-            return recipe.instructions_original;
-        }
+        // Return metric-converted instructions for the original language
         return Array.isArray(recipe.instructions) ? recipe.instructions : [];
     }
 
