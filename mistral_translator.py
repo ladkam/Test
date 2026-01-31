@@ -138,6 +138,74 @@ class MistralTranslator:
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to translate text: {str(e)}")
 
+    def translate_batch(self, texts: list, target_language: str) -> list:
+        """
+        Translate multiple texts in a single API call.
+
+        Args:
+            texts: List of texts to translate
+            target_language: Target language (e.g., "Spanish", "French")
+
+        Returns:
+            List of translated texts in the same order
+        """
+        if not texts:
+            return []
+
+        # Create numbered list for clear mapping
+        numbered_texts = "\n".join([f"{i+1}. {text}" for i, text in enumerate(texts)])
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a professional translator. Translate text accurately while preserving meaning and formatting."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Translate each of the following numbered items to {target_language}. Keep the same numbering format (1. 2. 3. etc). Provide only the translations:\n\n{numbered_texts}"
+                        }
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": 4000
+                },
+                timeout=60
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            if 'choices' in data and len(data['choices']) > 0:
+                result_text = data['choices'][0]['message']['content'].strip()
+                # Parse numbered results back into list
+                lines = result_text.split('\n')
+                translations = []
+                for line in lines:
+                    line = line.strip()
+                    if line and line[0].isdigit():
+                        # Remove numbering (e.g., "1. " or "1) ")
+                        import re
+                        cleaned = re.sub(r'^\d+[\.\)]\s*', '', line)
+                        if cleaned:
+                            translations.append(cleaned)
+
+                # Ensure we have the right number of translations
+                if len(translations) != len(texts):
+                    # Fallback: return original if parsing failed
+                    return texts
+                return translations
+            else:
+                raise Exception("Unexpected response format from Mistral API")
+
+        except requests.exceptions.RequestException as e:
+            # Fallback to individual translations on error
+            return [self.translate_text(text, target_language) for text in texts]
+
     def test_connection(self) -> bool:
         """
         Test the connection to Mistral API.

@@ -875,9 +875,10 @@ def translate_recipe_family():
             translator = MistralTranslator(api_key=api_key)
 
         # Translate title, ingredients (with metric), and instructions (with metric)
+        # Use batch translation for efficiency (single API call instead of N calls)
         translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = [translator.translate_text(ing, target_language) for ing in metric_ingredients]
-        translated_instructions = [translator.translate_text(inst, target_language) for inst in metric_instructions]
+        translated_ingredients = translator.translate_batch(metric_ingredients, target_language)
+        translated_instructions = translator.translate_batch(metric_instructions, target_language)
 
         # Get time info
         time_info = recipe_data.get('time', {})
@@ -1043,12 +1044,51 @@ def help_view(language='en'):
 @app.route('/api/recipes', methods=['GET'])
 @login_required
 def list_recipes():
-    """List all recipes."""
-    recipes = Recipe.query.order_by(Recipe.created_at.desc()).all()
-    return jsonify({
-        'success': True,
-        'recipes': [r.to_dict(include_user_rating=current_user.id) for r in recipes]
-    })
+    """List all recipes with optional pagination."""
+    from sqlalchemy.orm import joinedload
+
+    # Get pagination parameters
+    page = request.args.get('page', type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    include_full = request.args.get('full', 'false').lower() == 'true'
+
+    # Build query with eager loading to avoid N+1 queries
+    query = Recipe.query.options(
+        joinedload(Recipe.ratings),
+        joinedload(Recipe.translations)
+    ).order_by(Recipe.created_at.desc())
+
+    # Apply pagination if requested
+    if page is not None:
+        per_page = min(per_page, 100)  # Cap at 100 items per page
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        recipes = pagination.items
+
+        # Use lightweight serialization for paginated lists
+        if include_full:
+            recipe_list = [r.to_dict(include_translations=True, include_user_rating=current_user.id) for r in recipes]
+        else:
+            recipe_list = [r.to_summary_dict() for r in recipes]
+
+        return jsonify({
+            'success': True,
+            'recipes': recipe_list,
+            'pagination': {
+                'page': pagination.page,
+                'per_page': pagination.per_page,
+                'total': pagination.total,
+                'pages': pagination.pages,
+                'has_next': pagination.has_next,
+                'has_prev': pagination.has_prev
+            }
+        })
+    else:
+        # For backward compatibility, return all recipes when no pagination
+        recipes = query.all()
+        return jsonify({
+            'success': True,
+            'recipes': [r.to_dict(include_translations=True, include_user_rating=current_user.id) for r in recipes]
+        })
 
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
@@ -1297,31 +1337,26 @@ def update_recipe(recipe_id):
                         translator = None
 
                 if translator:
-                    # Re-translate to each existing language
+                    # Re-translate to each existing language using batch translation
                     for translation in recipe.translations:
                         try:
                             language_name = translation.language_name
 
-                            # Translate title
+                            # Translate title and content
                             translation.title = translator.translate_text(recipe.title, language_name)
-
-                            # Translate ingredients
-                            if recipe.ingredients:
-                                translation.ingredients = [
-                                    translator.translate_text(ing, language_name)
-                                    for ing in recipe.ingredients
-                                ]
-
-                            # Translate instructions
-                            if recipe.instructions:
-                                translation.instructions = [
-                                    translator.translate_text(inst, language_name)
-                                    for inst in recipe.instructions
-                                ]
-
-                            # Translate content
                             if recipe.content:
                                 translation.content = translator.translate_text(recipe.content, language_name)
+
+                            # Use batch translation for ingredients and instructions (much faster)
+                            if recipe.ingredients:
+                                translation.ingredients = translator.translate_batch(
+                                    recipe.ingredients, language_name
+                                )
+
+                            if recipe.instructions:
+                                translation.instructions = translator.translate_batch(
+                                    recipe.instructions, language_name
+                                )
 
                             retranslation_results.append({
                                 'language': language_name,
@@ -1615,16 +1650,15 @@ def save_recipe():
                             translator = None
 
                     if translator:
-                        # Translate title, ingredients, and instructions
+                        # Translate title, ingredients, and instructions using batch translation
                         translated_title = translator.translate_text(new_recipe.title, target_language)
-                        translated_ingredients = [
-                            translator.translate_text(ing, target_language)
-                            for ing in (new_recipe.ingredients or [])
-                        ]
-                        translated_instructions = [
-                            translator.translate_text(inst, target_language)
-                            for inst in (new_recipe.instructions or [])
-                        ]
+                        # Use batch translation for efficiency (single API call instead of N calls)
+                        translated_ingredients = translator.translate_batch(
+                            new_recipe.ingredients or [], target_language
+                        )
+                        translated_instructions = translator.translate_batch(
+                            new_recipe.instructions or [], target_language
+                        )
 
                         translation = RecipeTranslation(
                             recipe_id=new_recipe.id,
@@ -1657,28 +1691,29 @@ def save_recipe():
 @login_required
 def get_current_plan():
     """Get current week's plan."""
-    from datetime import date, timedelta
+    from models import get_current_week_monday
+    from sqlalchemy.orm import joinedload
 
-    # Get Monday of current week
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
+    # Get Monday of current week using utility function
+    monday = get_current_week_monday()
 
-    # Find or create plan for this week
-    plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
+    # Find plan for this week with eager loading
+    plan = WeeklyPlan.query.options(
+        joinedload(WeeklyPlan.plan_recipes).joinedload(PlanRecipe.recipe)
+    ).filter_by(week_start_date=monday).first()
 
     if not plan:
         return jsonify({'success': True, 'recipes': []})
 
-    # Get all recipes in the plan with servings from PlanRecipe
-    plan_recipes = PlanRecipe.query.filter_by(plan_id=plan.id).all()
+    # Build recipe list using already-loaded data (no N+1 queries)
     recipes = []
-    for pr in plan_recipes:
+    for pr in plan.plan_recipes:
         if pr.recipe:
-            recipe_dict = pr.recipe.to_dict()
+            recipe_dict = pr.recipe.to_dict(include_translations=True)
             # Store original servings and override with PlanRecipe servings
             recipe_dict['original_servings'] = recipe_dict.get('servings')
             recipe_dict['servings'] = pr.servings
-            recipe_dict['plan_recipe_id'] = pr.id  # Include for future use
+            recipe_dict['plan_recipe_id'] = pr.id
             recipes.append(recipe_dict)
 
     return jsonify({'success': True, 'recipes': recipes})
@@ -1688,16 +1723,15 @@ def get_current_plan():
 @login_required
 def add_to_plan():
     """Add a recipe to current week's plan."""
-    from datetime import date, timedelta
+    from models import get_current_week_monday
 
     try:
         data = request.json
         recipe_id = data.get('recipe_id')
         servings = data.get('servings', 1)  # Default to 1 if not provided
 
-        # Get Monday of current week
-        today = date.today()
-        monday = today - timedelta(days=today.weekday())
+        # Get Monday of current week using utility function
+        monday = get_current_week_monday()
 
         # Find or create plan for this week
         plan = WeeklyPlan.query.filter_by(week_start_date=monday).first()
@@ -2147,25 +2181,17 @@ def create_recipe_translation(recipe_id):
                 return jsonify({'success': False, 'message': 'Mistral API key not configured. Please add it in the admin panel.'}), 500
             translator = MistralTranslator(api_key=api_key)
 
-        # Translate title
+        # Translate title and content
         title_translation = translator.translate_text(recipe.title, language_name)
-
-        # Translate ingredients
-        ingredients_translated = []
-        if recipe.ingredients:
-            for ingredient in recipe.ingredients:
-                translated = translator.translate_text(ingredient, language_name)
-                ingredients_translated.append(translated)
-
-        # Translate instructions
-        instructions_translated = []
-        if recipe.instructions:
-            for instruction in recipe.instructions:
-                translated = translator.translate_text(instruction, language_name)
-                instructions_translated.append(translated)
-
-        # Translate full content
         content_translated = translator.translate_text(recipe.content, language_name)
+
+        # Use batch translation for ingredients and instructions (single API call each)
+        ingredients_translated = translator.translate_batch(
+            recipe.ingredients or [], language_name
+        )
+        instructions_translated = translator.translate_batch(
+            recipe.instructions or [], language_name
+        )
 
         # Create translation record
         translation = RecipeTranslation(
