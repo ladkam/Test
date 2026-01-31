@@ -107,9 +107,9 @@ class Recipe(db.Model):
     servings = db.Column(db.String(100))
 
     # Additional info
-    image_url = db.Column(db.String(1000))
+    image_url = db.Column(db.Text)  # Changed from String(1000) to Text for long URLs
     author = db.Column(db.String(200))
-    source_url = db.Column(db.String(1000))
+    source_url = db.Column(db.Text)  # Changed from String(1000) to Text for long URLs
     source_language = db.Column(db.String(50), default='English')  # Language of original recipe
     is_shareable = db.Column(db.Boolean, default=True)  # Can be shared in family view (False for copyrighted sources like NYT)
     nutrition = db.Column(JSON)  # Nutrition data object

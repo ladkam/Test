@@ -5839,3 +5839,228 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
         min-width: 20px;
     }
 }
+
+/* ========== Meal Card Mobile Fixes ========== */
+@media (max-width: 480px) {
+    .meal-card {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .meal-card-title {
+        font-size: 0.8125rem;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: initial;
+        -webkit-line-clamp: 2;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+    }
+
+    .meal-card-servings {
+        display: block;
+        margin-top: 0.25rem;
+    }
+
+    .meal-card-info {
+        min-width: 0;
+        flex: 1 1 calc(100% - 60px);
+    }
+
+    .meal-card-remove {
+        position: absolute;
+        top: 0.25rem;
+        right: 0.25rem;
+    }
+
+    /* Ensure servings adjuster doesn't overlap with title */
+    .plan-item .servings-adjuster,
+    .meal-card .servings-adjuster {
+        margin-top: 0.5rem;
+        display: flex;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* ========== Import & Translation Loading Animations ========== */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.loading-content {
+    background: var(--card-background);
+    padding: 2rem 3rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    max-width: 90%;
+    animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.loading-spinner-large {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.loading-message {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+}
+
+.loading-progress {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.loading-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.loading-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+    border-radius: 3px;
+    animation: progressPulse 2s ease-in-out infinite;
+    width: 30%;
+}
+
+@keyframes progressPulse {
+    0%, 100% {
+        width: 30%;
+        transform: translateX(0);
+    }
+    50% {
+        width: 60%;
+        transform: translateX(50%);
+    }
+}
+
+.loading-steps {
+    margin-top: 1rem;
+    text-align: left;
+}
+
+.loading-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.loading-step.active {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.loading-step.completed {
+    color: var(--success-color);
+}
+
+.loading-step-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+}
+
+.loading-step.active .loading-step-icon {
+    background: var(--primary-color);
+    color: white;
+    animation: pulse 1.5s ease infinite;
+}
+
+.loading-step.completed .loading-step-icon {
+    background: var(--success-color);
+    color: white;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+/* OCR Processing Animation */
+.ocr-processing {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--background);
+    border-radius: var(--border-radius);
+    margin: 1rem 0;
+}
+
+.ocr-processing-icon {
+    animation: scanMove 2s ease-in-out infinite;
+}
+
+@keyframes scanMove {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+/* Translation Animation */
+.translating-text {
+    animation: textFade 1s ease infinite;
+}
+
+@keyframes textFade {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}

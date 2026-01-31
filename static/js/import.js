@@ -232,6 +232,70 @@ function handleFileSelect(event) {
     reader.readAsDataURL(file);
 }
 
+// Loading overlay helper functions
+function showLoadingOverlay(title, message, steps = []) {
+    // Remove existing overlay if any
+    hideLoadingOverlay();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.className = 'loading-overlay';
+
+    let stepsHtml = '';
+    if (steps.length > 0) {
+        stepsHtml = `
+            <div class="loading-steps">
+                ${steps.map((step, i) => `
+                    <div class="loading-step ${i === 0 ? 'active' : ''}" data-step="${i}">
+                        <span class="loading-step-icon">${i + 1}</span>
+                        <span>${step}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    overlay.innerHTML = `
+        <div class="loading-content">
+            <div class="loading-spinner-large"></div>
+            <div class="loading-title">${title}</div>
+            <div class="loading-message">${message}</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar">
+                    <div class="loading-progress-fill"></div>
+                </div>
+            </div>
+            ${stepsHtml}
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+}
+
+function updateLoadingStep(stepIndex) {
+    const steps = document.querySelectorAll('.loading-step');
+    steps.forEach((step, i) => {
+        step.classList.remove('active', 'completed');
+        if (i < stepIndex) {
+            step.classList.add('completed');
+        } else if (i === stepIndex) {
+            step.classList.add('active');
+        }
+    });
+}
+
+function updateLoadingMessage(message) {
+    const msgEl = document.querySelector('.loading-message');
+    if (msgEl) msgEl.textContent = message;
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
 async function processImage() {
     if (!currentImageData) return;
 
@@ -239,12 +303,21 @@ async function processImage() {
     const processingStatus = document.getElementById('processingStatus');
     const processBtn = document.getElementById('processImage');
 
-    // Show processing UI
+    // Show processing UI with loading overlay
     uploadArea.style.display = 'none';
     processingStatus.style.display = 'block';
     processBtn.disabled = true;
 
+    showLoadingOverlay(
+        'Extracting Recipe',
+        'Analyzing image with AI...',
+        ['Uploading image', 'Analyzing content', 'Extracting recipe data', 'Preparing results']
+    );
+
     try {
+        updateLoadingStep(0);
+        updateLoadingMessage('Uploading image...');
+
         const response = await fetch('/api/recipes/ocr', {
             method: 'POST',
             headers: {
@@ -255,16 +328,28 @@ async function processImage() {
             })
         });
 
+        updateLoadingStep(2);
+        updateLoadingMessage('Extracting recipe data...');
+
         const data = await response.json();
 
+        updateLoadingStep(3);
+        updateLoadingMessage('Preparing results...');
+
+        // Short delay to show completion
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         if (data.success && data.recipe) {
+            hideLoadingOverlay();
             // Open review modal with extracted data
             openReviewModal(data.recipe);
             resetPhotoUpload();
         } else {
+            hideLoadingOverlay();
             alert('Error extracting recipe: ' + (data.message || 'Unknown error'));
         }
     } catch (error) {
+        hideLoadingOverlay();
         alert('Error processing image: ' + error.message);
     } finally {
         // Reset UI
@@ -387,7 +472,21 @@ async function saveExtractedRecipe(event) {
         source_language: detectedLanguage
     };
 
+    // Show loading overlay
+    const steps = shouldTranslate
+        ? ['Saving recipe', 'Converting measurements', 'Translating content', 'Finalizing']
+        : ['Saving recipe', 'Converting measurements', 'Finalizing'];
+
+    showLoadingOverlay(
+        shouldTranslate ? 'Saving & Translating' : 'Saving Recipe',
+        'Processing your recipe...',
+        steps
+    );
+
     try {
+        updateLoadingStep(0);
+        updateLoadingMessage('Saving recipe to library...');
+
         // Save to library
         const response = await fetch('/api/recipes/save', {
             method: 'POST',
@@ -397,23 +496,42 @@ async function saveExtractedRecipe(event) {
             body: JSON.stringify({ recipeData })
         });
 
+        updateLoadingStep(1);
+        updateLoadingMessage('Converting measurements to metric...');
+
         const data = await response.json();
+
+        if (shouldTranslate) {
+            updateLoadingStep(2);
+            updateLoadingMessage('Translating recipe content...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        updateLoadingStep(steps.length - 1);
+        updateLoadingMessage('Finalizing...');
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        hideLoadingOverlay();
 
         if (data.success) {
             document.getElementById('reviewModal').style.display = 'none';
 
             if (shouldTranslate) {
-                alert('Recipe saved! Redirecting to translator...');
-                // TODO: Add translation functionality
+                if (typeof showToast === 'function') {
+                    showToast('success', 'Recipe saved and translated successfully!');
+                }
                 window.location.href = '/library';
             } else {
-                alert('Recipe saved successfully!');
+                if (typeof showToast === 'function') {
+                    showToast('success', 'Recipe saved successfully!');
+                }
                 window.location.href = '/library';
             }
         } else {
             alert('Error saving recipe: ' + (data.message || 'Unknown error'));
         }
     } catch (error) {
+        hideLoadingOverlay();
         alert('Error saving recipe: ' + error.message);
     }
 }
