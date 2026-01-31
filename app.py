@@ -80,6 +80,40 @@ def add_column_if_not_exists(table_name, column_name, column_type, default_value
         return True
     return False
 
+
+def alter_column_type_if_needed(table_name, column_name, new_type):
+    """Alter a column type if it's not already the correct type.
+    Works with PostgreSQL. SQLite doesn't support ALTER COLUMN TYPE."""
+    from sqlalchemy import text, inspect
+
+    # Skip for SQLite (doesn't support ALTER COLUMN TYPE easily)
+    if 'sqlite' in str(db.engine.url):
+        return False
+
+    try:
+        inspector = inspect(db.engine)
+        columns = {col['name']: col for col in inspector.get_columns(table_name)}
+
+        if column_name not in columns:
+            return False
+
+        current_type = str(columns[column_name]['type']).upper()
+
+        # Check if already TEXT type
+        if 'TEXT' in current_type:
+            return False
+
+        # For PostgreSQL, alter the column type
+        sql = f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE TEXT"
+        db.session.execute(text(sql))
+        db.session.commit()
+        print(f"✓ Changed column '{column_name}' in table '{table_name}' to TEXT")
+        return True
+    except Exception as e:
+        print(f"Note: Could not alter column '{column_name}': {e}")
+        db.session.rollback()
+        return False
+
 # Create tables on first run
 with app.app_context():
     try:
@@ -94,6 +128,11 @@ with app.app_context():
         add_column_if_not_exists('recipes', 'tags', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'ingredients_original', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'instructions_original', 'TEXT', 'NULL')
+
+        # Migrate URL columns from VARCHAR(1000) to TEXT for long URLs
+        # This fixes "value too long for type character varying(1000)" errors
+        alter_column_type_if_needed('recipes', 'image_url', 'TEXT')
+        alter_column_type_if_needed('recipes', 'source_url', 'TEXT')
 
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
