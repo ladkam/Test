@@ -4,10 +4,59 @@ Database models for Recipe Translation App with multi-language support.
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
-from sqlalchemy import JSON
+from datetime import datetime, date, timedelta
+from sqlalchemy import JSON, Index
+import json
 
 db = SQLAlchemy()
+
+
+# ============ Utility Functions ============
+
+def get_current_week_monday():
+    """Get Monday of the current week."""
+    today = date.today()
+    return today - timedelta(days=today.weekday())
+
+
+# Language code to name mapping (single source of truth)
+LANGUAGE_MAP = {
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'nl': 'Dutch',
+    'ja': 'Japanese',
+    'zh': 'Chinese',
+    'ko': 'Korean',
+    'ru': 'Russian',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'tr': 'Turkish',
+    'pl': 'Polish',
+    'vi': 'Vietnamese',
+    'th': 'Thai',
+    'he': 'Hebrew',
+    'Español': 'es',
+    'Français': 'fr'
+}
+
+
+def ensure_array(val):
+    """Helper to ensure JSON fields are arrays (handles double-serialized strings)."""
+    if val is None:
+        return []
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return parsed
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return []
 
 
 class User(UserMixin, db.Model):
@@ -75,7 +124,41 @@ class Recipe(db.Model):
     plan_recipes = db.relationship('PlanRecipe', back_populates='recipe', cascade='all, delete-orphan')
     ratings = db.relationship('RecipeRating', back_populates='recipe', cascade='all, delete-orphan')
 
-    def to_dict(self, include_translations=True, include_user_rating=None):
+    def to_summary_dict(self):
+        """Lightweight serialization for list views (no translations, minimal data)."""
+        # Calculate average rating efficiently
+        average_rating = None
+        rating_count = 0
+        if self.ratings:
+            total_rating = sum(r.rating for r in self.ratings)
+            rating_count = len(self.ratings)
+            if rating_count > 0:
+                average_rating = round(total_rating / rating_count, 1)
+
+        # Calculate health score
+        health_score = None
+        if self.nutrition:
+            from app import calculate_health_score
+            try:
+                health_score = calculate_health_score(self.nutrition)
+            except:
+                pass
+
+        return {
+            'id': self.id,
+            'title': self.title,
+            'image_url': self.image_url,
+            'total_time': self.total_time,
+            'servings': self.servings,
+            'average_rating': average_rating,
+            'rating_count': rating_count,
+            'health_score': health_score,
+            'tags': self.tags,
+            'source_language': self.source_language,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+    def to_dict(self, include_translations=False, include_user_rating=None):
         """Convert recipe to dictionary."""
         # Calculate health score from nutrition data
         health_score = None
@@ -95,22 +178,6 @@ class Recipe(db.Model):
             rating_count = len(self.ratings)
             if rating_count > 0:
                 average_rating = round(total_rating / rating_count, 1)
-
-        # Helper to ensure JSON fields are arrays (handles double-serialized strings)
-        def ensure_array(val):
-            if val is None:
-                return []
-            if isinstance(val, list):
-                return val
-            if isinstance(val, str):
-                try:
-                    import json
-                    parsed = json.loads(val)
-                    if isinstance(parsed, list):
-                        return parsed
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            return []
 
         result = {
             'id': self.id,
@@ -211,7 +278,7 @@ class WeeklyPlan(db.Model):
     __tablename__ = 'weekly_plans'
 
     id = db.Column(db.Integer, primary_key=True)
-    week_start_date = db.Column(db.Date, nullable=False, unique=True)  # Monday of the week
+    week_start_date = db.Column(db.Date, nullable=False, unique=True, index=True)  # Monday of the week
     notes = db.Column(db.Text)
 
     # Timestamps
@@ -219,7 +286,7 @@ class WeeklyPlan(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    plan_recipes = db.relationship('PlanRecipe', back_populates='weekly_plan', cascade='all, delete-orphan')
+    plan_recipes = db.relationship('PlanRecipe', back_populates='weekly_plan', cascade='all, delete-orphan', lazy='joined')
 
     def to_dict(self):
         """Convert plan to dictionary."""
@@ -238,8 +305,8 @@ class PlanRecipe(db.Model):
     __tablename__ = 'plan_recipes'
 
     id = db.Column(db.Integer, primary_key=True)
-    plan_id = db.Column(db.Integer, db.ForeignKey('weekly_plans.id'), nullable=False)
-    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False)
+    plan_id = db.Column(db.Integer, db.ForeignKey('weekly_plans.id'), nullable=False, index=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipes.id'), nullable=False, index=True)
     day_of_week = db.Column(db.Integer, nullable=False)  # 1=Monday, 7=Sunday
     meal_order = db.Column(db.Integer, default=0)  # Order within the day
     servings = db.Column(db.Integer, default=1)  # Number of servings for this meal
@@ -247,7 +314,12 @@ class PlanRecipe(db.Model):
 
     # Relationships
     weekly_plan = db.relationship('WeeklyPlan', back_populates='plan_recipes')
-    recipe = db.relationship('Recipe', back_populates='plan_recipes')
+    recipe = db.relationship('Recipe', back_populates='plan_recipes', lazy='joined')
+
+    # Composite index for common queries
+    __table_args__ = (
+        Index('ix_plan_recipe_combo', 'plan_id', 'recipe_id'),
+    )
 
     def to_dict(self):
         """Convert plan recipe to dictionary."""
@@ -264,35 +336,72 @@ class PlanRecipe(db.Model):
 
 
 class Settings(db.Model):
-    """Application settings and configuration."""
+    """Application settings and configuration with caching."""
     __tablename__ = 'settings'
 
+    # In-memory cache for settings (TTL: 60 seconds)
+    _cache = {}
+    _cache_timestamps = {}
+    _cache_ttl = 60  # seconds
+
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False)
+    key = db.Column(db.String(100), unique=True, nullable=False, index=True)
     value = db.Column(db.Text)
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    @staticmethod
-    def get(key, default=None):
-        """Get a setting value by key."""
-        setting = Settings.query.filter_by(key=key).first()
-        return setting.value if setting else default
+    @classmethod
+    def get(cls, key, default=None):
+        """Get a setting value by key with caching."""
+        import time
+        now = time.time()
 
-    @staticmethod
-    def set(key, value):
-        """Set a setting value by key."""
-        setting = Settings.query.filter_by(key=key).first()
+        # Check cache first
+        if key in cls._cache:
+            cache_time = cls._cache_timestamps.get(key, 0)
+            if now - cache_time < cls._cache_ttl:
+                return cls._cache[key]
+
+        # Query database
+        setting = cls.query.filter_by(key=key).first()
+        value = setting.value if setting else default
+
+        # Update cache
+        cls._cache[key] = value
+        cls._cache_timestamps[key] = now
+
+        return value
+
+    @classmethod
+    def set(cls, key, value):
+        """Set a setting value by key and update cache."""
+        import time
+        setting = cls.query.filter_by(key=key).first()
         if setting:
             setting.value = value
             setting.updated_at = datetime.utcnow()
         else:
-            setting = Settings(key=key, value=value)
+            setting = cls(key=key, value=value)
             db.session.add(setting)
         db.session.commit()
+
+        # Update cache immediately
+        cls._cache[key] = value
+        cls._cache_timestamps[key] = time.time()
+
         return setting
+
+    @classmethod
+    def clear_cache(cls, key=None):
+        """Clear cache for a specific key or all keys."""
+        if key:
+            cls._cache.pop(key, None)
+            cls._cache_timestamps.pop(key, None)
+        else:
+            cls._cache.clear()
+            cls._cache_timestamps.clear()
 
 
 class RecipeRating(db.Model):

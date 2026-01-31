@@ -9,6 +9,18 @@ from typing import Dict, List, Optional
 from settings import get_nyt_cookie
 
 
+# Pre-compiled regex patterns for performance (compiled once at module load)
+RE_HOURS = re.compile(r'(\d+)H')
+RE_MINUTES = re.compile(r'(\d+)M')
+RE_RECIPE_IMAGE = re.compile(r'recipe.*image', re.I)
+RE_RECIPE_TITLE = re.compile(r'recipe.*title|pantry.*title', re.I)
+RE_YIELD_SERVINGS = re.compile(r'yield|servings', re.I)
+RE_INGREDIENT = re.compile(r'ingredient', re.I)
+RE_INSTRUCTION = re.compile(r'instruction|preparation', re.I)
+RE_RECIPE_PREP = re.compile(r'recipe|preparation', re.I)
+RE_AUTHOR = re.compile(r'author', re.I)
+
+
 def parse_iso_duration(duration: str) -> str:
     """
     Convert ISO 8601 duration format to human-readable time.
@@ -21,13 +33,13 @@ def parse_iso_duration(duration: str) -> str:
     hours = 0
     minutes = 0
 
-    # Extract hours
-    hour_match = re.search(r'(\d+)H', duration)
+    # Extract hours using pre-compiled pattern
+    hour_match = RE_HOURS.search(duration)
     if hour_match:
         hours = int(hour_match.group(1))
 
-    # Extract minutes
-    min_match = re.search(r'(\d+)M', duration)
+    # Extract minutes using pre-compiled pattern
+    min_match = RE_MINUTES.search(duration)
     if min_match:
         minutes = int(min_match.group(1))
 
@@ -204,15 +216,15 @@ class NYTRecipeScraper:
             'nutrition': {}
         }
 
-        # Extract image
-        image_tag = soup.find('img', class_=re.compile('recipe.*image', re.I))
+        # Extract image using pre-compiled pattern
+        image_tag = soup.find('img', class_=RE_RECIPE_IMAGE)
         if not image_tag:
             image_tag = soup.find('meta', property='og:image')
         if image_tag:
             recipe['image'] = image_tag.get('content') or image_tag.get('src', '')
 
-        # Extract title
-        title_tag = soup.find('h1', class_=re.compile('recipe.*title|pantry.*title', re.I))
+        # Extract title using pre-compiled pattern
+        title_tag = soup.find('h1', class_=RE_RECIPE_TITLE)
         if not title_tag:
             title_tag = soup.find('h1')
         recipe['title'] = title_tag.get_text(strip=True) if title_tag else ''
@@ -222,12 +234,12 @@ class NYTRecipeScraper:
         if desc_tag:
             recipe['description'] = desc_tag.get('content', '')
 
-        # Extract yield/servings
-        yield_tag = soup.find(class_=re.compile('yield|servings', re.I))
+        # Extract yield/servings using pre-compiled pattern
+        yield_tag = soup.find(class_=RE_YIELD_SERVINGS)
         recipe['yield'] = yield_tag.get_text(strip=True) if yield_tag else ''
 
-        # Extract ingredients
-        ingredient_tags = soup.find_all('li', class_=re.compile('ingredient', re.I))
+        # Extract ingredients using pre-compiled pattern
+        ingredient_tags = soup.find_all('li', class_=RE_INGREDIENT)
         if not ingredient_tags:
             ingredient_tags = soup.find_all('span', {'itemprop': 'recipeIngredient'})
 
@@ -236,10 +248,10 @@ class NYTRecipeScraper:
             if ingredient:
                 recipe['ingredients'].append(ingredient)
 
-        # Extract instructions
-        instruction_tags = soup.find_all('li', class_=re.compile('instruction|preparation', re.I))
+        # Extract instructions using pre-compiled patterns
+        instruction_tags = soup.find_all('li', class_=RE_INSTRUCTION)
         if not instruction_tags:
-            instruction_tags = soup.find_all('ol', class_=re.compile('recipe|preparation', re.I))
+            instruction_tags = soup.find_all('ol', class_=RE_RECIPE_PREP)
             if instruction_tags:
                 instruction_tags = instruction_tags[0].find_all('li')
 
@@ -248,8 +260,8 @@ class NYTRecipeScraper:
             if instruction:
                 recipe['instructions'].append(instruction)
 
-        # Extract author
-        author_tag = soup.find(class_=re.compile('author', re.I))
+        # Extract author using pre-compiled pattern
+        author_tag = soup.find(class_=RE_AUTHOR)
         if not author_tag:
             author_tag = soup.find('span', {'itemprop': 'author'})
         recipe['author'] = author_tag.get_text(strip=True) if author_tag else ''
