@@ -296,6 +296,9 @@ function createRecipeCard(recipe) {
         </div>
     ` : '';
 
+    // Nutrition macros
+    const nutritionHtml = getNutritionBadges(recipe.nutrition);
+
     return `
         <div class="recipe-card" data-recipe-id="${recipe.id}">
             <div class="card-clickable">
@@ -324,6 +327,7 @@ function createRecipeCard(recipe) {
                 <div class="recipe-card-content">
                     <h3 class="recipe-card-title">${escapeHtml(title)}</h3>
                     ${tagsHtml}
+                    ${nutritionHtml}
                     ${previewIngredients ? `<p class="recipe-card-preview">${escapeHtml(previewIngredients)}...</p>` : ''}
                 </div>
             </div>
@@ -396,21 +400,6 @@ function buildNutritionSection(recipe) {
     // Get servings count for per-serving calculation
     const servings = parseServings(recipe.servings) || 1;
 
-    // Health Score section
-    if (recipe.health_score && recipe.health_score.grade) {
-        html += `
-            <div class="nutrition-health-score">
-                <h3>Health Score</h3>
-                <div class="health-score-display">
-                    <span class="health-score-badge grade-${recipe.health_score.grade.toLowerCase()}">
-                        ${getHealthScoreIcon(recipe.health_score.grade)} ${recipe.health_score.grade} ${recipe.health_score.score}
-                    </span>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${recipe.health_score.details || ''}</p>
-                </div>
-            </div>
-        `;
-    }
-
     // Nutrition macros section
     if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
         const nutrition = recipe.nutrition;
@@ -474,7 +463,7 @@ function buildNutritionSection(recipe) {
                 </div>
             </div>
         `;
-    } else if (!recipe.health_score) {
+    } else {
         html += '<p style="color: var(--text-secondary);">No nutrition information available</p>';
     }
 
@@ -529,21 +518,46 @@ function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
     return html;
 }
 
+// Unicode fraction map
+const unicodeFractions = {
+    '½': 0.5, '⅓': 1/3, '⅔': 2/3, '¼': 0.25, '¾': 0.75,
+    '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8,
+    '⅙': 1/6, '⅚': 5/6, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
+};
+
+// Convert Unicode fractions to decimals in a string
+function convertUnicodeFractions(str) {
+    let result = str;
+    for (const [frac, val] of Object.entries(unicodeFractions)) {
+        // Handle mixed numbers like "1½" -> convert to decimal
+        result = result.replace(new RegExp(`(\\d+)${frac}`, 'g'), (match, whole) => {
+            return (parseInt(whole) + val).toString();
+        });
+        // Handle standalone fractions like "½"
+        result = result.replace(new RegExp(frac, 'g'), val.toString());
+    }
+    return result;
+}
+
 // Scale ingredients based on servings multiplier
 function scaleIngredients(ingredients, scale) {
     if (scale === 1) return ingredients;
 
     return ingredients.map(ing => {
+        // First convert any Unicode fractions to decimals
+        let converted = convertUnicodeFractions(ing);
+
         // Match numbers (including fractions like 1/2, 1.5, etc.)
-        return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
+        return converted.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
             let num;
             if (match.includes('/')) {
-                // Handle fractions
+                // Handle text fractions like "1/2"
                 const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
                 num = numerator / denominator;
             } else {
                 num = parseFloat(match);
             }
+            if (isNaN(num)) return match; // Safety check
             const scaled = num * scale;
             // Round to 2 decimal places and remove trailing zeros
             return parseFloat(scaled.toFixed(2)).toString();
