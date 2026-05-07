@@ -52,21 +52,6 @@
             Import Recipe
         </a>
 
-        <a href="{{ url_for('family_view') }}" class="sidebar-nav-link {% if request.endpoint == 'family_view' %}active{% endif %}">
-            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 5h8M3 10h5M3 15h8M13 5l4 5-4 5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Recipe Translator
-        </a>
-
-        <a href="{{ url_for('help_view') }}" class="sidebar-nav-link {% if request.endpoint == 'help_view' %}active{% endif %}">
-            <svg class="sidebar-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="10" cy="10" r="8" fill="none"/>
-                <path d="M10 14v.01M10 11a2 2 0 012-2 2 2 0 00-4 0" stroke-linecap="round"/>
-            </svg>
-            Help
-        </a>
-
         {% if current_user.is_authenticated %}
             {% if current_user.is_admin() %}
                 <a href="{{ url_for('admin_dashboard') }}" class="sidebar-nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">

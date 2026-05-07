@@ -13,7 +13,7 @@
     <div class="container">
         <header>
             <h1>Import Recipes</h1>
-            <p class="subtitle">Import recipes from NYT Cooking, Men's Health, or upload a photo</p>
+            <p class="subtitle">Import recipes from any URL or upload a photo</p>
         </header>
 
         <main>
@@ -33,7 +33,7 @@
                 </button>
             </div>
 
-            <!-- NYT Import Section -->
+            <!-- URL Import Section -->
             <div id="nyt-import" class="import-section active">
                 <div class="card translate-card">
                     <form id="recipeForm">
@@ -46,24 +46,14 @@
                                 type="url"
                                 id="recipeUrl"
                                 name="recipeUrl"
-                                placeholder="https://cooking.nytimes.com/recipes/... or https://menshealth.com/..."
+                                placeholder="https://www.bbcgoodfood.com/recipes/... or any recipe URL"
                                 required
                             >
-                            <small>Enter a NYT Cooking or Men's Health recipe URL</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="language">Target Language</label>
-                            <select id="language" name="language">
-                                {% for lang in languages %}
-                                    <option value="{{ lang }}">{{ lang }}</option>
-                                {% endfor %}
-                            </select>
-                            <small>Recipes are automatically converted to metric and translated</small>
+                            <small>Paste a URL from any recipe site. Quantities are auto-converted to metric.</small>
                         </div>
 
                         <button type="submit" id="submitBtn" class="btn btn-primary btn-block">
-                            <span class="btn-text">Import & Translate Recipe</span>
+                            <span class="btn-text">Import Recipe</span>
                             <span class="btn-loader" style="display: none;">
                                 <span class="spinner"></span> Processing...
                             </span>
@@ -175,10 +165,6 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="reviewLanguage">Detected Language</label>
-                        <input type="text" id="reviewLanguage" class="input-full" readonly style="background: #f5f5f5;">
-                    </div>
-                    <div class="form-group">
                         <label for="reviewServings">Servings</label>
                         <input type="text" id="reviewServings" class="input-full" placeholder="e.g., 4 servings">
                     </div>
@@ -203,13 +189,6 @@
                 <div class="form-group">
                     <label for="reviewInstructions">Instructions (one step per line) *</label>
                     <textarea id="reviewInstructions" rows="12" class="input-full" required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="translateAfterSave">
-                        Translate this recipe after saving
-                    </label>
                 </div>
 
                 <div class="modal-actions" style="margin-top: 1.5rem;">

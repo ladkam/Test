@@ -82,27 +82,22 @@ async function handleNYTSubmit(e) {
     e.preventDefault();
 
     const url = document.getElementById('recipeUrl').value.trim();
-    const language = document.getElementById('language').value;
     const submitBtn = document.getElementById('submitBtn');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnLoader = submitBtn.querySelector('.btn-loader');
 
-    // Reset previous results
     document.getElementById('results').style.display = 'none';
     document.getElementById('error').style.display = 'none';
 
-    // Show loading state
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnLoader.style.display = 'inline-flex';
 
     try {
-        const response = await fetch('/api/translate', {
+        const response = await fetch('/api/recipes/scrape', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ url, language })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
         });
 
         const data = await response.json();
@@ -110,12 +105,11 @@ async function handleNYTSubmit(e) {
         if (data.success) {
             displayNYTResults(data.recipe);
         } else {
-            showError(data.message || 'Failed to translate recipe');
+            showError(data.message || 'Failed to import recipe');
         }
     } catch (error) {
         showError('Error: ' + error.message);
     } finally {
-        // Reset button
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnLoader.style.display = 'none';
@@ -291,13 +285,6 @@ function openReviewModal(recipeData) {
     document.getElementById('reviewPrepTime').value = parseTime(recipeData.prep_time);
     document.getElementById('reviewCookTime').value = parseTime(recipeData.cook_time);
 
-    // Set detected language
-    const languageField = document.getElementById('reviewLanguage');
-    if (languageField) {
-        languageField.value = recipeData.language || 'Unknown';
-    }
-
-    // Set servings if available
     const servingsField = document.getElementById('reviewServings');
     if (servingsField) {
         servingsField.value = recipeData.servings || '';
@@ -335,12 +322,8 @@ async function saveExtractedRecipe(event) {
     const cookTime = document.getElementById('reviewCookTime').value;
     const ingredientsText = document.getElementById('reviewIngredients').value;
     const instructionsText = document.getElementById('reviewInstructions').value;
-    const shouldTranslate = document.getElementById('translateAfterSave').checked;
 
-    // Get language and servings if fields exist
-    const languageField = document.getElementById('reviewLanguage');
     const servingsField = document.getElementById('reviewServings');
-    const detectedLanguage = languageField ? languageField.value : 'Unknown';
     const servings = servingsField ? servingsField.value : '';
 
     // Parse multiline text to arrays
@@ -383,8 +366,6 @@ async function saveExtractedRecipe(event) {
         image: currentRecipeImage || '',
         url: '',
         author: 'Imported from photo',
-        language: detectedLanguage,
-        source_language: detectedLanguage
     };
 
     try {
@@ -401,15 +382,8 @@ async function saveExtractedRecipe(event) {
 
         if (data.success) {
             document.getElementById('reviewModal').style.display = 'none';
-
-            if (shouldTranslate) {
-                alert('Recipe saved! Redirecting to translator...');
-                // TODO: Add translation functionality
-                window.location.href = '/library';
-            } else {
-                alert('Recipe saved successfully!');
-                window.location.href = '/library';
-            }
+            alert('Recipe saved successfully!');
+            window.location.href = '/library';
         } else {
             alert('Error saving recipe: ' + (data.message || 'Unknown error'));
         }

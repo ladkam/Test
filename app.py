@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flask web application for Recipe Management System with Translation
+Flask web application for the recipe and meal-planning app.
 """
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session, send_from_directory
 from flask_cors import CORS
@@ -16,18 +16,9 @@ import requests
 import json
 import re
 
-from recipe_scraper import NYTRecipeScraper
-from menshealth_scraper import MensHealthRecipeScraper
-from unit_converter import UnitConverter
-from mistral_translator import MistralTranslator
-from groq_translator import GroqTranslator
-try:
-    from gemini_translator import GeminiTranslator
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
+from recipe_scraper import scrape_recipe, format_recipe, RecipeScrapeError
+from unit_converter import convert_to_metric
 from models import db, User, Recipe, WeeklyPlan, PlanRecipe, Settings as SettingsModel, RecipeMadeHistory
-import settings
 
 # Load environment variables
 load_dotenv()
@@ -88,12 +79,14 @@ with app.app_context():
         print("✓ Database tables created/verified")
 
         # Run migrations for any missing columns
-        # This handles cases where columns were added after initial table creation
-        add_column_if_not_exists('recipes', 'is_shareable', 'BOOLEAN', 'TRUE')
         add_column_if_not_exists('recipes', 'nutrition', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'tags', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'ingredients_original', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'instructions_original', 'TEXT', 'NULL')
+
+        # Phase 1 cleanup: drop translation table and obsolete columns once
+        from migrations.phase1_cleanup import run_phase1_cleanup
+        run_phase1_cleanup(db)
 
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
@@ -300,8 +293,44 @@ def index():
 @app.route('/import')
 @login_required
 def import_recipe():
-    """Import recipes from NYT or photo upload."""
-    return render_template('import.html', languages=settings.get_languages())
+    """Import recipes from a URL or photo upload."""
+    return render_template('import.html')
+
+
+@app.route('/api/recipes/scrape', methods=['POST'])
+@login_required
+def scrape_recipe_api():
+    """Fetch and parse a recipe from any URL. Returns the recipe dict for review."""
+    data = request.json or {}
+    url = (data.get('url') or '').strip()
+    if not url:
+        return jsonify({'success': False, 'message': 'URL is required'}), 400
+
+    try:
+        recipe = scrape_recipe(url)
+    except RecipeScrapeError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Scrape failed: {e}'}), 500
+
+    time_info = recipe.get('time') or {}
+    return jsonify({
+        'success': True,
+        'recipe': {
+            'title': recipe.get('title', ''),
+            'content': format_recipe(recipe),
+            'image': recipe.get('image', ''),
+            'url': url,
+            'ingredients': recipe.get('ingredients', []),
+            'instructions': recipe.get('instructions', []),
+            'prep_time': time_info.get('prep', ''),
+            'cook_time': time_info.get('cook', ''),
+            'total_time': time_info.get('total', ''),
+            'servings': recipe.get('yield', ''),
+            'author': recipe.get('author', ''),
+            'nutrition': recipe.get('nutrition', {}),
+        },
+    })
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -334,361 +363,32 @@ def logout():
     return redirect(url_for('index'))
 
 
-@app.route('/results')
-@login_required
-def show_results():
-    """Display recipe translation results."""
-    recipe_data = session.get('current_recipe')
-
-    if not recipe_data:
-        flash('No recipe to display. Please translate a recipe first.', 'error')
-        return redirect(url_for('index'))
-
-    return render_template('results.html', recipe=recipe_data, languages=settings.get_languages())
-
-
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
     """Render admin dashboard."""
     all_users = User.query.all()
     users = [{'id': str(u.id), 'username': u.username, 'role': u.role} for u in all_users]
-    languages = settings.get_languages()
-    translation_prompt = settings.get_translation_prompt()
-    system_prompt = settings.get_system_prompt()
-    ai_provider = settings.get_ai_provider()
-    ai_model = settings.get_ai_model()
-    nyt_cookie = settings.get_nyt_cookie()
-
-    # Get API keys from database
-    groq_api_key = SettingsModel.get('groq_api_key', '')
-    mistral_api_key = SettingsModel.get('mistral_api_key', '')
-    gemini_api_key = SettingsModel.get('gemini_api_key', '')
-    translator_pin = SettingsModel.get('translator_access_pin', '1234')
-
-    return render_template(
-        'admin.html',
-        users=users,
-        languages=languages,
-        translation_prompt=translation_prompt,
-        system_prompt=system_prompt,
-        ai_provider=ai_provider,
-        ai_model=ai_model,
-        nyt_cookie=nyt_cookie,
-        groq_api_key=groq_api_key,
-        mistral_api_key=mistral_api_key,
-        gemini_api_key=gemini_api_key,
-        translator_pin=translator_pin
-    )
+    return render_template('admin.html', users=users)
 
 
-@app.route('/api/translate', methods=['POST'])
-@login_required
-def translate_recipe():
-    """
-    API endpoint to translate a recipe.
 
-    Expected JSON payload:
-    {
-        "url": "recipe URL",
-        "language": "target language",
-        "convert_units": true/false,
-        "translate": true/false
-    }
-    """
-    try:
-        data = request.json
-
-        # Validate input
-        url = data.get('url', '').strip()
-        if not url:
-            return jsonify({'error': 'URL is required'}), 400
-
-        # Determine which scraper to use based on URL
-        is_nyt = 'cooking.nytimes.com' in url
-        is_menshealth = 'menshealth.com' in url.lower()
-
-        if not is_nyt and not is_menshealth:
-            return jsonify({'error': 'Please provide a valid NYT Cooking or Men\'s Health recipe URL'}), 400
-
-        language = data.get('language', os.getenv('TARGET_LANGUAGE', 'English'))
-        convert_units = data.get('convert_units', True)
-        do_translate = data.get('translate', True)
-
-        # Step 1: Scrape the recipe
-        try:
-            if is_nyt:
-                scraper = NYTRecipeScraper()
-            else:  # Men's Health
-                scraper = MensHealthRecipeScraper()
-
-            recipe = scraper.scrape_recipe(url)
-            recipe_text = scraper.format_recipe(recipe)
-        except Exception as e:
-            return jsonify({'error': f'Failed to download recipe: {str(e)}'}), 500
-
-        # Step 2: Convert measurements to metric
-        if convert_units:
-            try:
-                converter = UnitConverter()
-                recipe_text = converter.convert_text(recipe_text)
-            except Exception as e:
-                # Non-fatal error, continue without conversion
-                pass
-
-        # Step 3: Translate the recipe
-        if do_translate:
-            try:
-                # Get the selected AI provider from settings
-                ai_provider = settings.get_ai_provider()
-
-                # Get API key and check if configured
-                if ai_provider == 'groq':
-                    api_key = get_api_key('groq_api_key')
-                    if not api_key:
-                        return jsonify({'error': 'Groq API key not configured. Please add it in the admin panel.'}), 500
-                    translator = GroqTranslator(api_key=api_key)
-                elif ai_provider == 'gemini':
-                    if not GEMINI_AVAILABLE:
-                        return jsonify({'error': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
-                    api_key = get_api_key('gemini_api_key')
-                    if not api_key:
-                        return jsonify({'error': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
-                    translator = GeminiTranslator(api_key=api_key)
-                else:  # Default to Mistral
-                    api_key = get_api_key('mistral_api_key')
-                    if not api_key:
-                        return jsonify({'error': 'Mistral API key not configured. Please add it in the admin panel.'}), 500
-                    translator = MistralTranslator(api_key=api_key)
-
-                recipe_text = translator.translate_recipe(recipe_text, language)
-            except ValueError as e:
-                return jsonify({'error': f'AI API error: {str(e)}'}), 500
-            except Exception as e:
-                return jsonify({'error': f'Translation failed: {str(e)}'}), 500
-
-        # Return the processed recipe
-        # Store in session for the results page with complete data
-        original_formatted = scraper.format_recipe(recipe)
-        session['current_recipe'] = {
-            'content': recipe_text,
-            'content_original': original_formatted,
-            'title': recipe['title'],
-            'image': recipe.get('image', ''),
-            'url': url,
-            'language': language,
-            'ingredients': recipe.get('ingredients', []),
-            'instructions': recipe.get('instructions', []),
-            'prep_time': recipe.get('time', {}).get('prep', ''),
-            'cook_time': recipe.get('time', {}).get('cook', ''),
-            'total_time': recipe.get('time', {}).get('total', ''),
-            'servings': recipe.get('yield', ''),
-            'author': recipe.get('author', ''),
-            'nutrition': recipe.get('nutrition', {})
-        }
-
-        return jsonify({
-            'success': True,
-            'recipe': {
-                'content': recipe_text,
-                'content_original': original_formatted,
-                'title': recipe['title'],
-                'image': recipe.get('image', ''),
-                'url': url,
-                'language': language,
-                'ingredients': recipe.get('ingredients', []),
-                'instructions': recipe.get('instructions', []),
-                'prep_time': recipe.get('time', {}).get('prep', ''),
-                'cook_time': recipe.get('time', {}).get('cook', ''),
-                'total_time': recipe.get('time', {}).get('total', ''),
-                'servings': recipe.get('yield', ''),
-                'author': recipe.get('author', ''),
-                'nutrition': recipe.get('nutrition', {})
-            }
-        })
-
-    except Exception as e:
-        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
-
-
-@app.route('/api/download', methods=['POST'])
-@login_required
-def download_recipe():
-    """
-    API endpoint to download a recipe as a markdown file.
-
-    Expected JSON payload:
-    {
-        "content": "recipe content",
-        "filename": "recipe filename"
-    }
-    """
-    try:
-        data = request.json
-        content = data.get('content', '')
-        filename = data.get('filename', 'recipe.md')
-
-        # Sanitize filename
-        filename = ''.join(c if c.isalnum() or c in (' ', '-', '_', '.') else '_' for c in filename)
-        if not filename.endswith('.md'):
-            filename += '.md'
-
-        # Create temporary file
-        temp_file = TEMP_FOLDER / filename
-        with open(temp_file, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        return send_file(
-            temp_file,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='text/markdown'
-        )
-
-    except Exception as e:
-        return jsonify({'error': f'Failed to create download: {str(e)}'}), 500
-
-
-@app.route('/api/test-mistral', methods=['GET'])
-def test_mistral():
-    """Test Mistral API connection."""
-    try:
-        api_key = get_api_key('mistral_api_key')
-        if not api_key:
-            return jsonify({'success': False, 'message': 'Mistral API key not configured. Please add it in the admin panel.'}), 400
-        translator = MistralTranslator(api_key=api_key)
-        if translator.test_connection():
-            return jsonify({'success': True, 'message': 'Mistral API connection successful'})
-        else:
-            return jsonify({'success': False, 'message': 'Failed to connect to Mistral API'}), 500
-    except ValueError as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
-
-
-@app.route('/api/test-gemini', methods=['GET'])
-def test_gemini():
-    """Test Gemini API connection."""
-    try:
-        if not GEMINI_AVAILABLE:
-            return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 400
-        api_key = get_api_key('gemini_api_key')
-        if not api_key:
-            return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 400
-        translator = GeminiTranslator(api_key=api_key)
-        if translator.test_connection():
-            return jsonify({'success': True, 'message': 'Gemini API connection successful'})
-        else:
-            return jsonify({'success': False, 'message': 'Failed to connect to Gemini API'}), 500
-    except ValueError as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
-
-
-# Admin API routes
-@app.route('/api/admin/languages', methods=['GET', 'POST', 'DELETE'])
+@app.route('/api/admin/settings', methods=['GET', 'POST'])
 @admin_required
-def manage_languages():
-    """Manage languages list."""
-    if request.method == 'GET':
-        return jsonify({'languages': settings.get_languages()})
-
-    elif request.method == 'POST':
-        data = request.json
-        language = data.get('language', '').strip()
-        if settings.add_language(language):
-            return jsonify({'success': True, 'message': f'Added language: {language}'})
-        else:
-            return jsonify({'success': False, 'message': 'Language already exists or invalid'}), 400
-
-    elif request.method == 'DELETE':
-        data = request.json
-        language = data.get('language', '').strip()
-        if settings.remove_language(language):
-            return jsonify({'success': True, 'message': f'Removed language: {language}'})
-        else:
-            return jsonify({'success': False, 'message': 'Cannot remove language'}), 400
-
-
-@app.route('/api/admin/prompts', methods=['GET', 'POST'])
-@admin_required
-def manage_prompts():
-    """Manage translation prompts."""
+def manage_app_settings():
+    """Manage non-secret app settings (default servings, week start day)."""
     if request.method == 'GET':
         return jsonify({
-            'translation_prompt': settings.get_translation_prompt(),
-            'system_prompt': settings.get_system_prompt()
+            'default_servings': SettingsModel.get('default_servings', '4'),
+            'week_starts_on': SettingsModel.get('week_starts_on', 'monday'),
         })
 
-    elif request.method == 'POST':
-        data = request.json
-        translation_prompt = data.get('translation_prompt')
-        system_prompt = data.get('system_prompt')
-
-        if translation_prompt:
-            settings.update_translation_prompt(translation_prompt)
-        if system_prompt:
-            settings.update_system_prompt(system_prompt)
-
-        return jsonify({'success': True, 'message': 'Prompts updated successfully'})
-
-
-@app.route('/api/admin/api-settings', methods=['GET', 'POST'])
-@admin_required
-def manage_api_settings():
-    """Manage API settings (provider, model, API keys, cookie, and translator PIN)."""
-    if request.method == 'GET':
-        return jsonify({
-            'ai_provider': settings.get_ai_provider(),
-            'ai_model': settings.get_ai_model(),
-            'nyt_cookie': settings.get_nyt_cookie(),
-            'groq_api_key': SettingsModel.get('groq_api_key', ''),
-            'mistral_api_key': SettingsModel.get('mistral_api_key', ''),
-            'gemini_api_key': SettingsModel.get('gemini_api_key', ''),
-            'translator_pin': SettingsModel.get('translator_access_pin', '1234')
-        })
-
-    elif request.method == 'POST':
-        data = request.json
-
-        # Handle API keys and PINs
-        groq_api_key = data.get('groq_api_key')
-        mistral_api_key = data.get('mistral_api_key')
-        gemini_api_key = data.get('gemini_api_key')
-        translator_pin = data.get('translator_pin')
-
-        if groq_api_key is not None:
-            SettingsModel.set('groq_api_key', groq_api_key)
-        if mistral_api_key is not None:
-            SettingsModel.set('mistral_api_key', mistral_api_key)
-        if gemini_api_key is not None:
-            SettingsModel.set('gemini_api_key', gemini_api_key)
-        if translator_pin is not None:
-            SettingsModel.set('translator_access_pin', translator_pin)
-
-        # Handle other settings
-        ai_provider = data.get('ai_provider')
-        ai_model = data.get('ai_model')
-        nyt_cookie = data.get('nyt_cookie')
-
-        if ai_provider is not None:
-            settings.update_ai_provider(ai_provider)
-        if ai_model is not None:
-            settings.update_ai_model(ai_model)
-        if nyt_cookie is not None:
-            settings.update_nyt_cookie(nyt_cookie)
-
-        return jsonify({'success': True, 'message': 'API settings updated successfully'})
-
-
-@app.route('/api/admin/settings/reset', methods=['POST'])
-@admin_required
-def reset_settings():
-    """Reset all settings to defaults."""
-    settings.reset_to_defaults()
-    return jsonify({'success': True, 'message': 'Settings reset to defaults'})
+    data = request.json or {}
+    if 'default_servings' in data:
+        SettingsModel.set('default_servings', str(data['default_servings']))
+    if 'week_starts_on' in data:
+        SettingsModel.set('week_starts_on', str(data['week_starts_on']))
+    return jsonify({'success': True, 'message': 'Settings updated'})
 
 
 @app.route('/api/admin/users', methods=['GET'])
@@ -785,259 +485,6 @@ def planner():
 def shopping_list_page():
     """Render shopping list page."""
     return render_template('shopping_list.html')
-
-
-@app.route('/family')
-@app.route('/family/<language>')
-@app.route('/recipe-translator')
-@app.route('/recipe-translator/<language>')
-@login_required
-def family_view(language='en'):
-    """Recipe Translator - translate NYT recipes with metric conversion."""
-    # Supported languages
-    supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
-    if language not in supported_languages:
-        language = 'en'  # Default to English
-
-    return render_template('family_view.html', language=language)
-
-
-@app.route('/api/family/translate', methods=['POST'])
-@login_required
-def translate_recipe_family():
-    """Translate a NYT recipe with metric conversion."""
-
-    try:
-        data = request.json
-        url = data.get('url', '')
-        target_language_code = data.get('language', 'es')
-
-        # Validate URL is from NYT
-        if 'nytimes.com' not in url.lower():
-            return jsonify({'success': False, 'message': 'Only NYT Cooking recipes are supported'}), 400
-
-        # Map language codes to names
-        language_map = {
-            'es': 'Spanish',
-            'fr': 'French',
-            'de': 'German',
-            'it': 'Italian',
-            'pt': 'Portuguese',
-            'nl': 'Dutch',
-            'ja': 'Japanese',
-            'zh': 'Chinese',
-            'ko': 'Korean'
-        }
-        target_language = language_map.get(target_language_code, 'Spanish')
-
-        # Scrape recipe
-        cookie = settings.get_nyt_cookie()
-        scraper = NYTRecipeScraper(cookie)
-        recipe_data = scraper.scrape_recipe(url)
-
-        if not recipe_data:
-            return jsonify({'success': False, 'message': 'Failed to fetch recipe'}), 400
-
-        # Initialize unit converter for metric conversion
-        from unit_converter import UnitConverter
-        converter = UnitConverter()
-
-        # Convert ingredients to metric
-        metric_ingredients = []
-        for ing in recipe_data.get('ingredients', []):
-            metric_ing = converter.convert_text(ing)
-            metric_ingredients.append(metric_ing)
-
-        # Convert any measurements in instructions to metric
-        metric_instructions = []
-        for inst in recipe_data.get('instructions', []):
-            metric_inst = converter.convert_text(inst)
-            metric_instructions.append(metric_inst)
-
-        # Get AI translator
-        ai_provider = settings.get_ai_provider()
-        if ai_provider == 'groq':
-            api_key = get_api_key('groq_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
-            translator = GroqTranslator(api_key=api_key)
-        elif ai_provider == 'gemini':
-            if not GEMINI_AVAILABLE:
-                return jsonify({'success': False, 'message': 'Gemini translator not installed'}), 500
-            api_key = get_api_key('gemini_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
-            translator = GeminiTranslator(api_key=api_key)
-        else:
-            api_key = get_api_key('mistral_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
-            translator = MistralTranslator(api_key=api_key)
-
-        # Translate title, ingredients (with metric), and instructions (with metric)
-        translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = [translator.translate_text(ing, target_language) for ing in metric_ingredients]
-        translated_instructions = [translator.translate_text(inst, target_language) for inst in metric_instructions]
-
-        # Get time info
-        time_info = recipe_data.get('time', {})
-        total_time = time_info.get('total', '') if isinstance(time_info, dict) else ''
-
-        return jsonify({
-            'success': True,
-            'recipe': {
-                'title': recipe_data.get('title', ''),
-                'translated_title': translated_title,
-                'ingredients': metric_ingredients,
-                'translated_ingredients': translated_ingredients,
-                'instructions': metric_instructions,
-                'translated_instructions': translated_instructions,
-                'image_url': recipe_data.get('image', ''),
-                'prep_time': time_info.get('prep', '') if isinstance(time_info, dict) else '',
-                'cook_time': time_info.get('cook', '') if isinstance(time_info, dict) else '',
-                'total_time': total_time,
-                'servings': recipe_data.get('yield', ''),
-                'author': recipe_data.get('author', '')
-            }
-        })
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
-
-
-@app.route('/translator')
-@app.route('/translator/<language>')
-def translator_view(language='es'):
-    """Render standalone NYT recipe translator with PIN access (no login required)."""
-    # Supported languages
-    supported_languages = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
-    if language not in supported_languages:
-        language = 'es'  # Default to Spanish
-
-    # Check if PIN is verified in session
-    pin_verified = session.get('translator_pin_verified', False)
-
-    return render_template('translator_view.html', language=language, pin_verified=pin_verified)
-
-
-@app.route('/api/translator/verify-pin', methods=['POST'])
-def verify_translator_pin():
-    """Verify translator access PIN."""
-    data = request.json
-    entered_pin = data.get('pin', '')
-
-    # Get PIN from settings (default: 1234)
-    correct_pin = SettingsModel.get('translator_access_pin', '1234')
-
-    if entered_pin == correct_pin:
-        session['translator_pin_verified'] = True
-        return jsonify({'success': True, 'message': 'Access granted'})
-    else:
-        return jsonify({'success': False, 'message': 'Incorrect PIN'}), 401
-
-
-@app.route('/api/translator/translate', methods=['POST'])
-def translate_recipe_standalone():
-    """Translate a recipe from URL without saving to library (requires PIN verification)."""
-    # Check if PIN is verified
-    if not session.get('translator_pin_verified', False):
-        return jsonify({'success': False, 'message': 'PIN verification required'}), 401
-
-    try:
-        data = request.json
-        url = data.get('url', '')
-        target_language_code = data.get('language', 'es')
-
-        # Validate URL is from NYT
-        if 'nytimes.com' not in url.lower():
-            return jsonify({'success': False, 'message': 'Only NYT Cooking recipes are supported'}), 400
-
-        # Map language codes to names
-        language_map = {
-            'es': 'Spanish',
-            'fr': 'French',
-            'de': 'German',
-            'it': 'Italian',
-            'pt': 'Portuguese',
-            'nl': 'Dutch',
-            'ja': 'Japanese',
-            'zh': 'Chinese',
-            'ko': 'Korean'
-        }
-        target_language = language_map.get(target_language_code, 'Spanish')
-
-        # Scrape recipe
-        cookie = settings.get_nyt_cookie()
-        scraper = NYTRecipeScraper(cookie=cookie)
-        recipe_data = scraper.scrape(url)
-
-        if not recipe_data:
-            return jsonify({'success': False, 'message': 'Failed to fetch recipe'}), 400
-
-        # Translate recipe
-        ai_provider = settings.get_ai_provider()
-        if ai_provider == 'groq':
-            api_key = get_api_key('groq_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
-            translator = GroqTranslator(api_key=api_key)
-        elif ai_provider == 'gemini':
-            if not GEMINI_AVAILABLE:
-                return jsonify({'success': False, 'message': 'Gemini translator not installed'}), 500
-            api_key = get_api_key('gemini_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
-            translator = GeminiTranslator(api_key=api_key)
-        else:
-            api_key = get_api_key('mistral_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
-            translator = MistralTranslator(api_key=api_key)
-
-        # Translate title, ingredients, and instructions
-        translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = [convert_to_metric(translator.translate_text(ing, target_language)) for ing in recipe_data.get('ingredients', [])]
-        translated_instructions = [convert_to_metric(translator.translate_text(inst, target_language)) for inst in recipe_data.get('instructions', [])]
-
-        # Convert original ingredients/instructions to metric as well
-        original_ingredients = [convert_to_metric(ing) for ing in recipe_data.get('ingredients', [])]
-        original_instructions = [convert_to_metric(inst) for inst in recipe_data.get('instructions', [])]
-
-        return jsonify({
-            'success': True,
-            'recipe': {
-                'title': recipe_data.get('title', ''),
-                'translated_title': translated_title,
-                'ingredients': original_ingredients,
-                'translated_ingredients': translated_ingredients,
-                'instructions': original_instructions,
-                'translated_instructions': translated_instructions,
-                'image_url': recipe_data.get('image', ''),
-                'prep_time': recipe_data.get('prep_time', ''),
-                'cook_time': recipe_data.get('cook_time', ''),
-                'total_time': recipe_data.get('total_time', ''),
-                'servings': recipe_data.get('yield', ''),
-                'target_language': target_language
-            }
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-@app.route('/help')
-@app.route('/help/<language>')
-def help_view(language='en'):
-    """Render simplified help view for household staff (no login required).
-    NOTE: This is the old help view. Consider using /family instead for better access control."""
-    # Supported languages for help
-    supported_languages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ja', 'zh', 'ko']
-    if language not in supported_languages:
-        language = 'en'  # Default to English
-
-    return render_template('help_view.html', language=language)
 
 
 @app.route('/api/recipes', methods=['GET'])
@@ -1262,88 +709,10 @@ def update_recipe(recipe_id):
 
         db.session.commit()
 
-        # Re-translate to existing languages if content was changed
-        retranslation_results = []
-        content_changed = any(key in data for key in ['title', 'content', 'ingredients', 'instructions'])
-
-        if content_changed and recipe.translations:
-            try:
-                from groq_translator import GroqTranslator
-                from mistral_translator import MistralTranslator
-                import settings
-
-                # Get translator
-                ai_provider = settings.get_ai_provider()
-                if ai_provider == 'groq':
-                    api_key = get_api_key('groq_api_key')
-                    if api_key:
-                        translator = GroqTranslator(api_key=api_key)
-                    else:
-                        translator = None
-                elif ai_provider == 'gemini':
-                    if GEMINI_AVAILABLE:
-                        api_key = get_api_key('gemini_api_key')
-                        if api_key:
-                            translator = GeminiTranslator(api_key=api_key)
-                        else:
-                            translator = None
-                    else:
-                        translator = None
-                else:
-                    api_key = get_api_key('mistral_api_key')
-                    if api_key:
-                        translator = MistralTranslator(api_key=api_key)
-                    else:
-                        translator = None
-
-                if translator:
-                    # Re-translate to each existing language
-                    for translation in recipe.translations:
-                        try:
-                            language_name = translation.language_name
-
-                            # Translate title
-                            translation.title = translator.translate_text(recipe.title, language_name)
-
-                            # Translate ingredients
-                            if recipe.ingredients:
-                                translation.ingredients = [
-                                    translator.translate_text(ing, language_name)
-                                    for ing in recipe.ingredients
-                                ]
-
-                            # Translate instructions
-                            if recipe.instructions:
-                                translation.instructions = [
-                                    translator.translate_text(inst, language_name)
-                                    for inst in recipe.instructions
-                                ]
-
-                            # Translate content
-                            if recipe.content:
-                                translation.content = translator.translate_text(recipe.content, language_name)
-
-                            retranslation_results.append({
-                                'language': language_name,
-                                'success': True
-                            })
-                        except Exception as trans_err:
-                            retranslation_results.append({
-                                'language': translation.language_name,
-                                'success': False,
-                                'error': str(trans_err)
-                            })
-
-                    db.session.commit()
-            except Exception as e:
-                # Don't fail the whole update if retranslation fails
-                print(f"Warning: Failed to retranslate: {e}")
-
         return jsonify({
             'success': True,
             'message': 'Recipe updated successfully',
             'recipe': recipe.to_dict(),
-            'retranslations': retranslation_results if retranslation_results else None
         })
     except Exception as e:
         db.session.rollback()
@@ -1530,20 +899,13 @@ def save_recipe():
                 total_mins += minutes
             return total_mins if total_mins > 0 else None
 
-        # Determine if recipe is shareable (not from copyrighted sources like NYT)
         source_url = data.get('url', '')
-        is_shareable = True
-        if source_url and 'nytimes.com' in source_url.lower():
-            is_shareable = False
 
-        # Store original and convert to metric
-        from unit_converter import convert_to_metric
         ingredients_original = data.get('ingredients', [])
         instructions_original = data.get('instructions', [])
         ingredients_metric = [convert_to_metric(ing) for ing in ingredients_original]
         instructions_metric = [convert_to_metric(inst) for inst in instructions_original]
 
-        # Create new recipe with both original and metric versions
         new_recipe = Recipe(
             title=data.get('title', ''),
             content=data.get('content_original', '') or data.get('content', ''),
@@ -1558,88 +920,11 @@ def save_recipe():
             image_url=data.get('image', ''),
             author=data.get('author', ''),
             source_url=source_url,
-            source_language=data.get('source_language', 'English'),
-            is_shareable=is_shareable,
             nutrition=data.get('nutrition', {}),
             tags=[]
         )
 
         db.session.add(new_recipe)
-        db.session.flush()  # Get the recipe ID
-
-        # If there's a translation, save it as a RecipeTranslation record
-        target_language = data.get('language', 'English')
-        if target_language and target_language != 'English' and data.get('content'):
-            from models import RecipeTranslation
-
-            # Map language names to codes
-            language_code_map = {
-                'Spanish': 'es',
-                'French': 'fr',
-                'Español': 'es',
-                'Français': 'fr'
-            }
-
-            language_code = language_code_map.get(target_language, target_language.lower()[:2])
-
-            # Check if translation doesn't already exist
-            existing_translation = RecipeTranslation.query.filter_by(
-                recipe_id=new_recipe.id,
-                language_code=language_code
-            ).first()
-
-            if not existing_translation:
-                # Translate individual fields using AI
-                try:
-                    ai_provider = settings.get_ai_provider()
-                    if ai_provider == 'groq':
-                        api_key = get_api_key('groq_api_key')
-                        if api_key:
-                            translator = GroqTranslator(api_key=api_key)
-                        else:
-                            translator = None
-                    elif ai_provider == 'gemini':
-                        if GEMINI_AVAILABLE:
-                            api_key = get_api_key('gemini_api_key')
-                            if api_key:
-                                translator = GeminiTranslator(api_key=api_key)
-                            else:
-                                translator = None
-                        else:
-                            translator = None
-                    else:
-                        api_key = get_api_key('mistral_api_key')
-                        if api_key:
-                            translator = MistralTranslator(api_key=api_key)
-                        else:
-                            translator = None
-
-                    if translator:
-                        # Translate title, ingredients, and instructions
-                        translated_title = translator.translate_text(new_recipe.title, target_language)
-                        translated_ingredients = [
-                            translator.translate_text(ing, target_language)
-                            for ing in (new_recipe.ingredients or [])
-                        ]
-                        translated_instructions = [
-                            translator.translate_text(inst, target_language)
-                            for inst in (new_recipe.instructions or [])
-                        ]
-
-                        translation = RecipeTranslation(
-                            recipe_id=new_recipe.id,
-                            language_code=language_code,
-                            language_name=target_language,
-                            title=translated_title,
-                            content=data.get('content', ''),  # Translated content from scraping
-                            ingredients=translated_ingredients,
-                            instructions=translated_instructions
-                        )
-                        db.session.add(translation)
-                except Exception as e:
-                    # If translation fails, still save the recipe but skip the translation
-                    print(f"Warning: Failed to create translation: {e}")
-
         db.session.commit()
 
         return jsonify({
@@ -1978,67 +1263,16 @@ def get_combined_shopping_list():
         if not all_ingredients:
             return jsonify({'success': True, 'combined_list': [], 'by_recipe': []})
 
-        # Use AI to combine and aggregate ingredients
-        ai_provider = settings.get_ai_provider()
-        if ai_provider == 'groq':
-            api_key = get_api_key('groq_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
-            translator = GroqTranslator(api_key=api_key)
-        elif ai_provider == 'gemini':
-            if not GEMINI_AVAILABLE:
-                return jsonify({'success': False, 'message': 'Gemini translator not installed'}), 500
-            api_key = get_api_key('gemini_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
-            translator = GeminiTranslator(api_key=api_key)
-        else:
-            api_key = get_api_key('mistral_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
-            translator = MistralTranslator(api_key=api_key)
-
-        # Build the prompt
-        ingredients_text = "\n".join([
-            f"- {item['ingredient']} (x{item['scale']:.1f} scale, from: {item['recipe']})"
-            for item in all_ingredients
-        ])
-
-        prompt = f"""Combine these recipe ingredients into a single shopping list.
-
-Rules:
-1. Merge same ingredients together and sum their quantities
-2. Convert cups, ounces, pounds to metric (cups→ml, oz→g, lbs→kg)
-3. Keep tablespoons and teaspoons as-is (do NOT convert to ml)
-4. Ignore preparation methods (sliced, diced, chopped, minced) - they don't affect what you buy
-5. Keep different product types separate (cherry tomatoes vs roma tomatoes, canned vs fresh)
-6. Apply the scale factor to quantities before combining
-7. Items without clear quantities (like "salt to taste") should be listed once
-8. Round metric values sensibly (no decimals for ml/g unless needed)
-
-Ingredients:
-{ingredients_text}
-
-Return ONLY a JSON array of objects, each with "item" (string) and "display" (formatted string for display like "500g chicken breast" or "3 eggs"):
-[{{"item": "chicken breast", "display": "500g chicken breast"}}, ...]"""
-
-        # Call AI
-        try:
-            response = translator.translate_text(prompt, "JSON")
-
-            # Parse JSON from response
-            import re
-            json_match = re.search(r'\[[\s\S]*\]', response)
-            if json_match:
-                combined_list = json.loads(json_match.group())
-            else:
-                # Fallback: return ingredients as-is
-                combined_list = [{"item": ing['ingredient'], "display": ing['ingredient']} for ing in all_ingredients]
-
-        except Exception as e:
-            print(f"AI aggregation error: {e}")
-            # Fallback: return ingredients as-is without combining
-            combined_list = [{"item": ing['ingredient'], "display": ing['ingredient']} for ing in all_ingredients]
+        seen = {}
+        combined_list = []
+        for item in all_ingredients:
+            ing = (item['ingredient'] or '').strip()
+            if not ing:
+                continue
+            key = ing.lower()
+            if key not in seen:
+                seen[key] = True
+                combined_list.append({'item': ing, 'display': ing})
 
         return jsonify({
             'success': True,
@@ -2051,139 +1285,6 @@ Return ONLY a JSON array of objects, each with "item" (string) and "display" (fo
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error generating combined list: {str(e)}'}), 500
 
-
-@app.route('/api/recipes/<int:recipe_id>/translate', methods=['POST'])
-@login_required
-def create_recipe_translation(recipe_id):
-    """Create a new translation for a recipe."""
-    try:
-        data = request.json
-        language_code = data.get('language_code')  # 'es', 'fr', 'de', 'it', 'pt', etc.
-
-        # Supported languages
-        supported_languages = {
-            'es': 'Spanish',
-            'fr': 'French',
-            'de': 'German',
-            'it': 'Italian',
-            'pt': 'Portuguese',
-            'nl': 'Dutch',
-            'ja': 'Japanese',
-            'zh': 'Chinese',
-            'ko': 'Korean'
-        }
-
-        if not language_code or language_code not in supported_languages:
-            return jsonify({'success': False, 'message': f'Invalid language code. Supported: {", ".join(supported_languages.keys())}'}), 400
-
-        # Get recipe
-        recipe = Recipe.query.get(recipe_id)
-        if not recipe:
-            return jsonify({'success': False, 'message': 'Recipe not found'}), 404
-
-        # Check if translation already exists
-        from models import RecipeTranslation
-        existing = RecipeTranslation.query.filter_by(
-            recipe_id=recipe_id,
-            language_code=language_code
-        ).first()
-
-        if existing:
-            return jsonify({'success': False, 'message': f'Translation already exists for {supported_languages[language_code]}'}), 400
-
-        language_name = supported_languages[language_code]
-
-        # Translate using AI
-        from groq_translator import GroqTranslator
-        from mistral_translator import MistralTranslator
-        import settings
-
-        ai_provider = settings.get_ai_provider()
-        if ai_provider == 'groq':
-            api_key = get_api_key('groq_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Groq API key not configured. Please add it in the admin panel.'}), 500
-            translator = GroqTranslator(api_key=api_key)
-        elif ai_provider == 'gemini':
-            if not GEMINI_AVAILABLE:
-                return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
-            api_key = get_api_key('gemini_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
-            translator = GeminiTranslator(api_key=api_key)
-        else:
-            api_key = get_api_key('mistral_api_key')
-            if not api_key:
-                return jsonify({'success': False, 'message': 'Mistral API key not configured. Please add it in the admin panel.'}), 500
-            translator = MistralTranslator(api_key=api_key)
-
-        # Translate title
-        title_translation = translator.translate_text(recipe.title, language_name)
-
-        # Translate ingredients
-        ingredients_translated = []
-        if recipe.ingredients:
-            for ingredient in recipe.ingredients:
-                translated = translator.translate_text(ingredient, language_name)
-                ingredients_translated.append(translated)
-
-        # Translate instructions
-        instructions_translated = []
-        if recipe.instructions:
-            for instruction in recipe.instructions:
-                translated = translator.translate_text(instruction, language_name)
-                instructions_translated.append(translated)
-
-        # Translate full content
-        content_translated = translator.translate_text(recipe.content, language_name)
-
-        # Create translation record
-        translation = RecipeTranslation(
-            recipe_id=recipe_id,
-            language_code=language_code,
-            language_name=language_name,
-            title=title_translation,
-            content=content_translated,
-            ingredients=ingredients_translated,
-            instructions=instructions_translated
-        )
-
-        db.session.add(translation)
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': f'Recipe translated to {language_name}',
-            'translation': translation.to_dict()
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Translation error: {str(e)}'}), 500
-
-
-@app.route('/api/recipes/<int:recipe_id>/translations/<language_code>', methods=['DELETE'])
-@login_required
-def delete_translation(recipe_id, language_code):
-    """Delete a recipe translation."""
-    try:
-        from models import RecipeTranslation
-        translation = RecipeTranslation.query.filter_by(
-            recipe_id=recipe_id,
-            language_code=language_code
-        ).first()
-
-        if not translation:
-            return jsonify({'success': False, 'message': 'Translation not found'}), 404
-
-        db.session.delete(translation)
-        db.session.commit()
-
-        return jsonify({'success': True, 'message': 'Translation deleted'})
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

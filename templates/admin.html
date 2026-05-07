@@ -13,11 +13,11 @@
     <div class="container admin-container">
         <header class="admin-header">
             <div>
-                <h1>⚙️ Admin Dashboard</h1>
-                <p class="subtitle">Manage users, languages, and translation settings</p>
+                <h1>Admin Dashboard</h1>
+                <p class="subtitle">Manage users</p>
             </div>
             <div class="header-actions">
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to App</a>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to App</a>
                 <a href="{{ url_for('logout') }}" class="btn btn-outline">Logout</a>
             </div>
         </header>
@@ -34,197 +34,8 @@
 
         <div id="adminAlerts"></div>
 
-        <div class="tabs">
-            <button class="tab-button active" data-tab="languages">🌍 Languages</button>
-            <button class="tab-button" data-tab="prompts">✏️ Prompts</button>
-            <button class="tab-button" data-tab="api-settings">🔧 API Settings</button>
-            <button class="tab-button" data-tab="users">👥 Users</button>
-        </div>
-
-        <!-- Languages Tab -->
-        <div class="tab-content active" id="languages-tab">
-            <div class="card">
-                <h2>Manage Languages</h2>
-                <p>Add or remove languages available for translation.</p>
-
-                <div class="form-inline">
-                    <input
-                        type="text"
-                        id="newLanguage"
-                        placeholder="Enter language name (e.g., Japanese)"
-                        class="input-inline"
-                    >
-                    <button onclick="addLanguage()" class="btn btn-primary">
-                        Add Language
-                    </button>
-                </div>
-
-                <div class="language-list">
-                    <h3>Current Languages</h3>
-                    <div class="tag-list" id="languagesList">
-                        {% for lang in languages %}
-                        <div class="tag">
-                            <span>{{ lang }}</span>
-                            {% if lang != 'English' %}
-                            <button onclick="removeLanguage('{{ lang }}')" class="tag-remove">×</button>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Prompts Tab -->
-        <div class="tab-content" id="prompts-tab">
-            <div class="card">
-                <h2>Translation Prompts</h2>
-                <p>Customize the prompts used for recipe translation. Use <code>{language}</code> and <code>{recipe_text}</code> as placeholders.</p>
-
-                <div class="form-group">
-                    <label for="systemPrompt">System Prompt</label>
-                    <textarea
-                        id="systemPrompt"
-                        rows="3"
-                        placeholder="System-level instructions for the AI..."
-                    >{{ system_prompt }}</textarea>
-                    <small>This sets the overall behavior of the AI translator.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="translationPrompt">Translation Prompt Template</label>
-                    <textarea
-                        id="translationPrompt"
-                        rows="10"
-                        placeholder="Detailed translation instructions..."
-                    >{{ translation_prompt }}</textarea>
-                    <small>Use <code>{language}</code> for target language and <code>{recipe_text}</code> for the recipe content.</small>
-                </div>
-
-                <div class="button-group">
-                    <button onclick="savePrompts()" class="btn btn-primary">
-                        Save Prompts
-                    </button>
-                    <button onclick="resetSettings()" class="btn btn-danger">
-                        Reset to Defaults
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- API Settings Tab -->
-        <div class="tab-content" id="api-settings-tab">
-            <div class="card">
-                <h2>API Configuration</h2>
-                <p>Configure API keys, AI provider, model, and NYT cookie for recipe scraping.</p>
-
-                <div class="form-group">
-                    <label for="groqApiKey">Groq API Key</label>
-                    <input
-                        type="password"
-                        id="groqApiKey"
-                        placeholder="Enter your Groq API key..."
-                        class="input-full"
-                        value="{{ groq_api_key or '' }}"
-                    >
-                    <small>
-                        Your Groq API key for AI translation and ingredient substitution.
-                        Get one at <a href="https://console.groq.com/" target="_blank">console.groq.com</a>
-                    </small>
-                </div>
-
-                <div class="form-group">
-                    <label for="mistralApiKey">Mistral API Key</label>
-                    <input
-                        type="password"
-                        id="mistralApiKey"
-                        placeholder="Enter your Mistral API key..."
-                        class="input-full"
-                        value="{{ mistral_api_key or '' }}"
-                    >
-                    <small>
-                        Your Mistral API key for AI translation and ingredient substitution.
-                        Get one at <a href="https://console.mistral.ai/" target="_blank">console.mistral.ai</a>
-                    </small>
-                </div>
-
-                <div class="form-group">
-                    <label for="geminiApiKey">Gemini API Key</label>
-                    <input
-                        type="password"
-                        id="geminiApiKey"
-                        placeholder="Enter your Gemini API key..."
-                        class="input-full"
-                        value="{{ gemini_api_key or '' }}"
-                    >
-                    <small>
-                        Your Google Gemini API key for AI translation (uses non-deprecated models).
-                        Get one at <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
-                    </small>
-                </div>
-
-                <hr style="margin: 2rem 0;">
-
-                <div class="form-group">
-                    <label for="translatorPin">NYT Translator PIN</label>
-                    <input
-                        type="text"
-                        id="translatorPin"
-                        placeholder="Enter translator access PIN..."
-                        class="input-full"
-                        value="{{ translator_pin or '1234' }}"
-                        maxlength="6"
-                    >
-                    <small>
-                        PIN code for the standalone NYT recipe translator (recommended: 4-6 digits).
-                        Share this PIN and the URL <strong>/translator</strong> with users who need to translate NYT recipes.
-                    </small>
-                </div>
-
-                <hr style="margin: 2rem 0;">
-
-                <div class="form-group">
-                    <label for="aiProvider">AI Provider</label>
-                    <select id="aiProvider" class="select-full" onchange="updateModelOptions()">
-                        <option value="mistral" {% if ai_provider == 'mistral' %}selected{% endif %}>Mistral AI</option>
-                        <option value="groq" {% if ai_provider == 'groq' %}selected{% endif %}>Groq</option>
-                        <option value="gemini" {% if ai_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
-                    </select>
-                    <small>Choose the AI provider for recipe translation.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="aiModel">AI Model</label>
-                    <select id="aiModel" class="select-full">
-                        <!-- Options will be populated by JavaScript based on provider -->
-                    </select>
-                    <small id="modelHelp">Select the model to use for recipe translation.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="nytCookie">NYT Cookie (Optional)</label>
-                    <textarea
-                        id="nytCookie"
-                        rows="3"
-                        placeholder="Paste your NYT-S cookie here (optional, for premium recipes)..."
-                    >{{ nyt_cookie }}</textarea>
-                    <small>
-                        Enter your NYT-S cookie to access premium recipes. This is stored globally and will be used for all users.
-                        <br>
-                        To find your cookie: Log into cooking.nytimes.com, open browser DevTools (F12), go to Application → Cookies → find NYT-S
-                    </small>
-                </div>
-
-                <div class="button-group">
-                    <button onclick="saveApiSettings()" class="btn btn-primary">
-                        Save API Settings
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Users Tab -->
-        <div class="tab-content" id="users-tab">
+        <!-- Users -->
+        <div class="tab-content active" id="users-tab">
             <div class="card">
                 <h2>User Management</h2>
                 <p>Create and manage user accounts.</p>
@@ -327,10 +138,6 @@
         </div>
     </div>
 
-    <script>
-        // Pass template values to JavaScript
-        window.currentAiModel = '{{ ai_model }}';
-    </script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 </html>

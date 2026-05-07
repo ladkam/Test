@@ -1,318 +1,312 @@
 """
-Recipe scraper for New York Times Cooking website.
+Generic recipe scraper.
+
+Parses any URL that publishes schema.org/Recipe data via JSON-LD
+(BBC Good Food, Marmiton, Chefkoch, NYT Cooking, AllRecipes, Serious Eats,
+and most modern recipe sites). Falls back to a microdata/HTML scrape when
+JSON-LD is missing.
+
+All ingredient and instruction strings are converted to metric before
+returning, since this app is metric-only.
 """
-import requests
-from bs4 import BeautifulSoup
+from __future__ import annotations
+
 import json
 import re
-from typing import Dict, List, Optional
-from settings import get_nyt_cookie
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+
+import requests
+from bs4 import BeautifulSoup
+
+from unit_converter import convert_to_metric
+
+
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+
+class RecipeScrapeError(Exception):
+    """Raised when a URL can't be fetched or no recipe is found."""
 
 
 def parse_iso_duration(duration: str) -> str:
-    """
-    Convert ISO 8601 duration format to human-readable time.
-    Examples: PT5M -> 5 minutes, PT1H30M -> 1 hour 30 minutes
-    """
-    if not duration or not duration.startswith('PT'):
-        return duration
+    """Convert ISO 8601 duration (PT1H30M) to a human-readable string."""
+    if not duration or not isinstance(duration, str) or not duration.startswith("PT"):
+        return duration or ""
 
-    duration = duration[2:]  # Remove 'PT'
-    hours = 0
-    minutes = 0
+    body = duration[2:]
+    hours = int(m.group(1)) if (m := re.search(r"(\d+)H", body)) else 0
+    minutes = int(m.group(1)) if (m := re.search(r"(\d+)M", body)) else 0
 
-    # Extract hours
-    hour_match = re.search(r'(\d+)H', duration)
-    if hour_match:
-        hours = int(hour_match.group(1))
-
-    # Extract minutes
-    min_match = re.search(r'(\d+)M', duration)
-    if min_match:
-        minutes = int(min_match.group(1))
-
-    # Build human-readable string
     parts = []
-    if hours > 0:
+    if hours:
         parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
-    if minutes > 0:
+    if minutes:
         parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+    return " ".join(parts) if parts else duration
 
-    return ' '.join(parts) if parts else duration
+
+def _matches_recipe(at_type: Any) -> bool:
+    if at_type == "Recipe":
+        return True
+    if isinstance(at_type, list) and "Recipe" in at_type:
+        return True
+    return False
 
 
-class NYTRecipeScraper:
-    """Scraper for New York Times Cooking recipes."""
+def _walk_for_recipe(node: Any) -> Optional[Dict]:
+    """Recursively descend dicts/lists looking for a Recipe object."""
+    if isinstance(node, dict):
+        if _matches_recipe(node.get("@type")):
+            return node
+        for key in ("@graph", "mainEntity", "mainEntityOfPage", "itemListElement"):
+            if key in node:
+                found = _walk_for_recipe(node[key])
+                if found:
+                    return found
+        for value in node.values():
+            if isinstance(value, (dict, list)):
+                found = _walk_for_recipe(value)
+                if found:
+                    return found
+    elif isinstance(node, list):
+        for item in node:
+            found = _walk_for_recipe(item)
+            if found:
+                return found
+    return None
 
-    def __init__(self, nyt_cookie: Optional[str] = None):
-        """
-        Initialize the scraper.
 
-        Args:
-            nyt_cookie: Optional NYT-S cookie for authenticated access (defaults to settings if not provided)
-        """
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        self.cookies = {}
-        # Use provided cookie, or fall back to settings
-        cookie_to_use = nyt_cookie if nyt_cookie is not None else get_nyt_cookie()
-        if cookie_to_use:
-            self.cookies['NYT-S'] = cookie_to_use
-
-    def scrape_recipe(self, url: str) -> Dict:
-        """
-        Scrape a recipe from NYT Cooking.
-
-        Args:
-            url: The NYT Cooking recipe URL
-
-        Returns:
-            Dictionary containing recipe information
-        """
+def _extract_json_ld(soup: BeautifulSoup) -> Optional[Dict]:
+    for script in soup.find_all("script", type="application/ld+json"):
+        raw = script.string or script.get_text() or ""
+        if not raw.strip():
+            continue
         try:
-            response = requests.get(url, headers=self.headers, cookies=self.cookies, timeout=30)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            raise Exception(f"Failed to fetch recipe: {str(e)}")
-
-        soup = BeautifulSoup(response.content, 'lxml')
-
-        # Try to extract JSON-LD structured data first (most reliable)
-        recipe_data = self._extract_json_ld(soup)
-
-        if not recipe_data:
-            # Fallback to HTML parsing
-            recipe_data = self._extract_from_html(soup)
-
-        return recipe_data
-
-    def _extract_json_ld(self, soup: BeautifulSoup) -> Optional[Dict]:
-        """Extract recipe data from JSON-LD structured data."""
-        scripts = soup.find_all('script', type='application/ld+json')
-
-        for script in scripts:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
             try:
-                data = json.loads(script.string)
-
-                # Handle both single object and array
-                if isinstance(data, list):
-                    for item in data:
-                        if item.get('@type') == 'Recipe':
-                            return self._parse_json_ld_recipe(item)
-                elif isinstance(data, dict) and data.get('@type') == 'Recipe':
-                    return self._parse_json_ld_recipe(data)
-            except (json.JSONDecodeError, AttributeError):
+                data = json.loads(raw.replace("\n", " "))
+            except json.JSONDecodeError:
                 continue
+        recipe = _walk_for_recipe(data)
+        if recipe:
+            return recipe
+    return None
 
-        return None
 
-    def _parse_json_ld_recipe(self, data: Dict) -> Dict:
-        """Parse JSON-LD recipe data into our format."""
-        recipe = {
-            'title': data.get('name', ''),
-            'description': data.get('description', ''),
-            'yield': data.get('recipeYield', ''),
-            'time': {
-                'prep': parse_iso_duration(data.get('prepTime', '')),
-                'cook': parse_iso_duration(data.get('cookTime', '')),
-                'total': parse_iso_duration(data.get('totalTime', ''))
-            },
-            'ingredients': [],
-            'instructions': [],
-            'author': '',
-            'url': data.get('url', ''),
-            'image': '',
-            'nutrition': {}
-        }
+def _first_image(image_field: Any) -> str:
+    if isinstance(image_field, str):
+        return image_field
+    if isinstance(image_field, dict):
+        return image_field.get("url", "") or ""
+    if isinstance(image_field, list) and image_field:
+        first = image_field[0]
+        if isinstance(first, dict):
+            return first.get("url", "") or ""
+        return str(first)
+    return ""
 
-        # Extract image
-        image = data.get('image', '')
-        if isinstance(image, dict):
-            recipe['image'] = image.get('url', '')
-        elif isinstance(image, list) and len(image) > 0:
-            if isinstance(image[0], dict):
-                recipe['image'] = image[0].get('url', '')
-            else:
-                recipe['image'] = image[0]
-        elif isinstance(image, str):
-            recipe['image'] = image
 
-        # Extract ingredients
-        ingredients = data.get('recipeIngredient', [])
-        if isinstance(ingredients, list):
-            recipe['ingredients'] = ingredients
-        elif isinstance(ingredients, str):
-            recipe['ingredients'] = [ingredients]
+def _author_name(author_field: Any) -> str:
+    if isinstance(author_field, dict):
+        return author_field.get("name", "") or ""
+    if isinstance(author_field, list) and author_field:
+        first = author_field[0]
+        if isinstance(first, dict):
+            return first.get("name", "") or ""
+        return str(first)
+    return str(author_field) if author_field else ""
 
-        # Extract instructions
-        instructions = data.get('recipeInstructions', [])
-        if isinstance(instructions, list):
-            for instruction in instructions:
-                if isinstance(instruction, dict):
-                    text = instruction.get('text', '')
-                elif isinstance(instruction, str):
-                    text = instruction
+
+def _flatten_instructions(field: Any) -> List[str]:
+    out: List[str] = []
+    if isinstance(field, str):
+        return [field]
+    if isinstance(field, list):
+        for item in field:
+            if isinstance(item, dict):
+                t = item.get("@type", "")
+                if t == "HowToSection":
+                    out.extend(_flatten_instructions(item.get("itemListElement", [])))
                 else:
-                    continue
+                    text = item.get("text") or item.get("name") or ""
+                    if text:
+                        out.append(text)
+            elif isinstance(item, str):
+                out.append(item)
+    return out
 
-                if text:
-                    recipe['instructions'].append(text)
-        elif isinstance(instructions, str):
-            recipe['instructions'] = [instructions]
 
-        # Extract author
-        author = data.get('author', {})
-        if isinstance(author, dict):
-            recipe['author'] = author.get('name', '')
-        elif isinstance(author, list) and len(author) > 0:
-            recipe['author'] = author[0].get('name', '') if isinstance(author[0], dict) else str(author[0])
-        else:
-            recipe['author'] = str(author) if author else ''
+def _parse_json_ld_recipe(data: Dict) -> Dict:
+    ingredients = data.get("recipeIngredient") or data.get("ingredients") or []
+    if isinstance(ingredients, str):
+        ingredients = [ingredients]
 
-        # Extract nutrition information
-        nutrition_data = data.get('nutrition', {})
-        if isinstance(nutrition_data, dict):
-            recipe['nutrition'] = {
-                'calories': nutrition_data.get('calories', ''),
-                'protein': nutrition_data.get('proteinContent', ''),
-                'fat': nutrition_data.get('fatContent', ''),
-                'saturated_fat': nutrition_data.get('saturatedFatContent', ''),
-                'carbohydrates': nutrition_data.get('carbohydrateContent', ''),
-                'fiber': nutrition_data.get('fiberContent', ''),
-                'sugar': nutrition_data.get('sugarContent', ''),
-                'sodium': nutrition_data.get('sodiumContent', ''),
-                'cholesterol': nutrition_data.get('cholesterolContent', '')
-            }
-            # Remove empty values
-            recipe['nutrition'] = {k: v for k, v in recipe['nutrition'].items() if v}
+    instructions = _flatten_instructions(data.get("recipeInstructions") or [])
 
-        return recipe
+    nutrition_data = data.get("nutrition") or {}
+    nutrition: Dict[str, str] = {}
+    if isinstance(nutrition_data, dict):
+        for key, label in (
+            ("calories", "calories"),
+            ("proteinContent", "protein"),
+            ("fatContent", "fat"),
+            ("saturatedFatContent", "saturated_fat"),
+            ("carbohydrateContent", "carbohydrates"),
+            ("fiberContent", "fiber"),
+            ("sugarContent", "sugar"),
+            ("sodiumContent", "sodium"),
+            ("cholesterolContent", "cholesterol"),
+        ):
+            value = nutrition_data.get(key)
+            if value:
+                nutrition[label] = value
 
-    def _extract_from_html(self, soup: BeautifulSoup) -> Dict:
-        """Fallback method to extract recipe data from HTML."""
-        recipe = {
-            'title': '',
-            'description': '',
-            'yield': '',
-            'time': {'prep': '', 'cook': '', 'total': ''},
-            'ingredients': [],
-            'instructions': [],
-            'author': '',
-            'url': '',
-            'image': '',
-            'nutrition': {}
+    return {
+        "title": data.get("name", "") or "",
+        "description": data.get("description", "") or "",
+        "yield": data.get("recipeYield", "") or "",
+        "time": {
+            "prep": parse_iso_duration(data.get("prepTime", "") or ""),
+            "cook": parse_iso_duration(data.get("cookTime", "") or ""),
+            "total": parse_iso_duration(data.get("totalTime", "") or ""),
+        },
+        "ingredients": [str(i) for i in ingredients],
+        "instructions": [str(i) for i in instructions],
+        "author": _author_name(data.get("author", "")),
+        "url": data.get("url", "") or "",
+        "image": _first_image(data.get("image", "")),
+        "nutrition": nutrition,
+    }
+
+
+def _extract_from_html(soup: BeautifulSoup) -> Dict:
+    """Best-effort microdata/HTML scrape when no JSON-LD recipe is present."""
+    title_tag = soup.find(attrs={"itemprop": "name"}) or soup.find("h1")
+    title = title_tag.get_text(strip=True) if title_tag else ""
+
+    description = ""
+    desc_tag = soup.find("meta", {"name": "description"}) or soup.find(
+        "meta", {"property": "og:description"}
+    )
+    if desc_tag:
+        description = desc_tag.get("content", "") or ""
+
+    image = ""
+    og_image = soup.find("meta", {"property": "og:image"})
+    if og_image:
+        image = og_image.get("content", "") or ""
+
+    ingredient_tags = soup.find_all(attrs={"itemprop": "recipeIngredient"})
+    if not ingredient_tags:
+        ingredient_tags = soup.find_all("li", class_=re.compile("ingredient", re.I))
+    ingredients = [tag.get_text(strip=True) for tag in ingredient_tags if tag.get_text(strip=True)]
+
+    instruction_tags = soup.find_all(attrs={"itemprop": "recipeInstructions"})
+    if not instruction_tags:
+        instruction_tags = soup.find_all("li", class_=re.compile("instruction|preparation|step", re.I))
+    instructions = [tag.get_text(strip=True) for tag in instruction_tags if tag.get_text(strip=True)]
+
+    return {
+        "title": title,
+        "description": description,
+        "yield": "",
+        "time": {"prep": "", "cook": "", "total": ""},
+        "ingredients": ingredients,
+        "instructions": instructions,
+        "author": "",
+        "url": "",
+        "image": image,
+        "nutrition": {},
+    }
+
+
+def _convert_recipe_to_metric(recipe: Dict) -> Dict:
+    recipe["ingredients"] = [convert_to_metric(i) for i in recipe.get("ingredients", [])]
+    recipe["instructions"] = [convert_to_metric(s) for s in recipe.get("instructions", [])]
+    return recipe
+
+
+def scrape_recipe(url: str, *, timeout: int = 30) -> Dict:
+    """Fetch and parse a recipe at `url`, returning a metric-converted dict.
+
+    Raises RecipeScrapeError if the URL can't be fetched or no recipe is found.
+    """
+    try:
+        response = requests.get(url, headers={"User-Agent": BROWSER_UA}, timeout=timeout)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise RecipeScrapeError(f"Failed to fetch recipe: {e}") from e
+
+    soup = BeautifulSoup(response.content, "lxml")
+    recipe_data = _extract_json_ld(soup)
+    if not recipe_data:
+        recipe_data = None
+
+    recipe = _parse_json_ld_recipe(recipe_data) if recipe_data else _extract_from_html(soup)
+
+    if not recipe.get("title") and not recipe.get("ingredients"):
+        raise RecipeScrapeError("No recipe data found on page")
+
+    recipe["source_host"] = urlparse(url).netloc
+    if not recipe.get("url"):
+        recipe["url"] = url
+
+    return _convert_recipe_to_metric(recipe)
+
+
+def format_recipe(recipe: Dict) -> str:
+    """Render a recipe dict as readable markdown."""
+    out: List[str] = [f"# {recipe.get('title', '')}\n"]
+    if recipe.get("author"):
+        out.append(f"**By:** {recipe['author']}\n")
+    if recipe.get("description"):
+        out.append(f"{recipe['description']}\n")
+    if recipe.get("yield"):
+        out.append(f"**Yield:** {recipe['yield']}\n")
+
+    time_info = recipe.get("time", {}) or {}
+    parts = []
+    if time_info.get("prep"):
+        parts.append(f"Prep: {time_info['prep']}")
+    if time_info.get("cook"):
+        parts.append(f"Cook: {time_info['cook']}")
+    if time_info.get("total"):
+        parts.append(f"Total: {time_info['total']}")
+    if parts:
+        out.append(f"**Time:** {', '.join(parts)}\n")
+
+    nutrition = recipe.get("nutrition") or {}
+    if nutrition:
+        out.append("## Nutrition (per serving)\n")
+        labels = {
+            "calories": "Calories",
+            "protein": "Protein",
+            "fat": "Total Fat",
+            "saturated_fat": "Saturated Fat",
+            "carbohydrates": "Carbohydrates",
+            "fiber": "Fiber",
+            "sugar": "Sugar",
+            "sodium": "Sodium",
+            "cholesterol": "Cholesterol",
         }
+        for key, label in labels.items():
+            if nutrition.get(key):
+                out.append(f"- **{label}:** {nutrition[key]}")
+        out.append("")
 
-        # Extract image
-        image_tag = soup.find('img', class_=re.compile('recipe.*image', re.I))
-        if not image_tag:
-            image_tag = soup.find('meta', property='og:image')
-        if image_tag:
-            recipe['image'] = image_tag.get('content') or image_tag.get('src', '')
+    out.append("## Ingredients\n")
+    for ing in recipe.get("ingredients", []):
+        out.append(f"- {ing}")
+    out.append("")
 
-        # Extract title
-        title_tag = soup.find('h1', class_=re.compile('recipe.*title|pantry.*title', re.I))
-        if not title_tag:
-            title_tag = soup.find('h1')
-        recipe['title'] = title_tag.get_text(strip=True) if title_tag else ''
+    out.append("## Instructions\n")
+    for idx, step in enumerate(recipe.get("instructions", []), 1):
+        out.append(f"{idx}. {step}")
+    out.append("")
 
-        # Extract description
-        desc_tag = soup.find('meta', {'name': 'description'})
-        if desc_tag:
-            recipe['description'] = desc_tag.get('content', '')
-
-        # Extract yield/servings
-        yield_tag = soup.find(class_=re.compile('yield|servings', re.I))
-        recipe['yield'] = yield_tag.get_text(strip=True) if yield_tag else ''
-
-        # Extract ingredients
-        ingredient_tags = soup.find_all('li', class_=re.compile('ingredient', re.I))
-        if not ingredient_tags:
-            ingredient_tags = soup.find_all('span', {'itemprop': 'recipeIngredient'})
-
-        for tag in ingredient_tags:
-            ingredient = tag.get_text(strip=True)
-            if ingredient:
-                recipe['ingredients'].append(ingredient)
-
-        # Extract instructions
-        instruction_tags = soup.find_all('li', class_=re.compile('instruction|preparation', re.I))
-        if not instruction_tags:
-            instruction_tags = soup.find_all('ol', class_=re.compile('recipe|preparation', re.I))
-            if instruction_tags:
-                instruction_tags = instruction_tags[0].find_all('li')
-
-        for tag in instruction_tags:
-            instruction = tag.get_text(strip=True)
-            if instruction:
-                recipe['instructions'].append(instruction)
-
-        # Extract author
-        author_tag = soup.find(class_=re.compile('author', re.I))
-        if not author_tag:
-            author_tag = soup.find('span', {'itemprop': 'author'})
-        recipe['author'] = author_tag.get_text(strip=True) if author_tag else ''
-
-        return recipe
-
-    def format_recipe(self, recipe: Dict) -> str:
-        """Format recipe data as readable text."""
-        output = []
-
-        output.append(f"# {recipe['title']}\n")
-
-        if recipe['author']:
-            output.append(f"**By:** {recipe['author']}\n")
-
-        if recipe['description']:
-            output.append(f"{recipe['description']}\n")
-
-        if recipe['yield']:
-            output.append(f"**Yield:** {recipe['yield']}\n")
-
-        # Time information
-        time_info = []
-        if recipe['time']['prep']:
-            time_info.append(f"Prep: {recipe['time']['prep']}")
-        if recipe['time']['cook']:
-            time_info.append(f"Cook: {recipe['time']['cook']}")
-        if recipe['time']['total']:
-            time_info.append(f"Total: {recipe['time']['total']}")
-
-        if time_info:
-            output.append(f"**Time:** {', '.join(time_info)}\n")
-
-        # Nutrition information
-        nutrition = recipe.get('nutrition', {})
-        if nutrition:
-            output.append("## Nutrition (per serving)\n")
-            nutrition_labels = {
-                'calories': 'Calories',
-                'protein': 'Protein',
-                'fat': 'Total Fat',
-                'saturated_fat': 'Saturated Fat',
-                'carbohydrates': 'Carbohydrates',
-                'fiber': 'Fiber',
-                'sugar': 'Sugar',
-                'sodium': 'Sodium',
-                'cholesterol': 'Cholesterol'
-            }
-            for key, label in nutrition_labels.items():
-                if key in nutrition and nutrition[key]:
-                    output.append(f"- **{label}:** {nutrition[key]}")
-            output.append("")
-
-        # Ingredients
-        output.append("## Ingredients\n")
-        for ingredient in recipe['ingredients']:
-            output.append(f"- {ingredient}")
-        output.append("")
-
-        # Instructions
-        output.append("## Instructions\n")
-        for idx, instruction in enumerate(recipe['instructions'], 1):
-            output.append(f"{idx}. {instruction}")
-        output.append("")
-
-        return "\n".join(output)
+    return "\n".join(out)
