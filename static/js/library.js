@@ -241,7 +241,7 @@ function displayRecipes() {
                 if (action === 'delete') {
                     deleteRecipe(recipeId);
                 } else if (action === 'edit') {
-                    window.location.href = `/recipes/${recipeId}/edit`;
+                    window.location.href = `/recipe/edit/${recipeId}`;
                 } else if (action === 'plan') {
                     addToPlan(recipeId);
                 }
