@@ -436,6 +436,25 @@ body {
     flex-shrink: 0;
 }
 
+/* Shared inline icon set (see templates/_icons.html) */
+.icon {
+    display: inline-block;
+    vertical-align: -3px;
+    flex-shrink: 0;
+    margin-right: 0.4em;
+}
+
+.btn .icon,
+.tab-button .icon {
+    margin-right: 0.35em;
+}
+
+h1 .icon,
+h2 .icon {
+    vertical-align: -2px;
+    margin-right: 0.5rem;
+}
+
 .sidebar-footer {
     position: absolute;
     bottom: 0;
@@ -1239,6 +1258,7 @@ select {
     display: flex;
     align-items: start;
     gap: 0.5rem;
+    animation: fadeIn 0.25s ease-out;
 }
 
 .alert-error {
@@ -2056,6 +2076,7 @@ select {
 
 .tab-content.active {
     display: block;
+    animation: fadeIn 0.2s ease-out;
 }
 
 /* Forms */
