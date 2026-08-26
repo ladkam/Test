@@ -8,11 +8,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    {% from '_icons.html' import icon %}
     {% include '_sidebar.html' %}
 
     <div class="container">
         <header>
-            <h1>✏️ Edit Recipe</h1>
+            <h1>{{ icon('pencil', 24) }} Edit Recipe</h1>
         </header>
 
         <div class="card">
@@ -52,21 +53,21 @@
                                 <img src="{{ recipe.image_url }}" alt="Recipe image" id="imagePreview">
                             {% else %}
                                 <div class="no-image" id="noImagePlaceholder">
-                                    <span>📷</span>
+                                    <span>{{ icon('camera', 22) }}</span>
                                     <p>No image</p>
                                 </div>
                             {% endif %}
                         </div>
                         <div class="image-upload-controls">
                             <div class="upload-btn-wrapper">
-                                <button type="button" class="btn btn-secondary" id="uploadBtn">📤 Upload Image</button>
+                                <button type="button" class="btn btn-secondary" id="uploadBtn">{{ icon('upload', 15) }} Upload Image</button>
                                 <input type="file" id="imageFile" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
                             </div>
                             <span class="upload-divider">or</span>
                             <input type="url" id="imageUrl" name="image_url" class="input-full"
                                    value="{{ recipe.image_url or '' }}" placeholder="Paste image URL...">
                             {% if recipe.image_url %}
-                            <button type="button" class="btn btn-outline btn-sm" id="removeImageBtn">🗑️ Remove</button>
+                            <button type="button" class="btn btn-outline btn-sm" id="removeImageBtn">{{ icon('trash', 14) }} Remove</button>
                             {% endif %}
                         </div>
                     </div>
@@ -170,7 +171,7 @@
                 </div>
 
                 <div class="button-group">
-                    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    <button type="submit" class="btn btn-primary">{{ icon('save', 15) }} Save Changes</button>
                     <a href="{{ url_for('library') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
@@ -178,6 +179,13 @@
     </div>
 
     <script>
+        // Icon snippets (kept in sync with templates/_icons.html)
+        const ICONS = {
+            camera: {{ icon('camera', 22)|tojson }},
+            upload: {{ icon('upload', 15)|tojson }},
+            trash: {{ icon('trash', 14)|tojson }}
+        };
+
         // Tags management
         let recipeTags = {{ recipe.tags|tojson|safe if recipe.tags else '[]'|safe }};
         const tagsDisplay = document.getElementById('tagsDisplay');
@@ -238,14 +246,14 @@
                     removeBtn.type = 'button';
                     removeBtn.className = 'btn btn-outline btn-sm';
                     removeBtn.id = 'removeImageBtn';
-                    removeBtn.textContent = '🗑️ Remove';
+                    removeBtn.innerHTML = `${ICONS.trash} Remove`;
                     removeBtn.onclick = removeImage;
                     imageUrlInput.parentElement.appendChild(removeBtn);
                 }
             } else {
                 imagePreviewBox.innerHTML = `
                     <div class="no-image" id="noImagePlaceholder">
-                        <span>📷</span>
+                        <span>${ICONS.camera}</span>
                         <p>No image</p>
                     </div>`;
                 const removeBtn = document.getElementById('removeImageBtn');
@@ -291,7 +299,7 @@
                 alert('Error uploading image: ' + error.message);
             } finally {
                 uploadBtn.disabled = false;
-                uploadBtn.textContent = '📤 Upload Image';
+                uploadBtn.innerHTML = `${ICONS.upload} Upload Image`;
                 imageFileInput.value = '';
             }
         });

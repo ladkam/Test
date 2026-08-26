@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 import os
 import tempfile
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 import requests
@@ -35,6 +36,8 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 # Database configuration with absolute path to persist data
 # Use absolute path to avoid losing data when instance/ folder is gitignored
@@ -315,9 +318,12 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
+        remember = bool(request.form.get('remember'))
+
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
-            login_user(user)
+            session.permanent = True
+            login_user(user, remember=remember, duration=timedelta(days=30))
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
         else:

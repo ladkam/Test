@@ -8,12 +8,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    {% from '_icons.html' import icon %}
     {% include '_sidebar.html' %}
 
     <div class="container">
         <header class="planner-header">
             <div>
-                <h1>🛒 Shopping List</h1>
+                <h1>{{ icon('cart', 24) }} Shopping List</h1>
                 <p class="subtitle">Your ingredients in English with metric measurements</p>
             </div>
             <div class="planner-actions">

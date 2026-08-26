@@ -8,16 +8,17 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    {% from '_icons.html' import icon %}
     {% include '_sidebar.html' %}
 
     <div class="container">
         <header>
-            <h1>🍳 NYT Cooking Recipe Translator</h1>
+            <h1>{{ icon('pan', 28) }} NYT Cooking Recipe Translator</h1>
             <p class="subtitle">Download, convert to metric, and translate recipes to any language</p>
             <div class="features-quick">
-                <span class="feature-badge">🌍 Multi-language support</span>
-                <span class="feature-badge">📏 Metric conversion</span>
-                <span class="feature-badge">⚡ Powered by AI</span>
+                <span class="feature-badge">{{ icon('globe', 14) }} Multi-language support</span>
+                <span class="feature-badge">{{ icon('ruler', 14) }} Metric conversion</span>
+                <span class="feature-badge">{{ icon('bolt', 14) }} Powered by AI</span>
             </div>
         </header>
 
@@ -64,10 +65,10 @@
                     <h2 id="recipeTitle">Recipe</h2>
                     <div class="results-actions">
                         <button id="copyBtn" class="btn btn-secondary" title="Copy recipe to clipboard">
-                            📋 Copy
+                            {{ icon('clipboard', 15) }} Copy
                         </button>
                         <button id="downloadBtn" class="btn btn-secondary">
-                            📥 Download
+                            {{ icon('download', 15) }} Download
                         </button>
                     </div>
                 </div>

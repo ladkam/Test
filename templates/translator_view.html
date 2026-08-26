@@ -321,10 +321,11 @@
     </style>
 </head>
 <body>
+    {% from '_icons.html' import icon %}
     {% if not pin_verified %}
     <div class="pin-modal" id="pinModal">
         <div class="pin-modal-content">
-            <h2>🔒 Recipe Translator Access</h2>
+            <h2>{{ icon('lock', 20) }} Recipe Translator Access</h2>
             <p>Enter PIN to access the NYT recipe translator</p>
             <input type="password" id="pinInput" class="pin-input" maxlength="6" placeholder="••••" autocomplete="off">
             <p class="pin-error" id="pinError">Incorrect PIN. Please try again.</p>
@@ -335,7 +336,7 @@
 
     <div class="translator-container">
         <div class="translator-header">
-            <h1>🌍 NYT Recipe Translator</h1>
+            <h1>{{ icon('globe', 24) }} NYT Recipe Translator</h1>
             <p>Translate recipes from NYT Cooking into your preferred language</p>
         </div>
 
@@ -364,7 +365,7 @@
             </div>
 
             <button id="translateBtn" class="translate-btn" onclick="translateRecipe()">
-                🔄 Translate Recipe
+                {{ icon('refresh', 16) }} Translate Recipe
             </button>
         </div>
 
@@ -374,8 +375,8 @@
 
         <div class="recipe-display" id="recipeDisplay">
             <div class="recipe-actions-top">
-                <button onclick="copyRecipe()">📋 Copy</button>
-                <button onclick="window.print()">🖨️ Print</button>
+                <button onclick="copyRecipe()">{{ icon('clipboard', 15) }} Copy</button>
+                <button onclick="window.print()">{{ icon('printer', 15) }} Print</button>
             </div>
 
             <img id="recipeImage" class="recipe-image" alt="Recipe" style="display: none;">
@@ -398,6 +399,9 @@
 
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script>
+        const ICONS = {
+            refresh: {{ icon('refresh', 16)|tojson }}
+        };
         const pinVerified = {{ 'true' if pin_verified else 'false' }};
         let currentRecipe = null;
 
@@ -493,7 +497,7 @@
             } finally {
                 loadingMessage.style.display = 'none';
                 translateBtn.disabled = false;
-                translateBtn.textContent = '🔄 Translate Recipe';
+                translateBtn.innerHTML = `${ICONS.refresh} Translate Recipe`;
             }
         }
 

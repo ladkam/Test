@@ -8,12 +8,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    {% from '_icons.html' import icon %}
     {% include '_sidebar.html' %}
 
     <div class="container admin-container">
         <header class="admin-header">
             <div>
-                <h1>⚙️ Admin Dashboard</h1>
+                <h1>{{ icon('settings', 24) }} Admin Dashboard</h1>
                 <p class="subtitle">Manage users, languages, and translation settings</p>
             </div>
             <div class="header-actions">
@@ -22,23 +23,15 @@
             </div>
         </header>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        {% include '_flash_messages.html' %}
 
         <div id="adminAlerts"></div>
 
         <div class="tabs">
-            <button class="tab-button active" data-tab="languages">🌍 Languages</button>
-            <button class="tab-button" data-tab="prompts">✏️ Prompts</button>
-            <button class="tab-button" data-tab="api-settings">🔧 API Settings</button>
-            <button class="tab-button" data-tab="users">👥 Users</button>
+            <button class="tab-button active" data-tab="languages">{{ icon('globe') }} Languages</button>
+            <button class="tab-button" data-tab="prompts">{{ icon('pencil') }} Prompts</button>
+            <button class="tab-button" data-tab="api-settings">{{ icon('wrench') }} API Settings</button>
+            <button class="tab-button" data-tab="users">{{ icon('users') }} Users</button>
         </div>
 
         <!-- Languages Tab -->
@@ -270,7 +263,7 @@
                         <div class="form-group">
                             <label>&nbsp;</label>
                             <button onclick="createUser()" class="btn btn-primary">
-                                👤 Create User
+                                {{ icon('user') }} Create User
                             </button>
                         </div>
                     </div>
@@ -291,10 +284,10 @@
                                 <td><strong>{{ user.username }}</strong></td>
                                 <td class="user-actions">
                                     <button onclick="showChangePassword('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-secondary">
-                                        🔑 Change Password
+                                        {{ icon('key', 14) }} Change Password
                                     </button>
                                     <button onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" class="btn btn-sm btn-danger">
-                                        🗑️ Delete
+                                        {{ icon('trash', 14) }} Delete
                                     </button>
                                 </td>
                             </tr>
