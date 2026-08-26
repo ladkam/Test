@@ -13,6 +13,7 @@ stop a chat model from "helpfully" rewriting them.
 import requests
 import os
 from typing import Optional
+from translation_utils import parse_numbered_list
 
 
 class QwenTranslator:
@@ -105,6 +106,41 @@ class QwenTranslator:
             Translated text
         """
         return self._translate(text, target_language)
+
+    def translate_list(self, items: list, target_language: str) -> list:
+        """
+        Translate a list of items (ingredients or instructions) in a single
+        API call instead of one call per item.
+
+        Qwen-MT translates literally with no embedded instructions, so the
+        items are just joined into a numbered block of plain text -- no
+        instructional wrapper -- and translated as one piece of text.
+
+        Args:
+            items: List of strings to translate
+            target_language: Target language
+
+        Returns:
+            List of translated strings, same length/order as items
+        """
+        if not items:
+            return []
+
+        numbered_items = "\n".join(f"{i + 1}. {item}" for i, item in enumerate(items))
+
+        try:
+            translated_text = self._translate(numbered_items, target_language)
+        except Exception:
+            return [self.translate_text(item, target_language) for item in items]
+
+        translated_items = parse_numbered_list(translated_text)
+
+        if len(translated_items) != len(items):
+            # Batched response didn't line up 1:1 -- fall back to
+            # per-item calls so data doesn't end up misaligned.
+            return [self.translate_text(item, target_language) for item in items]
+
+        return translated_items
 
     def test_connection(self) -> bool:
         """

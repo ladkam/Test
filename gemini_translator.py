@@ -6,6 +6,7 @@ Uses the current google-genai SDK and non-deprecated Gemini models.
 import os
 from typing import Optional
 from settings import get_translation_prompt, get_system_prompt, get_ai_model
+from translation_utils import build_numbered_prompt, parse_numbered_list
 
 try:
     from google import genai
@@ -172,34 +173,18 @@ class GeminiTranslator:
         if not items:
             return []
 
-        # Join items with numbering for better context
-        numbered_items = "\n".join([f"{i+1}. {item}" for i, item in enumerate(items)])
-
-        prompt = (
-            f"Translate the following items to {target_language}. "
-            f"Keep the same numbering and format. Provide only the translations:\n\n"
-            f"{numbered_items}"
-        )
-
         try:
-            response = self._generate(prompt)
+            response = self._generate(build_numbered_prompt(items, target_language))
 
             if not response or not response.text:
                 raise Exception("Empty response from Gemini API")
 
-            # Parse the response back into a list
-            translated_text = response.text.strip()
-            translated_items = []
+            translated_items = parse_numbered_list(response.text.strip())
 
-            for line in translated_text.split('\n'):
-                line = line.strip()
-                if line:
-                    # Remove numbering if present
-                    if '. ' in line:
-                        parts = line.split('. ', 1)
-                        if len(parts) == 2 and parts[0].isdigit():
-                            line = parts[1]
-                    translated_items.append(line)
+            if len(translated_items) != len(items):
+                # Batched response didn't line up 1:1 -- fall back to
+                # per-item calls so data doesn't end up misaligned.
+                return [self.translate_text(item, target_language) for item in items]
 
             return translated_items
 
