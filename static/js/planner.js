@@ -44,6 +44,17 @@ async function loadAvailableRecipes() {
         if (data.success) {
             allRecipes = data.recipes;
             displayAvailableRecipes();
+
+            // Handle ?add=<recipeId> redirect from the library page
+            const params = new URLSearchParams(window.location.search);
+            const addId = params.get('add');
+            if (addId) {
+                const recipeId = parseInt(addId, 10);
+                if (recipeId) {
+                    window.history.replaceState({}, '', '/planner');
+                    addToPlan(recipeId);
+                }
+            }
         }
     } catch (error) {
         console.error('Error loading recipes:', error);
@@ -194,7 +205,11 @@ let currentShoppingList = []; // Store shopping list data for copy/print
 async function addToPlan(recipeId) {
     // Find recipe to get default servings
     const recipe = allRecipes.find(r => r.id === recipeId);
-    const defaultServings = recipe && recipe.servings ? parseInt(recipe.servings.toString().match(/\d+/)?.[0] || 1) : 1;
+    if (!recipe) {
+        alert('Recipe not found. It may already be in your plan.');
+        return;
+    }
+    const defaultServings = recipe.servings ? parseInt(recipe.servings.toString().match(/\d+/)?.[0] || 1) : 1;
 
     // Store the recipe ID for later confirmation
     pendingRecipeId = recipeId;
