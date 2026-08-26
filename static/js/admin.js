@@ -167,6 +167,10 @@ const MODEL_OPTIONS = {
         { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite - Cost-optimized (FREE)', free: true },
         { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Preview) - Best quality (PAID)', free: false },
         { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro - Best reasoning (PAID)', free: false }
+    ],
+    qwen: [
+        { value: 'qwen-mt-turbo', label: 'Qwen-MT Turbo (Recommended, cheapest)', free: false },
+        { value: 'qwen-mt-plus', label: 'Qwen-MT Plus (Higher quality)', free: false }
     ]
 };
 
@@ -200,6 +204,8 @@ function updateModelOptions() {
         modelHelp.textContent = 'Groq models (All free with generous limits). Llama 3.3 70B Versatile recommended for best quality.';
     } else if (provider === 'gemini') {
         modelHelp.textContent = 'Google Gemini models. FREE: 3 Flash, 2.5 Flash, 2.5 Flash-Lite. PAID: 3 Pro, 2.5 Pro. Recommended: 2.5 Flash (free, stable).';
+    } else if (provider === 'qwen') {
+        modelHelp.textContent = 'Alibaba Qwen-MT: a dedicated translation model (not a general chat model), covers 92 languages including Chinese/Japanese/Korean. Recommended: qwen-mt-turbo (cheapest).';
     }
 }
 
@@ -207,6 +213,7 @@ async function saveApiSettings() {
     const groqApiKey = document.getElementById('groqApiKey').value.trim();
     const mistralApiKey = document.getElementById('mistralApiKey').value.trim();
     const geminiApiKey = document.getElementById('geminiApiKey').value.trim();
+    const qwenApiKey = document.getElementById('qwenApiKey').value.trim();
     const translatorPin = document.getElementById('translatorPin').value.trim();
     const aiProvider = document.getElementById('aiProvider').value;
     const aiModel = document.getElementById('aiModel').value;
@@ -220,6 +227,7 @@ async function saveApiSettings() {
                 groq_api_key: groqApiKey,
                 mistral_api_key: mistralApiKey,
                 gemini_api_key: geminiApiKey,
+                qwen_api_key: qwenApiKey,
                 translator_pin: translatorPin,
                 ai_provider: aiProvider,
                 ai_model: aiModel,

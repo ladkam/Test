@@ -28,7 +28,9 @@ class UnitConverter:
     }
 
     # Conversion factors
-    # Note: teaspoon/tablespoon are universal and not converted
+    # Note: teaspoon/tablespoon are a standard measure in both imperial and
+    # metric recipes (a "tbsp"/"tsp" is a physical spoon, not a system-specific
+    # unit), so they are intentionally left unconverted.
     CONVERSIONS = {
         # Volume
         'cup': ('ml', 236.588),
@@ -65,7 +67,7 @@ class UnitConverter:
         # Pattern to match measurements like "2 cups", "2¼ cups", "350°F", "6-ounce"
         # Supports: integers, decimals, fractions (1/2), unicode fractions (½),
         # and mixed numbers (2¼, 2 1/2). Allows hyphen or space between number and unit.
-        # Note: teaspoon/tablespoon are universal and not matched for conversion
+        # Note: teaspoon/tablespoon are intentionally not matched for conversion.
         self.measurement_pattern = re.compile(
             r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?)[\s-]*'
             r'(cup|cups|fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'

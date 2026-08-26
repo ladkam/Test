@@ -21,6 +21,7 @@ from menshealth_scraper import MensHealthRecipeScraper
 from unit_converter import UnitConverter
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
+from qwen_translator import QwenTranslator
 try:
     from gemini_translator import GeminiTranslator
     GEMINI_AVAILABLE = True
@@ -364,6 +365,7 @@ def admin_dashboard():
     groq_api_key = SettingsModel.get('groq_api_key', '')
     mistral_api_key = SettingsModel.get('mistral_api_key', '')
     gemini_api_key = SettingsModel.get('gemini_api_key', '')
+    qwen_api_key = SettingsModel.get('qwen_api_key', '')
     translator_pin = SettingsModel.get('translator_access_pin', '1234')
 
     return render_template(
@@ -378,6 +380,7 @@ def admin_dashboard():
         groq_api_key=groq_api_key,
         mistral_api_key=mistral_api_key,
         gemini_api_key=gemini_api_key,
+        qwen_api_key=qwen_api_key,
         translator_pin=translator_pin
     )
 
@@ -455,6 +458,11 @@ def translate_recipe():
                     if not api_key:
                         return jsonify({'error': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
                     translator = GeminiTranslator(api_key=api_key)
+                elif ai_provider == 'qwen':
+                    api_key = get_api_key('qwen_api_key')
+                    if not api_key:
+                        return jsonify({'error': 'Qwen API key not configured. Please add it in the admin panel.'}), 500
+                    translator = QwenTranslator(api_key=api_key)
                 else:  # Default to Mistral
                     api_key = get_api_key('mistral_api_key')
                     if not api_key:
@@ -587,6 +595,24 @@ def test_gemini():
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
+@app.route('/api/test-qwen', methods=['GET'])
+def test_qwen():
+    """Test Qwen API connection."""
+    try:
+        api_key = get_api_key('qwen_api_key')
+        if not api_key:
+            return jsonify({'success': False, 'message': 'Qwen API key not configured. Please add it in the admin panel.'}), 400
+        translator = QwenTranslator(api_key=api_key)
+        if translator.test_connection():
+            return jsonify({'success': True, 'message': 'Qwen API connection successful'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to connect to Qwen API'}), 500
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
 # Admin API routes
 @app.route('/api/admin/languages', methods=['GET', 'POST', 'DELETE'])
 @admin_required
@@ -647,6 +673,7 @@ def manage_api_settings():
             'groq_api_key': SettingsModel.get('groq_api_key', ''),
             'mistral_api_key': SettingsModel.get('mistral_api_key', ''),
             'gemini_api_key': SettingsModel.get('gemini_api_key', ''),
+            'qwen_api_key': SettingsModel.get('qwen_api_key', ''),
             'translator_pin': SettingsModel.get('translator_access_pin', '1234')
         })
 
@@ -657,6 +684,7 @@ def manage_api_settings():
         groq_api_key = data.get('groq_api_key')
         mistral_api_key = data.get('mistral_api_key')
         gemini_api_key = data.get('gemini_api_key')
+        qwen_api_key = data.get('qwen_api_key')
         translator_pin = data.get('translator_pin')
 
         if groq_api_key is not None:
@@ -665,6 +693,8 @@ def manage_api_settings():
             SettingsModel.set('mistral_api_key', mistral_api_key)
         if gemini_api_key is not None:
             SettingsModel.set('gemini_api_key', gemini_api_key)
+        if qwen_api_key is not None:
+            SettingsModel.set('qwen_api_key', qwen_api_key)
         if translator_pin is not None:
             SettingsModel.set('translator_access_pin', translator_pin)
 
@@ -868,6 +898,11 @@ def translate_recipe_family():
             if not api_key:
                 return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
             translator = GeminiTranslator(api_key=api_key)
+        elif ai_provider == 'qwen':
+            api_key = get_api_key('qwen_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = QwenTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
@@ -990,6 +1025,11 @@ def translate_recipe_standalone():
             if not api_key:
                 return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
             translator = GeminiTranslator(api_key=api_key)
+        elif ai_provider == 'qwen':
+            api_key = get_api_key('qwen_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
+            translator = QwenTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
@@ -1212,13 +1252,13 @@ def update_recipe(recipe_id):
             total_mins = 0
             # Extract hours
             if 'hour' in time_str:
-                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
-                total_mins += hours * 60
+                hour_digits = ''.join(filter(str.isdigit, time_str.split('hour')[0].strip()))
+                total_mins += int(hour_digits) * 60 if hour_digits else 0
             # Extract minutes
             if 'minute' in time_str:
                 parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
-                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
-                total_mins += minutes
+                minute_digits = ''.join(filter(str.isdigit, parts.split('minute')[0].strip()))
+                total_mins += int(minute_digits) if minute_digits else 0
             return total_mins if total_mins > 0 else None
 
         # Import unit converter for metric conversion
@@ -1270,6 +1310,7 @@ def update_recipe(recipe_id):
             try:
                 from groq_translator import GroqTranslator
                 from mistral_translator import MistralTranslator
+                from qwen_translator import QwenTranslator
                 import settings
 
                 # Get translator
@@ -1287,6 +1328,12 @@ def update_recipe(recipe_id):
                             translator = GeminiTranslator(api_key=api_key)
                         else:
                             translator = None
+                    else:
+                        translator = None
+                elif ai_provider == 'qwen':
+                    api_key = get_api_key('qwen_api_key')
+                    if api_key:
+                        translator = QwenTranslator(api_key=api_key)
                     else:
                         translator = None
                 else:
@@ -1521,13 +1568,13 @@ def save_recipe():
             total_mins = 0
             # Extract hours
             if 'hour' in time_str:
-                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
-                total_mins += hours * 60
+                hour_digits = ''.join(filter(str.isdigit, time_str.split('hour')[0].strip()))
+                total_mins += int(hour_digits) * 60 if hour_digits else 0
             # Extract minutes
             if 'minute' in time_str:
                 parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
-                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
-                total_mins += minutes
+                minute_digits = ''.join(filter(str.isdigit, parts.split('minute')[0].strip()))
+                total_mins += int(minute_digits) if minute_digits else 0
             return total_mins if total_mins > 0 else None
 
         # Determine if recipe is shareable (not from copyrighted sources like NYT)
@@ -1605,6 +1652,12 @@ def save_recipe():
                                 translator = GeminiTranslator(api_key=api_key)
                             else:
                                 translator = None
+                        else:
+                            translator = None
+                    elif ai_provider == 'qwen':
+                        api_key = get_api_key('qwen_api_key')
+                        if api_key:
+                            translator = QwenTranslator(api_key=api_key)
                         else:
                             translator = None
                     else:
@@ -1992,6 +2045,11 @@ def get_combined_shopping_list():
             if not api_key:
                 return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
             translator = GeminiTranslator(api_key=api_key)
+        elif ai_provider == 'qwen':
+            api_key = get_api_key('qwen_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'AI API key not configured'}), 500
+            translator = QwenTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:
@@ -2096,6 +2154,7 @@ def create_recipe_translation(recipe_id):
         # Translate using AI
         from groq_translator import GroqTranslator
         from mistral_translator import MistralTranslator
+        from qwen_translator import QwenTranslator
         import settings
 
         ai_provider = settings.get_ai_provider()
@@ -2111,6 +2170,11 @@ def create_recipe_translation(recipe_id):
             if not api_key:
                 return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
             translator = GeminiTranslator(api_key=api_key)
+        elif ai_provider == 'qwen':
+            api_key = get_api_key('qwen_api_key')
+            if not api_key:
+                return jsonify({'success': False, 'message': 'Qwen API key not configured. Please add it in the admin panel.'}), 500
+            translator = QwenTranslator(api_key=api_key)
         else:
             api_key = get_api_key('mistral_api_key')
             if not api_key:

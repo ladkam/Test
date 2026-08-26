@@ -126,7 +126,15 @@ class GeminiTranslator:
         Returns:
             Translated text
         """
-        prompt = f"Translate the following text to {target_language}. Provide only the translation, no explanations:\n\n{text}"
+        prompt = (
+            f"Translate the following text to {target_language}. "
+            "Do not convert or alter any numbers, measurements, or units "
+            "(e.g. g, kg, ml, l, °C, tablespoons, teaspoons) -- keep every "
+            "number and unit exactly as written, including anything in "
+            "parentheses. Only translate unit names, not their values "
+            "(e.g. tablespoon -> cucharada, not ml). Provide only the "
+            f"translation, no explanations:\n\n{text}"
+        )
 
         try:
             response = self.model.generate_content(prompt)
