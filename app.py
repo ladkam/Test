@@ -1212,13 +1212,13 @@ def update_recipe(recipe_id):
             total_mins = 0
             # Extract hours
             if 'hour' in time_str:
-                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
-                total_mins += hours * 60
+                hour_digits = ''.join(filter(str.isdigit, time_str.split('hour')[0].strip()))
+                total_mins += int(hour_digits) * 60 if hour_digits else 0
             # Extract minutes
             if 'minute' in time_str:
                 parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
-                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
-                total_mins += minutes
+                minute_digits = ''.join(filter(str.isdigit, parts.split('minute')[0].strip()))
+                total_mins += int(minute_digits) if minute_digits else 0
             return total_mins if total_mins > 0 else None
 
         # Import unit converter for metric conversion
@@ -1521,13 +1521,13 @@ def save_recipe():
             total_mins = 0
             # Extract hours
             if 'hour' in time_str:
-                hours = int(''.join(filter(str.isdigit, time_str.split('hour')[0].strip())))
-                total_mins += hours * 60
+                hour_digits = ''.join(filter(str.isdigit, time_str.split('hour')[0].strip()))
+                total_mins += int(hour_digits) * 60 if hour_digits else 0
             # Extract minutes
             if 'minute' in time_str:
                 parts = time_str.split('hour')[-1] if 'hour' in time_str else time_str
-                minutes = int(''.join(filter(str.isdigit, parts.split('minute')[0].strip())))
-                total_mins += minutes
+                minute_digits = ''.join(filter(str.isdigit, parts.split('minute')[0].strip()))
+                total_mins += int(minute_digits) if minute_digits else 0
             return total_mins if total_mins > 0 else None
 
         # Determine if recipe is shareable (not from copyrighted sources like NYT)
