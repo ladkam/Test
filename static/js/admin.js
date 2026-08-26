@@ -159,7 +159,8 @@ const MODEL_OPTIONS = {
         { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Recommended)', free: true },
         { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra Fast)', free: true },
         { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B (Highest Quality)', free: true },
-        { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)', free: true }
+        { value: 'openai/gpt-oss-20b', label: 'GPT OSS 20B (Fast)', free: true },
+        { value: 'qwen/qwen3.6-27b', label: 'Qwen3.6 27B (Preview, strong CJK/multilingual)', free: false }
     ],
     gemini: [
         { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview) - Latest, fastest (FREE)', free: true },
@@ -201,7 +202,7 @@ function updateModelOptions() {
     if (provider === 'mistral') {
         modelHelp.textContent = 'Mistral AI models. Free tier: open-mistral-nemo, open-mixtral-8x7b, open-mixtral-8x22b';
     } else if (provider === 'groq') {
-        modelHelp.textContent = 'Groq models (All free with generous limits). Llama 3.3 70B Versatile recommended for best quality.';
+        modelHelp.textContent = 'Groq models. Llama 3.3 70B Versatile recommended for best quality (free). Qwen3.6 27B is a paid preview model with stronger CJK/multilingual support.';
     } else if (provider === 'gemini') {
         modelHelp.textContent = 'Google Gemini models. FREE: 3 Flash, 2.5 Flash, 2.5 Flash-Lite. PAID: 3 Pro, 2.5 Pro. Recommended: 2.5 Flash (free, stable).';
     } else if (provider === 'qwen') {

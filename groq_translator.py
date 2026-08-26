@@ -66,7 +66,7 @@ class GroqTranslator:
                         }
                     ],
                     "temperature": 0.3,
-                    "max_tokens": 4000
+                    "max_completion_tokens": 4000
                 },
                 timeout=60
             )
@@ -130,7 +130,7 @@ class GroqTranslator:
                         }
                     ],
                     "temperature": 0.3,
-                    "max_tokens": 500
+                    "max_completion_tokens": 500
                 },
                 timeout=30
             )
@@ -162,7 +162,7 @@ class GroqTranslator:
                     "messages": [
                         {"role": "user", "content": "Hello"}
                     ],
-                    "max_tokens": 10
+                    "max_completion_tokens": 10
                 },
                 timeout=30
             )
