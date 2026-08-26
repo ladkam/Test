@@ -459,7 +459,7 @@ def translate_recipe():
                     translator = GroqTranslator(api_key=api_key)
                 elif ai_provider == 'gemini':
                     if not GEMINI_AVAILABLE:
-                        return jsonify({'error': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
+                        return jsonify({'error': 'Gemini translator not installed. Install with: pip install google-genai'}), 500
                     api_key = get_api_key('gemini_api_key')
                     if not api_key:
                         return jsonify({'error': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
@@ -586,7 +586,7 @@ def test_gemini():
     """Test Gemini API connection."""
     try:
         if not GEMINI_AVAILABLE:
-            return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 400
+            return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-genai'}), 400
         api_key = get_api_key('gemini_api_key')
         if not api_key:
             return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 400
@@ -1042,14 +1042,16 @@ def translate_recipe_standalone():
                 return jsonify({'success': False, 'message': 'Translation service not configured'}), 500
             translator = MistralTranslator(api_key=api_key)
 
-        # Translate title, ingredients, and instructions
-        translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = [convert_to_metric(translator.translate_text(ing, target_language)) for ing in recipe_data.get('ingredients', [])]
-        translated_instructions = [convert_to_metric(translator.translate_text(inst, target_language)) for inst in recipe_data.get('instructions', [])]
-
-        # Convert original ingredients/instructions to metric as well
+        # Convert to metric BEFORE translating: the converter matches English
+        # unit words ("cup", "oz", "lb"), so if translation ran first the
+        # units would already be in the target language and never match.
         original_ingredients = [convert_to_metric(ing) for ing in recipe_data.get('ingredients', [])]
         original_instructions = [convert_to_metric(inst) for inst in recipe_data.get('instructions', [])]
+
+        # Translate title, ingredients, and instructions (already metric)
+        translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
+        translated_ingredients = [translator.translate_text(ing, target_language) for ing in original_ingredients]
+        translated_instructions = [translator.translate_text(inst, target_language) for inst in original_instructions]
 
         return jsonify({
             'success': True,
@@ -2171,7 +2173,7 @@ def create_recipe_translation(recipe_id):
             translator = GroqTranslator(api_key=api_key)
         elif ai_provider == 'gemini':
             if not GEMINI_AVAILABLE:
-                return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
+                return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-genai'}), 500
             api_key = get_api_key('gemini_api_key')
             if not api_key:
                 return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 500

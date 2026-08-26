@@ -1,13 +1,16 @@
 """
 Google Gemini API integration for recipe translation.
-Uses non-deprecated Gemini models.
+Uses the current google-genai SDK and non-deprecated Gemini models.
+(google-generativeai was deprecated by Google in August 2025.)
 """
 import os
 from typing import Optional
 from settings import get_translation_prompt, get_system_prompt, get_ai_model
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types as genai_types
+    from google.genai import errors as genai_errors
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -16,15 +19,17 @@ except ImportError:
 class GeminiTranslator:
     """Translator using Google Gemini API."""
 
-    # Available models (January 2026)
-    # FREE: 3 Flash, 2.5 Flash, 2.5 Flash-Lite
-    # PAID: 3 Pro, 2.5 Pro
+    # Available models (August 2026)
+    # FREE: 3.7 Flash, 3.5 Flash-Lite, 2.5 Flash
+    # PAID: 3.1 Pro (Preview), 2.5 Pro
+    # Note: Gemini 2.5 models are GA-stable but Google has scheduled them
+    # for deprecation on 2026-10-16; prefer the 3.x line for new setups.
     AVAILABLE_MODELS = {
-        'gemini-3-flash-preview': 'Gemini 3 Flash (Preview) - Latest, fastest (FREE)',
-        'gemini-2.5-flash': 'Gemini 2.5 Flash - Stable, production-ready (FREE, Recommended)',
-        'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite - Cost-optimized (FREE)',
-        'gemini-3-pro-preview': 'Gemini 3 Pro (Preview) - Best quality (PAID)',
-        'gemini-2.5-pro': 'Gemini 2.5 Pro - Best reasoning (PAID)'
+        'gemini-3.7-flash': 'Gemini 3.7 Flash - Latest, best for complex tasks (FREE, Recommended)',
+        'gemini-3.5-flash-lite': 'Gemini 3.5 Flash-Lite - Fastest, most cost-effective (FREE)',
+        'gemini-2.5-flash': 'Gemini 2.5 Flash - Stable fallback, sunsetting Oct 2026 (FREE)',
+        'gemini-3.1-pro-preview': 'Gemini 3.1 Pro (Preview) - Best quality, agentic (PAID)',
+        'gemini-2.5-pro': 'Gemini 2.5 Pro - Advanced reasoning, sunsetting Oct 2026 (PAID)'
     }
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
@@ -33,12 +38,12 @@ class GeminiTranslator:
 
         Args:
             api_key: Google API key (defaults to GEMINI_API_KEY env var)
-            model: Model to use (defaults to gemini-2.5-flash)
+            model: Model to use (defaults to gemini-3.7-flash)
         """
         if not GEMINI_AVAILABLE:
             raise ImportError(
-                "Google Generative AI library not installed. "
-                "Install with: pip install google-generativeai"
+                "google-genai library not installed. "
+                "Install with: pip install google-genai"
             )
 
         self.api_key = api_key or os.getenv('GEMINI_API_KEY')
@@ -49,11 +54,8 @@ class GeminiTranslator:
                 "Set GEMINI_API_KEY environment variable or pass it to the constructor."
             )
 
-        # Configure the API
-        genai.configure(api_key=self.api_key)
-
-        # Set model (default to stable production Flash model)
-        self.model_name = model or os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+        # Set model (default to latest stable Flash model)
+        self.model_name = model or os.getenv('GEMINI_MODEL', 'gemini-3.7-flash')
 
         # Validate model
         if self.model_name not in self.AVAILABLE_MODELS:
@@ -62,16 +64,30 @@ class GeminiTranslator:
                 f"Available models: {', '.join(self.AVAILABLE_MODELS.keys())}"
             )
 
-        # Initialize the model
-        self.model = genai.GenerativeModel(
-            model_name=self.model_name,
-            generation_config={
-                'temperature': 0.3,
-                'top_p': 0.95,
-                'top_k': 40,
-                'max_output_tokens': 4096,
-            }
+        self.client = genai.Client(api_key=self.api_key)
+        self.generation_config = genai_types.GenerateContentConfig(
+            temperature=0.3,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=4096,
         )
+
+    def _generate(self, prompt: str):
+        """Send a prompt to the configured Gemini model and return the raw response."""
+        try:
+            return self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=self.generation_config,
+            )
+        except genai_errors.ClientError as e:
+            code = getattr(e, 'code', None)
+            if code in (401, 403):
+                raise Exception("Invalid API key. Please check your GEMINI_API_KEY")
+            elif code == 429:
+                raise Exception("API quota exceeded or rate limit hit. Please try again later")
+            else:
+                raise Exception(f"Gemini API error: {str(e)}")
 
     def translate_recipe(self, recipe_text: str, target_language: str) -> str:
         """
@@ -95,7 +111,7 @@ class GeminiTranslator:
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
         try:
-            response = self.model.generate_content(full_prompt)
+            response = self._generate(full_prompt)
 
             if not response or not response.text:
                 raise Exception("Empty response from Gemini API")
@@ -103,17 +119,9 @@ class GeminiTranslator:
             return response.text.strip()
 
         except Exception as e:
-            # Handle specific Gemini errors
-            error_msg = str(e)
-
-            if "API_KEY_INVALID" in error_msg or "invalid API key" in error_msg.lower():
-                raise Exception("Invalid API key. Please check your GEMINI_API_KEY")
-            elif "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
-                raise Exception("API quota exceeded or rate limit hit. Please try again later")
-            elif "safety" in error_msg.lower():
+            if "safety" in str(e).lower():
                 raise Exception("Content was blocked by safety filters. Try rephrasing the recipe")
-            else:
-                raise Exception(f"Failed to translate recipe: {error_msg}")
+            raise Exception(f"Failed to translate recipe: {str(e)}")
 
     def translate_text(self, text: str, target_language: str) -> str:
         """
@@ -128,16 +136,19 @@ class GeminiTranslator:
         """
         prompt = (
             f"Translate the following text to {target_language}. "
-            "Do not convert or alter any numbers, measurements, or units "
-            "(e.g. g, kg, ml, l, °C, tablespoons, teaspoons) -- keep every "
-            "number and unit exactly as written, including anything in "
-            "parentheses. Only translate unit names, not their values "
-            "(e.g. tablespoon -> cucharada, not ml). Provide only the "
-            f"translation, no explanations:\n\n{text}"
+            "Never convert between measurement systems -- do not turn "
+            "cup, cups, fl oz, oz, lb, or any other imperial unit into "
+            "ml/g/l/kg, and do not turn ml, g, l, kg, or °C into an "
+            "imperial unit. Keep every number and unit exactly as "
+            "written, including anything in parentheses. Only translate "
+            "unit NAMES into their target-language equivalent (e.g. "
+            "tablespoon -> cucharada, cup -> taza) -- never their values "
+            "or unit system. Provide only the translation, no "
+            f"explanations:\n\n{text}"
         )
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self._generate(prompt)
 
             if not response or not response.text:
                 raise Exception("Empty response from Gemini API")
@@ -171,7 +182,7 @@ class GeminiTranslator:
         )
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self._generate(prompt)
 
             if not response or not response.text:
                 raise Exception("Empty response from Gemini API")
@@ -203,7 +214,7 @@ class GeminiTranslator:
             True if connection is successful, False otherwise
         """
         try:
-            response = self.model.generate_content("Hello, respond with 'OK'")
+            response = self._generate("Hello, respond with 'OK'")
             return response and response.text is not None
         except Exception:
             return False

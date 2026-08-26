@@ -120,12 +120,15 @@ class GroqTranslator:
                             "role": "user",
                             "content": (
                                 f"Translate the following text to {target_language}. "
-                                "Do not convert or alter any numbers, measurements, or units "
-                                "(e.g. g, kg, ml, l, °C, tablespoons, teaspoons) -- keep every "
-                                "number and unit exactly as written, including anything in "
-                                "parentheses. Only translate unit names, not their values "
-                                "(e.g. tablespoon -> cucharada, not ml). Provide only the "
-                                f"translation, no explanations:\n\n{text}"
+                                "Never convert between measurement systems -- do not turn "
+                                "cup, cups, fl oz, oz, lb, or any other imperial unit into "
+                                "ml/g/l/kg, and do not turn ml, g, l, kg, or °C into an "
+                                "imperial unit. Keep every number and unit exactly as "
+                                "written, including anything in parentheses. Only translate "
+                                "unit NAMES into their target-language equivalent (e.g. "
+                                "tablespoon -> cucharada, cup -> taza) -- never their values "
+                                "or unit system. Provide only the translation, no "
+                                f"explanations:\n\n{text}"
                             )
                         }
                     ],

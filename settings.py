@@ -35,22 +35,25 @@ DEFAULT_SETTINGS = {
 **CRITICAL MEASUREMENT RULES - READ CAREFULLY:**
 5. NEVER convert any measurements (tablespoons, teaspoons, cups, ml, grams, etc.)
 6. Keep ALL numbers and units EXACTLY as written - if you see "3 tablespoons", write "3 tablespoons"
-7. DO NOT convert tablespoons to ml, teaspoons to ml, or any unit to any other unit
+7. DO NOT convert tablespoons to ml, teaspoons to ml, cups to ml, or any unit to any other unit -- this applies in BOTH directions (imperial→metric AND metric→imperial)
 8. If original says "3 tablespoons" you MUST write "3 tablespoons" or "3 cucharadas" (translated)
-9. If original says "30ml" you MUST keep "30ml" exactly
-10. WRONG: Converting "3 tablespoons" → "45ml"
-11. CORRECT: Keeping "3 tablespoons" → "3 cucharadas"
+9. If original says "30ml" or "237ml" you MUST keep "30ml"/"237ml" exactly, even if the recipe already looks metric
+10. WRONG: Converting "3 tablespoons" → "45ml", or converting "237ml" → "1 cup"
+11. CORRECT: Keeping "3 tablespoons" → "3 cucharadas", keeping "237ml" → "237ml"
 
 **Translation Guidelines:**
 12. Translate text naturally and idiomatically in {language}
-13. Translate unit NAMES (tablespoon→cucharada, teaspoon→cucharadita) but NEVER change the number
+13. Translate unit NAMES (tablespoon→cucharada, teaspoon→cucharadita, cup→taza) but NEVER change the number
 14. If measurements have parentheses like "237ml (1 cup)", keep both parts exactly
 15. Translate cooking terms accurately (sauté, blanch, fold, etc.)
 16. Use proper culinary vocabulary in {language}
 
-**Example:**
+**Examples:**
 Input: "3 tablespoons olive oil"
 Output Spanish: "3 cucharadas de aceite de oliva" (NOT "45ml de aceite de oliva")
+
+Input: "237ml (1 cup) whole milk"
+Output French: "237ml (1 tasse) de lait entier" (NOT "1 tasse de lait entier" -- keep "237ml")
 
 ---
 
