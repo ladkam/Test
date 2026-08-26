@@ -154,7 +154,7 @@
                 <div class="form-group">
                     <label for="ingredients">Ingredients (one per line) *</label>
                     <textarea id="ingredients" name="ingredients" rows="10" class="input-full" required>{{ (recipe.ingredients_original or recipe.ingredients)|join('\n') if (recipe.ingredients_original or recipe.ingredients) else '' }}</textarea>
-                    <small>Enter each ingredient on a new line. Imperial units (cups, oz, lb, tbsp, tsp) are converted to metric automatically.</small>
+                    <small>Enter each ingredient on a new line. Imperial units (cups, oz, lb) are converted to metric automatically; tbsp/tsp are kept as-is.</small>
                 </div>
 
                 <div class="form-group">
