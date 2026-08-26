@@ -64,12 +64,17 @@ class UnitConverter:
         # Unicode fraction characters for pattern matching
         unicode_fracs = ''.join(self.UNICODE_FRACTIONS.keys())
 
-        # Pattern to match measurements like "2 cups", "2¼ cups", "350°F", "6-ounce"
+        # Pattern to match measurements like "2 cups", "2¼ cups", "350°F", "6-ounce",
+        # "¼ cup" (a bare fraction with no leading whole number), and "2 heaping cups"
+        # (a descriptive word wedged between the quantity and the unit).
         # Supports: integers, decimals, fractions (1/2), unicode fractions (½),
-        # and mixed numbers (2¼, 2 1/2). Allows hyphen or space between number and unit.
+        # bare unicode fractions (¼), and mixed numbers (2¼, 2 1/2). Allows hyphen
+        # or space between number and unit.
         # Note: teaspoon/tablespoon are intentionally not matched for conversion.
+        descriptors = r'heaping|packed|scant|generous|rounded|level|full|big|small'
         self.measurement_pattern = re.compile(
-            r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?)[\s-]*'
+            r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?|[' + unicode_fracs + r'])'
+            r'[\s-]*(?:(' + descriptors + r')\s+)?'
             r'(cup|cups|fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
             r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit)\b',
             re.IGNORECASE
@@ -157,17 +162,14 @@ class UnitConverter:
         """
         def replace_measurement(match):
             amount_str = match.group(1)
-            unit = match.group(2)
+            descriptor = match.group(2)
+            unit = match.group(3)
+            original = f"{amount_str} {descriptor} {unit}" if descriptor else f"{amount_str} {unit}"
 
             try:
                 amount = self.convert_fraction_to_decimal(amount_str)
                 converted_amount, metric_unit = self.convert_measurement(amount, unit)
-
-                # Format the output
-                if isinstance(converted_amount, int):
-                    return f"{converted_amount} {metric_unit} ({amount_str} {unit})"
-                else:
-                    return f"{converted_amount} {metric_unit} ({amount_str} {unit})"
+                return f"{converted_amount} {metric_unit} ({original})"
             except (ValueError, ZeroDivisionError):
                 return match.group(0)  # Return original if conversion fails
 
@@ -188,7 +190,7 @@ class UnitConverter:
 
         def replace_measurement(match):
             amount_str = match.group(1)
-            unit = match.group(2)
+            unit = match.group(3)
 
             try:
                 amount = self.convert_fraction_to_decimal(amount_str)
