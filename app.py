@@ -137,144 +137,227 @@ def get_api_key(key_name):
         return env_value if env_value and env_value.strip() else None
 
 
+# --- Health score tuning (macronutrients only) -------------------------------
+# Everything below is expressed as a share of the calories the macros
+# actually account for, so protein/carb/fat shares always total 100% even
+# when a recipe's stated calorie count disagrees with its own macros.
+
+# Protein is scored by density (grams per 100 kcal) rather than share of
+# calories, because density is the better proxy for how satiating and
+# nutrient-dense a main course is. Anchors are interpolated linearly:
+# 10 g/100kcal is a lean-protein main (grilled chicken and vegetables),
+# 5 g/100kcal works out to 20% of calories from protein.
+PROTEIN_DENSITY_BANDS = [(0.0, 0.0), (2.5, 12.0), (5.0, 30.0), (10.0, 45.0)]
+
+# Share of calories from fat. The IOM daily guideline is 20-35%, but a
+# single recipe is not a whole day's eating -- Mediterranean cooking sits at
+# 40-45% from olive oil without being unhealthy -- so the band is widened.
+# Falling below the band is only lightly penalised (low fat is not a health
+# problem); fat-dominated dishes lose most of the component.
+FAT_TARGET_MIN, FAT_TARGET_MAX = 20.0, 45.0
+FAT_FLOOR, FAT_CEILING = 5.0, 70.0
+FAT_LOW_PENALTY_SHARE = 0.5  # below-band tapers to half marks, not to zero
+
+# Share of calories from carbohydrate. Low-carb recipes are a legitimate
+# choice, so nothing below the target loses points; only carb-dominated
+# dishes (usually refined grain or sugar) are penalised.
+CARB_TARGET_MAX, CARB_CEILING = 65.0, 90.0
+
+# Fibre is itself a carbohydrate, so when reported it discounts the
+# carb-dominance penalty -- oats and beans should not score like white sugar.
+FIBER_RATIO_FOR_FULL_CREDIT = 0.20
+FIBER_MAX_DISCOUNT = 0.40
+
+# Sugar is likewise a carbohydrate subtype, so it refines the carb component
+# without stepping outside the macros. Nutrition labels report *total*
+# sugars, which lumps fruit and dairy sugar in with refined sugar -- so fibre
+# partially shields the penalty, on the basis that whole fruit and yoghurt
+# carry their sugar alongside fibre while a dessert does not.
+SUGAR_RATIO_PENALTY_START = 0.30
+SUGAR_RATIO_PENALTY_MAX = 0.75
+SUGAR_MAX_PENALTY = 0.65         # at worst, keep 35% of the carb component
+SUGAR_FIBER_SHIELD_RATIO = 0.15  # fibre:carb ratio giving maximum shielding
+SUGAR_FIBER_SHIELD_MAX = 0.50    # fibre neutralises at most half the sugar ratio
+
+POINTS_PROTEIN, POINTS_FAT, POINTS_CARBS = 45, 30, 25
+
+GRADE_THRESHOLDS = [(85, 'A'), (70, 'B'), (55, 'C'), (40, 'D')]
+
+
+def _nutrition_to_number(value):
+    """Pull a number out of a nutrition value like '653.8 milligrams' or 12."""
+    if value is None:
+        return 0.0
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = re.sub(r'[^\d.]', '', str(value))
+    try:
+        return float(cleaned) if cleaned else 0.0
+    except ValueError:
+        # e.g. '1.2.3' survives the strip but is not a number
+        return 0.0
+
+
+def _interpolate(value, bands):
+    """Linearly interpolate `value` through a list of (x, points) anchors."""
+    if value <= bands[0][0]:
+        return bands[0][1]
+    for (x0, y0), (x1, y1) in zip(bands, bands[1:]):
+        if value <= x1:
+            span = x1 - x0
+            return y0 if span == 0 else y0 + (value - x0) * (y1 - y0) / span
+    return bands[-1][1]
+
+
+def _falloff(value, full_at, zero_at):
+    """1.0 at `full_at`, 0.0 at `zero_at`, linear between, clamped outside.
+
+    Works in either direction, so it handles both "too much" and "too
+    little" bands with one helper.
+    """
+    if full_at == zero_at:
+        return 0.0
+    return max(0.0, min(1.0, (value - zero_at) / (full_at - zero_at)))
+
+
 def calculate_health_score(nutrition_data):
     """
-    Calculate a health score (0-100) based on nutritional macros.
+    Score a recipe 0-100 on macronutrient balance alone.
 
-    Scoring criteria:
-    - Balanced macros (protein, carbs, fats)
-    - Reasonable calorie density
-    - High protein relative to calories
-    - Low saturated fat
-    - High fiber
-    - Reasonable sodium
+    Only protein, carbohydrate and fat are considered, plus fibre (itself a
+    carbohydrate) as a carb-quality adjustment when it is reported. Sodium,
+    cholesterol and sugar are deliberately ignored: they are not macros, and
+    mixing them in previously meant a recipe could reach a perfect score on
+    fibre and sodium bonuses alone regardless of how its macros looked.
+
+    The trade-off this accepts: macros cannot distinguish olive oil from
+    butter, so fat *quality* is invisible here.
 
     Args:
-        nutrition_data: Dictionary with keys like calories, protein, carbs, fat, fiber, sodium
+        nutrition_data: dict with calories/protein/carbohydrates/fat keys.
+            Values may be numbers or strings like '28 grams'.
 
     Returns:
-        Dictionary with 'score' (0-100), 'grade' (A-F), and 'details'
+        dict with 'score' (0-100 or None), 'grade' (A-F or None), 'details'
+        (human-readable summary) and 'breakdown' (per-component points).
     """
+    empty = {
+        'score': None,
+        'grade': None,
+        'details': 'No nutrition data available',
+        'breakdown': None,
+    }
     if not nutrition_data or not isinstance(nutrition_data, dict):
-        return {'score': None, 'grade': None, 'details': 'No nutrition data available'}
+        return empty
 
-    score = 100
+    protein = _nutrition_to_number(nutrition_data.get('protein'))
+    carbs = _nutrition_to_number(
+        nutrition_data.get('carbohydrates', nutrition_data.get('carbs'))
+    )
+    fat = _nutrition_to_number(nutrition_data.get('fat', nutrition_data.get('totalFat')))
+    fiber = _nutrition_to_number(
+        nutrition_data.get('fiber', nutrition_data.get('dietaryFiber'))
+    )
+    sugar = _nutrition_to_number(
+        nutrition_data.get('sugar', nutrition_data.get('sugars'))
+    )
+
+    # Calories the macros themselves account for. Using this rather than the
+    # stated calorie count keeps the three shares summing to 100%, and lets a
+    # recipe that lists macros but no calorie count still be scored.
+    macro_calories = protein * 4 + carbs * 4 + fat * 9
+
+    # With no macros there is nothing to score. Returning None here -- rather
+    # than scoring zeros as "low protein" -- stops recipes with missing data
+    # from being graded as though they were genuinely unbalanced.
+    if macro_calories <= 0:
+        return dict(empty, details='No macronutrient data available')
+
+    protein_pct = protein * 4 / macro_calories * 100
+    carb_pct = carbs * 4 / macro_calories * 100
+    fat_pct = fat * 9 / macro_calories * 100
+    protein_density = protein / macro_calories * 100  # grams per 100 kcal
+
     details = []
 
-    # Extract nutrition values (handle various formats)
-    calories = nutrition_data.get('calories', 0)
-    protein = nutrition_data.get('protein', 0)
-    carbs = nutrition_data.get('carbohydrates', nutrition_data.get('carbs', 0))
-    fat = nutrition_data.get('fat', nutrition_data.get('totalFat', 0))
-    saturated_fat = nutrition_data.get('saturatedFat', 0)
-    fiber = nutrition_data.get('fiber', nutrition_data.get('dietaryFiber', 0))
-    sodium = nutrition_data.get('sodium', 0)
-
-    # Convert string values to numbers if needed
-    def to_number(value):
-        if isinstance(value, str):
-            # Remove units and convert
-            value = re.sub(r'[^\d.]', '', value)
-            try:
-                return float(value) if value else 0
-            except:
-                return 0
-        return float(value) if value else 0
-
-    calories = to_number(calories)
-    protein = to_number(protein)
-    carbs = to_number(carbs)
-    fat = to_number(fat)
-    saturated_fat = to_number(saturated_fat)
-    fiber = to_number(fiber)
-    sodium = to_number(sodium)
-
-    # 1. Calorie density check (prefer 200-600 calories per serving)
-    if calories > 0:
-        if calories < 150:
-            score -= 5
-            details.append('Very low in calories')
-        elif calories > 800:
-            score -= 15
-            details.append('High in calories')
-        elif calories > 600:
-            score -= 5
-            details.append('Moderately high in calories')
-
-    # 2. Protein quality (protein should be 15-35% of calories)
-    if calories > 0 and protein > 0:
-        protein_calories = protein * 4  # 4 calories per gram
-        protein_percentage = (protein_calories / calories) * 100
-        if protein_percentage >= 20:
-            score += 5
-            details.append('Good protein content')
-        elif protein_percentage < 10:
-            score -= 10
-            details.append('Low in protein')
-
-    # 3. Fat quality (20-35% of calories, penalize high saturated fat)
-    if calories > 0 and fat > 0:
-        fat_calories = fat * 9  # 9 calories per gram
-        fat_percentage = (fat_calories / calories) * 100
-        if fat_percentage > 45:
-            score -= 15
-            details.append('High in fat')
-        elif fat_percentage > 35:
-            score -= 5
-
-        # Check saturated fat
-        if saturated_fat > 0 and fat > 0:
-            sat_fat_ratio = saturated_fat / fat
-            if sat_fat_ratio > 0.5:
-                score -= 10
-                details.append('High in saturated fat')
-
-    # 4. Fiber bonus (5g+ is good)
-    if fiber >= 5:
-        score += 10
-        details.append('High in fiber')
-    elif fiber >= 3:
-        score += 5
-        details.append('Good fiber content')
-
-    # 5. Sodium check (per serving)
-    if sodium > 0:
-        if sodium > 800:
-            score -= 15
-            details.append('High in sodium')
-        elif sodium > 600:
-            score -= 8
-            details.append('Moderately high in sodium')
-        elif sodium < 200:
-            score += 5
-            details.append('Low in sodium')
-
-    # 6. Carb quality (prefer complex carbs with fiber)
-    if carbs > 0 and fiber > 0:
-        fiber_to_carb_ratio = fiber / carbs
-        if fiber_to_carb_ratio >= 0.1:  # 10% fiber to carbs
-            score += 5
-            details.append('Good fiber-to-carb ratio')
-
-    # Ensure score is within bounds
-    score = max(0, min(100, score))
-
-    # Determine grade
-    if score >= 90:
-        grade = 'A'
-    elif score >= 80:
-        grade = 'B'
-    elif score >= 70:
-        grade = 'C'
-    elif score >= 60:
-        grade = 'D'
+    # --- Protein ------------------------------------------------------------
+    protein_points = _interpolate(protein_density, PROTEIN_DENSITY_BANDS)
+    if protein_density >= 7.5:
+        details.append(f'High in protein ({protein_pct:.0f}% of calories)')
+    elif protein_density >= 4.0:
+        details.append(f'Moderate protein ({protein_pct:.0f}% of calories)')
     else:
-        grade = 'F'
+        details.append(f'Low in protein ({protein_pct:.0f}% of calories)')
+
+    # --- Fat ----------------------------------------------------------------
+    if FAT_TARGET_MIN <= fat_pct <= FAT_TARGET_MAX:
+        fat_points = float(POINTS_FAT)
+    elif fat_pct > FAT_TARGET_MAX:
+        fat_points = POINTS_FAT * _falloff(fat_pct, FAT_TARGET_MAX, FAT_CEILING)
+        details.append(f'Fat-heavy ({fat_pct:.0f}% of calories)')
+    else:
+        kept = FAT_LOW_PENALTY_SHARE + (1 - FAT_LOW_PENALTY_SHARE) * _falloff(
+            fat_pct, FAT_TARGET_MIN, FAT_FLOOR
+        )
+        fat_points = POINTS_FAT * kept
+        details.append(f'Very low in fat ({fat_pct:.0f}% of calories)')
+
+    # --- Carbohydrate -------------------------------------------------------
+    effective_carb_pct = carb_pct
+    fiber_ratio = fiber / carbs if carbs > 0 else 0.0
+    if fiber_ratio > 0:
+        discount = FIBER_MAX_DISCOUNT * min(
+            fiber_ratio / FIBER_RATIO_FOR_FULL_CREDIT, 1.0
+        )
+        effective_carb_pct = carb_pct * (1 - discount)
+
+    if effective_carb_pct <= CARB_TARGET_MAX:
+        carb_points = float(POINTS_CARBS)
+    else:
+        carb_points = POINTS_CARBS * _falloff(
+            effective_carb_pct, CARB_TARGET_MAX, CARB_CEILING
+        )
+        details.append(f'Carb-dominated ({carb_pct:.0f}% of calories)')
+
+    # Carbohydrate quality: sugar drags the component down, fibre shields it.
+    sugar_ratio = sugar / carbs if carbs > 0 else 0.0
+    shield = SUGAR_FIBER_SHIELD_MAX * min(fiber_ratio / SUGAR_FIBER_SHIELD_RATIO, 1.0)
+    effective_sugar_ratio = sugar_ratio * (1 - shield)
+    if effective_sugar_ratio > SUGAR_RATIO_PENALTY_START:
+        over = (effective_sugar_ratio - SUGAR_RATIO_PENALTY_START) / (
+            SUGAR_RATIO_PENALTY_MAX - SUGAR_RATIO_PENALTY_START
+        )
+        carb_points *= 1 - SUGAR_MAX_PENALTY * min(over, 1.0)
+        details.append(f'Sugar-heavy carbs ({sugar:.0f}g of {carbs:.0f}g)')
+
+    if fiber_ratio >= 0.10:
+        details.append(f'Fibre-rich carbs ({fiber:.0f}g)')
+
+    score = max(0, min(100, round(protein_points + fat_points + carb_points)))
+
+    grade = 'F'
+    for threshold, letter in GRADE_THRESHOLDS:
+        if score >= threshold:
+            grade = letter
+            break
 
     return {
-        'score': round(score),
+        'score': score,
         'grade': grade,
-        'details': ' | '.join(details) if details else 'Balanced nutrition'
+        'details': ' | '.join(details),
+        'breakdown': {
+            'protein_pct': round(protein_pct),
+            'carb_pct': round(carb_pct),
+            'fat_pct': round(fat_pct),
+            'protein_density': round(protein_density, 1),
+            'points': {
+                'protein': round(protein_points),
+                'fat': round(fat_points),
+                'carbs': round(carb_points),
+            },
+        },
     }
 
 

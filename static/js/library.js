@@ -358,7 +358,7 @@ function getHealthScoreIcon(grade) {
         'B': '🥙',
         'C': '🍔',
         'D': '🍕',
-        'F': '�'
+        'F': '🍰'
     };
     return icons[grade] || '🍽️';
 }
