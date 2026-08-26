@@ -459,7 +459,7 @@ def translate_recipe():
                     translator = GroqTranslator(api_key=api_key)
                 elif ai_provider == 'gemini':
                     if not GEMINI_AVAILABLE:
-                        return jsonify({'error': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
+                        return jsonify({'error': 'Gemini translator not installed. Install with: pip install google-genai'}), 500
                     api_key = get_api_key('gemini_api_key')
                     if not api_key:
                         return jsonify({'error': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
@@ -586,7 +586,7 @@ def test_gemini():
     """Test Gemini API connection."""
     try:
         if not GEMINI_AVAILABLE:
-            return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 400
+            return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-genai'}), 400
         api_key = get_api_key('gemini_api_key')
         if not api_key:
             return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 400
@@ -2171,7 +2171,7 @@ def create_recipe_translation(recipe_id):
             translator = GroqTranslator(api_key=api_key)
         elif ai_provider == 'gemini':
             if not GEMINI_AVAILABLE:
-                return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-generativeai'}), 500
+                return jsonify({'success': False, 'message': 'Gemini translator not installed. Install with: pip install google-genai'}), 500
             api_key = get_api_key('gemini_api_key')
             if not api_key:
                 return jsonify({'success': False, 'message': 'Gemini API key not configured. Please add it in the admin panel.'}), 500
