@@ -5,6 +5,7 @@ import requests
 import os
 from typing import Optional
 from settings import get_translation_prompt, get_system_prompt, get_ai_model
+from translation_utils import build_numbered_prompt, parse_numbered_list
 
 
 class MistralTranslator:
@@ -148,6 +149,63 @@ class MistralTranslator:
 
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to translate text: {str(e)}")
+
+    def translate_list(self, items: list, target_language: str) -> list:
+        """
+        Translate a list of items (ingredients or instructions) in a single
+        API call instead of one call per item -- this is the difference
+        between one request and N requests when saving/editing a recipe.
+
+        Args:
+            items: List of strings to translate
+            target_language: Target language
+
+        Returns:
+            List of translated strings, same length/order as items
+        """
+        if not items:
+            return []
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a professional translator. Translate text accurately while preserving meaning."
+                        },
+                        {
+                            "role": "user",
+                            "content": build_numbered_prompt(items, target_language)
+                        }
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": max(500, 60 * len(items))
+                },
+                timeout=60
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            if 'choices' not in data or not data['choices']:
+                raise Exception("Unexpected response format from Mistral API")
+
+            translated_text = data['choices'][0]['message']['content'].strip()
+            translated_items = parse_numbered_list(translated_text)
+
+            if len(translated_items) != len(items):
+                # Batched response didn't line up 1:1 -- fall back to
+                # per-item calls so data doesn't end up misaligned.
+                return [self.translate_text(item, target_language) for item in items]
+
+            return translated_items
+
+        except requests.exceptions.RequestException:
+            return [self.translate_text(item, target_language) for item in items]
 
     def test_connection(self) -> bool:
         """
