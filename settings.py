@@ -60,7 +60,7 @@ Output Spanish: "3 cucharadas de aceite de oliva" (NOT "45ml de aceite de oliva"
 
 Translated recipe (remember: NEVER convert measurements, only translate the unit names):''',
     'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.',
-    'ai_provider': 'mistral',  # 'mistral' or 'groq'
+    'ai_provider': 'mistral',  # 'mistral', 'groq', 'gemini', or 'qwen'
     'ai_model': 'open-mistral-nemo',
     'nyt_cookie': ''
 }
@@ -178,7 +178,7 @@ def update_nyt_cookie(cookie):
 
 
 def get_ai_provider():
-    """Get the AI provider to use (mistral or groq)."""
+    """Get the AI provider to use (mistral, groq, gemini, or qwen)."""
     settings = load_settings()
     return settings.get('ai_provider', DEFAULT_SETTINGS['ai_provider'])
 
