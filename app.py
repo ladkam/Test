@@ -19,7 +19,8 @@ import re
 
 from recipe_scraper import NYTRecipeScraper
 from menshealth_scraper import MensHealthRecipeScraper
-from unit_converter import UnitConverter
+from unit_converter import UnitConverter, convert_to_metric, convert_list_to_metric
+from translation_utils import metricize
 from mistral_translator import MistralTranslator
 from groq_translator import GroqTranslator
 from qwen_translator import QwenTranslator
@@ -99,6 +100,16 @@ with app.app_context():
         add_column_if_not_exists('recipes', 'tags', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'ingredients_original', 'TEXT', 'NULL')
         add_column_if_not_exists('recipes', 'instructions_original', 'TEXT', 'NULL')
+
+        # Re-run the (improved) metric conversion over previously saved recipes
+        # and translations, once per converter version. No AI calls.
+        try:
+            from metric_backfill import run_once as run_metric_backfill
+            from models import RecipeTranslation as _RecipeTranslation
+            run_metric_backfill(db, Recipe, _RecipeTranslation, SettingsModel)
+        except Exception as backfill_error:
+            db.session.rollback()
+            print(f"Warning: metric backfill skipped: {backfill_error}")
 
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
@@ -477,6 +488,8 @@ def translate_recipe():
                     translator = MistralTranslator(api_key=api_key)
 
                 recipe_text = translator.translate_recipe(recipe_text, language)
+                if convert_units:
+                    recipe_text = metricize(recipe_text)
             except ValueError as e:
                 return jsonify({'error': f'AI API error: {str(e)}'}), 500
             except Exception as e:
@@ -876,7 +889,6 @@ def translate_recipe_family():
             return jsonify({'success': False, 'message': 'Failed to fetch recipe'}), 400
 
         # Initialize unit converter for metric conversion
-        from unit_converter import UnitConverter
         converter = UnitConverter()
 
         # Convert ingredients to metric
@@ -919,8 +931,8 @@ def translate_recipe_family():
         # Translate title, ingredients (with metric), and instructions (with metric).
         # translate_list batches all items into one API call instead of one per item.
         translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = translator.translate_list(metric_ingredients, target_language)
-        translated_instructions = translator.translate_list(metric_instructions, target_language)
+        translated_ingredients = metricize(translator.translate_list(metric_ingredients, target_language))
+        translated_instructions = metricize(translator.translate_list(metric_instructions, target_language))
 
         # Get time info
         time_info = recipe_data.get('time', {})
@@ -1053,8 +1065,8 @@ def translate_recipe_standalone():
         # Translate title, ingredients, and instructions (already metric).
         # translate_list batches all items into one API call instead of one per item.
         translated_title = translator.translate_text(recipe_data.get('title', ''), target_language)
-        translated_ingredients = translator.translate_list(original_ingredients, target_language)
-        translated_instructions = translator.translate_list(original_instructions, target_language)
+        translated_ingredients = metricize(translator.translate_list(original_ingredients, target_language))
+        translated_instructions = metricize(translator.translate_list(original_instructions, target_language))
 
         return jsonify({
             'success': True,
@@ -1278,7 +1290,6 @@ def update_recipe(recipe_id):
             return total_mins if total_mins > 0 else None
 
         # Import unit converter for metric conversion
-        from unit_converter import convert_to_metric
 
         # Update recipe fields
         if 'title' in data:
@@ -1373,18 +1384,18 @@ def update_recipe(recipe_id):
                             # item -- this matters a lot here since it runs once per
                             # existing translation language.
                             if recipe.ingredients:
-                                translation.ingredients = translator.translate_list(
+                                translation.ingredients = metricize(translator.translate_list(
                                     recipe.ingredients, language_name
-                                )
+                                ))
 
                             if recipe.instructions:
-                                translation.instructions = translator.translate_list(
+                                translation.instructions = metricize(translator.translate_list(
                                     recipe.instructions, language_name
-                                )
+                                ))
 
                             # Translate content
                             if recipe.content:
-                                translation.content = translator.translate_text(recipe.content, language_name)
+                                translation.content = metricize(translator.translate_text(convert_to_metric(recipe.content), language_name))
 
                             retranslation_results.append({
                                 'language': language_name,
@@ -1600,7 +1611,6 @@ def save_recipe():
             is_shareable = False
 
         # Store original and convert to metric
-        from unit_converter import convert_to_metric
         ingredients_original = data.get('ingredients', [])
         instructions_original = data.get('instructions', [])
         ingredients_metric = [convert_to_metric(ing) for ing in ingredients_original]
@@ -1687,19 +1697,19 @@ def save_recipe():
                         # Translate title, ingredients, and instructions. translate_list
                         # batches all items into one API call instead of one per item.
                         translated_title = translator.translate_text(new_recipe.title, target_language)
-                        translated_ingredients = translator.translate_list(
+                        translated_ingredients = metricize(translator.translate_list(
                             new_recipe.ingredients or [], target_language
-                        )
-                        translated_instructions = translator.translate_list(
+                        ))
+                        translated_instructions = metricize(translator.translate_list(
                             new_recipe.instructions or [], target_language
-                        )
+                        ))
 
                         translation = RecipeTranslation(
                             recipe_id=new_recipe.id,
                             language_code=language_code,
                             language_name=target_language,
                             title=translated_title,
-                            content=data.get('content', ''),  # Translated content from scraping
+                            content=metricize(data.get('content', '')),  # Translated content from scraping
                             ingredients=translated_ingredients,
                             instructions=translated_instructions
                         )
@@ -2210,11 +2220,11 @@ def create_recipe_translation(recipe_id):
 
         # Translate ingredients and instructions. translate_list batches all
         # items into one API call instead of one per item.
-        ingredients_translated = translator.translate_list(recipe.ingredients or [], language_name)
-        instructions_translated = translator.translate_list(recipe.instructions or [], language_name)
+        ingredients_translated = metricize(translator.translate_list(recipe.ingredients or [], language_name))
+        instructions_translated = metricize(translator.translate_list(recipe.instructions or [], language_name))
 
         # Translate full content
-        content_translated = translator.translate_text(recipe.content, language_name)
+        content_translated = metricize(translator.translate_text(convert_to_metric(recipe.content), language_name))
 
         # Create translation record
         translation = RecipeTranslation(

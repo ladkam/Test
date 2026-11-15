@@ -1,223 +1,404 @@
 """
-Unit conversion module for converting imperial measurements to metric.
+Unit conversion module for converting US/imperial cooking measurements to metric.
+
+Built around how NYT Cooking (and other US sites) actually write recipes:
+
+* quantities: ``2``, ``1.5``, ``1/2``, ``1 1/2``, ``1½``, ``1 ½``, ``½``, ``1⁄2``
+* ranges: ``1 to 1½ pounds``, ``2-3 cups``, ``120 to 125 degrees``
+* dual units: ``1 cup/240 milliliters``, ``4 ounces (115 grams)`` -> keep NYT's metric
+* butter sticks: ``1 stick (½ cup) unsalted butter``, ``½ cup (1 stick) butter``
+* package sizes: ``1 (14-ounce) can``, ``a 6-ounce bag``
+* oven/internal temperatures written without an F: ``Heat oven to 425 degrees``,
+  ``a 350-degree oven``, ``425°``
+* pan/cut sizes: ``9-by-13-inch baking dish``, ``½-inch pieces``, ``12-inch skillet``
+
+Teaspoons and tablespoons are deliberately left alone: a spoon is a spoon in both
+systems and metric recipes (including Spanish/French ones) use them too.
+
+The converter is idempotent (running it on already-converted text changes nothing),
+and it also recognises common Spanish/French/Portuguese names for imperial units
+so it can be run on AI-translated text as a safety net (``2 tazas`` -> ``480 ml``).
 """
 import re
-from typing import Tuple, Optional
+from typing import Optional, Tuple
+
+
+UNICODE_FRACTIONS = {
+    '½': 1 / 2, '¼': 1 / 4, '¾': 3 / 4,
+    '⅓': 1 / 3, '⅔': 2 / 3,
+    '⅛': 1 / 8, '⅜': 3 / 8, '⅝': 5 / 8, '⅞': 7 / 8,
+    '⅕': 1 / 5, '⅖': 2 / 5, '⅗': 3 / 5, '⅘': 4 / 5,
+    '⅙': 1 / 6, '⅚': 5 / 6,
+}
+_FR = ''.join(UNICODE_FRACTIONS)
+
+# A single quantity. Order matters: longest forms first.
+NUM = (
+    r'(?:\d+\s+\d+/\d+'          # 1 1/2
+    r'|\d+/\d+'                  # 1/2
+    r'|\d+\s?[' + _FR + r']'     # 1½, 1 ½
+    r'|\d+(?:[.,]\d+)?'          # 2, 1.5, 1,5
+    r'|[' + _FR + r'])'          # ½
+)
+# "a"/"an"/"one"/"half a" in running text ("about a pound of shrimp").
+# Includes the Spanish/French/Portuguese articles so translated text such as
+# "una taza" / "media taza" / "une tasse" is caught by the safety-net pass.
+WORD_NUM = r'(?:half\s+an?|media|medio|meia|demi|une?|una?|uma|an?|one)'
+# "1 to 2", "1-2", "1- to 2-inch", "2 a 3" (es), "2 à 3" (fr)
+RANGE_SEP = r'\s*-?\s*(?:to|or|a|à|-|–|—)\s*'
+QTY = r'(?:' + NUM + r'(?:' + RANGE_SEP + NUM + r')?)'
+
+# unit -> (metric unit, factor). Culinary-friendly factors (1 cup = 240 ml,
+# the US legal cup, which is what NYT itself uses in its metric columns).
+_UNITS = [
+    # volume
+    (r'fluid\s+ounces?|fl\.?\s*oz\.?|onzas?\s+líquidas?|onces?\s+liquides?', 'ml', 30.0),
+    (r'cups?|tazas?|tasses?|xícaras?|xicaras?', 'ml', 240.0),
+    (r'pints?|pintas?', 'ml', 473.0),
+    (r'quarts?|qts?\.?', 'ml', 946.0),
+    (r'gallons?|galones?|galón', 'ml', 3785.0),
+    # weight
+    (r'ounces?|oz\.?|onzas?|onces?|onças?', 'g', 28.35),
+    (r'pounds?|lbs?\.?|libras?|livres?', 'g', 453.6),
+]
+_UNIT_LOOKUP = [(re.compile(r'^(?:' + p + r')$', re.IGNORECASE), unit, f) for p, unit, f in _UNITS]
+UNIT_ALT = '|'.join(p for p, _, _ in _UNITS)
+
+METRIC_ALT = (
+    r'milliliters?|millilitres?|ml|mL|liters?|litres?|l|L|'
+    r'grams?|gr?|kilograms?|kilos?|kg|centimeters?|centimetres?|cm|mm'
+)
+SPOON_ALT = r'tablespoons?|teaspoons?|tbsps?\.?|tsps?\.?|sticks?'
+DESCRIPTORS = r'heaping|heaped|packed|lightly\s+packed|firmly\s+packed|scant|generous|rounded|level|full|big|small|large'
+
+INCH_ALT = r'inch(?:es)?|pulgadas?|pouces?|polegadas?'
+DEGREE_WORD = r'(?:°|º|˚|-?\s*degrees?|\s*grados?|\s*degrés?|\s*graus?)'
+
+STICK_GRAMS = 113.0
+_NO_WORD_BEFORE = r'(?<![\w/.,])'
+_NO_LETTER_AFTER = r'(?![A-Za-zÀ-ÿ])'
+
+
+# ---------------------------------------------------------------------------
+# number helpers
+# ---------------------------------------------------------------------------
+
+def parse_number(s: str) -> float:
+    """Parse '1/2', '1 1/2', '1½', '1 ½', '½', '1.5', '1,5', 'a', 'half a'."""
+    s = s.strip().lower()
+    if re.fullmatch(WORD_NUM, s):
+        return 0.5 if s.startswith(('half', 'medi', 'meia', 'demi')) else 1.0
+    s = s.replace(',', '.')
+    total = 0.0
+    for ch, val in UNICODE_FRACTIONS.items():
+        if ch in s:
+            total += val
+            s = s.replace(ch, '')
+    s = s.strip()
+    if not s:
+        return total
+    parts = s.split()
+    for part in parts:
+        if '/' in part:
+            n, d = part.split('/')
+            total += float(n) / float(d)
+        else:
+            total += float(part)
+    return total
+
+
+def _split_range(qty: str) -> Tuple[list, list]:
+    """Split '1 to 1½' into ([1.0, 1.5], [' to ']). Single values -> ([x], [])."""
+    m = re.fullmatch(r'(' + NUM + r')(' + RANGE_SEP + r')(' + NUM + r')', qty.strip())
+    if m:
+        word = re.search(r'[^\W\d_]+', m.group(2))
+        sep = f' {word.group(0)} ' if word else '-'
+        return [parse_number(m.group(1)), parse_number(m.group(3))], [sep]
+    return [parse_number(qty)], []
+
+
+def fmt(value: float) -> str:
+    """Format a number without a trailing .0."""
+    if abs(value - round(value)) < 1e-9:
+        return str(int(round(value)))
+    return f'{value:.1f}'.rstrip('0').rstrip('.')
+
+
+def _round_metric(value: float) -> float:
+    """Round grams/ml the way a metric recipe would print them."""
+    if value < 10:
+        return round(value * 2) / 2 if value >= 2 else round(value, 1)
+    if value < 50:
+        return round(value)
+    if value < 250:
+        return round(value / 5) * 5
+    return round(value / 10) * 10
+
+
+def _metric_values(values: list, base_unit: str, factor: float) -> Tuple[list, str]:
+    """Convert a list of values (a range shares one unit) to nicely rounded metric."""
+    raw = [v * factor for v in values]
+    if max(raw) >= 1000:
+        big = 'l' if base_unit == 'ml' else 'kg'
+        return [round(v / 1000, 2 if v < 2000 else 1) for v in raw], big
+    return [_round_metric(v) for v in raw], base_unit
+
+
+def _join(values: list, seps: list, unit: str) -> str:
+    out = fmt(values[0])
+    for sep, v in zip(seps, values[1:]):
+        out += sep + fmt(v)
+    return f'{out} {unit}'
+
+
+def fahrenheit_to_celsius(f: float) -> int:
+    c = (f - 32) * 5 / 9
+    # Oven temperatures are printed in steps of 5 in metric recipes;
+    # keep internal/candy temperatures precise.
+    return int(round(c / 5) * 5) if c >= 140 else int(round(c))
+
+
+def _inches_to_metric(inches: float) -> Tuple[float, str]:
+    cm = inches * 2.54
+    if cm < 1:
+        return max(1, round(cm * 10)), 'mm'
+    if cm < 5:
+        return round(cm, 1), 'cm'
+    return round(cm), 'cm'
+
+
+def _lookup_unit(unit_text: str) -> Optional[Tuple[str, float]]:
+    unit_text = re.sub(r'\s+', ' ', unit_text.strip())
+    for rx, base, factor in _UNIT_LOOKUP:
+        if rx.match(unit_text):
+            return base, factor
+    return None
+
+
+def _normalize_metric_unit(u: str) -> str:
+    u = u.strip().lower()
+    if u.startswith('mil'):
+        return 'ml'
+    if u.startswith('kilo') or u == 'kg':
+        return 'kg'
+    if u.startswith('lit') or u == 'l':
+        return 'l'
+    if u.startswith('centi') or u == 'cm':
+        return 'cm'
+    if u == 'mm':
+        return 'mm'
+    return 'g'
+
+
+# ---------------------------------------------------------------------------
+# regexes
+# ---------------------------------------------------------------------------
+
+_FLAGS = re.IGNORECASE
+
+# "1 cup/240 milliliters", "4 ounces (115 grams)", "8 tablespoons/115 grams"
+_DUAL_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?:' + QTY + r')[\s-]*(?:(?:' + DESCRIPTORS + r')\s+)?'
+    r'(?:' + UNIT_ALT + r'|' + SPOON_ALT + r')' + _NO_LETTER_AFTER +
+    r'\s*(?:/\s*(?P<a>' + QTY + r')\s*(?P<au>' + METRIC_ALT + r')' + _NO_LETTER_AFTER +
+    r'|\(\s*(?:about\s+)?(?P<b>' + QTY + r')\s*(?P<bu>' + METRIC_ALT + r')\s*\))',
+    _FLAGS,
+)
+
+# "½ cup (1 stick) butter" / "8 tablespoons (1 stick)"
+_CUP_THEN_STICK_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?:' + QTY + r')\s*(?:' + UNIT_ALT + r'|tablespoons?|tbsps?\.?)'
+    + _NO_LETTER_AFTER + r'\s*\(\s*(?P<n>' + QTY + r')\s*sticks?\s*\)',
+    _FLAGS,
+)
+# "1 stick (½ cup) butter" / "2 sticks butter"
+_STICK_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?P<n>' + QTY + r'|' + WORD_NUM + r')\s*sticks?' + _NO_LETTER_AFTER +
+    r'(?:\s*\(\s*' + QTY + r'\s*(?:' + UNIT_ALT + r'|tablespoons?|tbsps?\.?)' + _NO_LETTER_AFTER +
+    r'\s*\))?'
+    r'(?=[^,;.]{0,40}?(?:butter|mantequilla|beurre|manteiga|margarin))',
+    _FLAGS,
+)
+
+# "425 degrees", "350°F", "a 350-degree oven", "120 to 125 degrees F", "425 grados"
+_TEMP_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?P<q>' + QTY + r')' + DEGREE_WORD +
+    r'(?:\s*(?P<scale>F|Fahrenheit|C|Celsius|centigrade)' + _NO_LETTER_AFTER + r')?',
+    _FLAGS,
+)
+_TEMP_F_ONLY_RE = re.compile(  # "425 F" without a degree sign
+    _NO_WORD_BEFORE + r'(?P<q>' + QTY + r')\s*(?:F|Fahrenheit)\b(?!-)', 0,
+)
+
+# "9-by-13-inch", "9 x 13 inches", "8-by-8-by-2-inch"
+_DIM_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?P<a>' + NUM + r')(?:-inch)?\s*(?:-?by-?|x|×)\s*(?P<b>' + NUM + r')'
+    r'(?:(?:-inch)?\s*(?:-?by-?|x|×)\s*(?P<c>' + NUM + r'))?'
+    r'[\s-]*(?:' + INCH_ALT + r')' + _NO_LETTER_AFTER + r'(?P<dash>-(?=[A-Za-z]))?',
+    _FLAGS,
+)
+# "½-inch pieces", "2 to 3 inches", "1-inch-thick"
+_INCH_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?P<q>' + QTY + r')[\s-]*(?:' + INCH_ALT + r')' + _NO_LETTER_AFTER +
+    r'(?P<dash>-(?=[A-Za-z]))?',
+    _FLAGS,
+)
+
+# Generic volume/weight: "2 cups", "1 to 1½ pounds", "6-ounce", "2 heaping cups", "a pound"
+_UNIT_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?P<q>' + QTY + r'|\b' + WORD_NUM + r')[\s-]*'
+    r'(?:(?P<desc>' + DESCRIPTORS + r')\s+)?'
+    r'(?P<unit>' + UNIT_ALT + r')' + _NO_LETTER_AFTER,
+    _FLAGS,
+)
+
+_CAPACITY_HINT = re.compile(r'^\)?\s*(?:ramekins?|glass(?:es)?|jars?|bottles?|mugs?|custard\s+cups?)', _FLAGS)
+_MUFFIN_HINT = re.compile(r'^\s*(?:muffin|cupcake)', _FLAGS)
 
 
 class UnitConverter:
-    """Converts imperial cooking measurements to metric."""
+    """Converts US/imperial cooking measurements to metric."""
 
-    # Unicode fraction mappings
-    UNICODE_FRACTIONS = {
-        '½': 0.5,
-        '¼': 0.25,
-        '¾': 0.75,
-        '⅓': 1/3,
-        '⅔': 2/3,
-        '⅛': 0.125,
-        '⅜': 0.375,
-        '⅝': 0.625,
-        '⅞': 0.875,
-        '⅕': 0.2,
-        '⅖': 0.4,
-        '⅗': 0.6,
-        '⅘': 0.8,
-        '⅙': 1/6,
-        '⅚': 5/6,
-    }
+    UNICODE_FRACTIONS = UNICODE_FRACTIONS
 
-    # Conversion factors
-    # Note: teaspoon/tablespoon are a standard measure in both imperial and
-    # metric recipes (a "tbsp"/"tsp" is a physical spoon, not a system-specific
-    # unit), so they are intentionally left unconverted.
-    CONVERSIONS = {
-        # Volume
-        'cup': ('ml', 236.588),
-        'cups': ('ml', 236.588),
-        'fluid ounce': ('ml', 29.574),
-        'fluid ounces': ('ml', 29.574),
-        'fl oz': ('ml', 29.574),
-        'pint': ('ml', 473.176),
-        'pints': ('ml', 473.176),
-        'quart': ('l', 0.946),
-        'quarts': ('l', 0.946),
-        'gallon': ('l', 3.785),
-        'gallons': ('l', 3.785),
+    def __init__(self, assume_fahrenheit: bool = True):
+        """
+        Args:
+            assume_fahrenheit: treat bare temperatures ("Heat oven to 425 degrees",
+                "350°") as Fahrenheit. True for US sources such as NYT Cooking.
+                When False only explicit °F is converted (bare values >= 300 are
+                still converted since no Celsius oven goes that high).
+        """
+        self.assume_fahrenheit = assume_fahrenheit
 
-        # Weight
-        'ounce': ('g', 28.350),
-        'ounces': ('g', 28.350),
-        'oz': ('g', 28.350),
-        'pound': ('g', 453.592),
-        'pounds': ('g', 453.592),
-        'lb': ('g', 453.592),
-        'lbs': ('g', 453.592),
-
-        # Temperature (special case, handled separately)
-        # Only convert explicitly marked Fahrenheit to avoid misconverting Celsius
-        'fahrenheit': ('celsius', None),
-        '°f': ('celsius', None),
-    }
-
-    def __init__(self):
-        # Unicode fraction characters for pattern matching
-        unicode_fracs = ''.join(self.UNICODE_FRACTIONS.keys())
-
-        # Pattern to match measurements like "2 cups", "2¼ cups", "350°F", "6-ounce",
-        # "¼ cup" (a bare fraction with no leading whole number), and "2 heaping cups"
-        # (a descriptive word wedged between the quantity and the unit).
-        # Supports: integers, decimals, fractions (1/2), unicode fractions (½),
-        # bare unicode fractions (¼), and mixed numbers (2¼, 2 1/2). Allows hyphen
-        # or space between number and unit.
-        # Note: teaspoon/tablespoon are intentionally not matched for conversion.
-        descriptors = r'heaping|packed|scant|generous|rounded|level|full|big|small'
-        self.measurement_pattern = re.compile(
-            r'(\d+[' + unicode_fracs + r']|\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?[' + unicode_fracs + r']?|[' + unicode_fracs + r'])'
-            r'[\s-]*(?:(' + descriptors + r')\s+)?'
-            r'(cup|cups|fluid ounce|fluid ounces|fl oz|pint|pints|quart|quarts|gallon|gallons|'
-            r'ounce|ounces|oz|pound|pounds|lb|lbs|°f|fahrenheit)\b',
-            re.IGNORECASE
-        )
-
+    # -- kept for backwards compatibility --------------------------------
     def convert_fraction_to_decimal(self, fraction_str: str) -> float:
-        """Convert a fraction string like '1/2', '2.5', '2¼', or '2 1/2' to decimal."""
-        fraction_str = fraction_str.strip()
-
-        # Check for Unicode fractions in the string
-        for unicode_frac, value in self.UNICODE_FRACTIONS.items():
-            if unicode_frac in fraction_str:
-                # Handle mixed numbers like "2¼"
-                whole_part = fraction_str.replace(unicode_frac, '').strip()
-                if whole_part:
-                    return float(whole_part) + value
-                return value
-
-        # Handle mixed numbers like "2 1/2"
-        if ' ' in fraction_str and '/' in fraction_str:
-            parts = fraction_str.split()
-            whole = float(parts[0])
-            frac_parts = parts[1].split('/')
-            return whole + float(frac_parts[0]) / float(frac_parts[1])
-
-        # Handle simple fractions like "1/2"
-        if '/' in fraction_str:
-            parts = fraction_str.split('/')
-            return float(parts[0]) / float(parts[1])
-
-        return float(fraction_str)
+        return parse_number(fraction_str)
 
     def fahrenheit_to_celsius(self, fahrenheit: float) -> int:
-        """Convert Fahrenheit to Celsius."""
-        return round((fahrenheit - 32) * 5/9)
+        return fahrenheit_to_celsius(fahrenheit)
 
     def convert_measurement(self, amount: float, unit: str) -> Tuple[float, str]:
-        """
-        Convert a measurement to metric.
-
-        Args:
-            amount: The quantity
-            unit: The unit to convert from
-
-        Returns:
-            Tuple of (converted_amount, metric_unit)
-        """
         unit_lower = unit.lower().strip()
+        if unit_lower in ('fahrenheit', '°f', 'f'):
+            return fahrenheit_to_celsius(amount), '°C'
+        found = _lookup_unit(unit_lower)
+        if not found:
+            return amount, unit
+        values, metric_unit = _metric_values([amount], *found)
+        return values[0], metric_unit
 
-        # Handle temperature separately (only explicit Fahrenheit)
-        if unit_lower in ['fahrenheit', '°f']:
-            celsius = self.fahrenheit_to_celsius(amount)
-            return celsius, '°C'
+    # -- passes ----------------------------------------------------------
+    @staticmethod
+    def _dual(m: re.Match) -> str:
+        qty = m.group('a') or m.group('b')
+        unit = _normalize_metric_unit(m.group('au') or m.group('bu'))
+        values, seps = _split_range(qty)
+        return _join(values, seps, unit)
 
-        # Handle other conversions
-        if unit_lower in self.CONVERSIONS:
-            metric_unit, factor = self.CONVERSIONS[unit_lower]
-            converted = amount * factor
+    @staticmethod
+    def _sticks(m: re.Match) -> str:
+        values, seps = _split_range(m.group('n'))
+        grams, unit = _metric_values(values, 'g', STICK_GRAMS)
+        return _join(grams, seps, unit)
 
-            # Convert large ml to liters
-            if metric_unit == 'ml' and converted >= 1000:
-                return round(converted / 1000, 2), 'l'
+    def _temperature(self, m: re.Match) -> str:
+        scale = (m.group('scale') or '').lower()
+        if scale.startswith('c'):
+            return m.group(0)
+        values, seps = _split_range(m.group('q'))
+        explicit_f = scale.startswith('f')
+        if not explicit_f:
+            if not ((self.assume_fahrenheit and min(values) >= 100) or min(values) >= 300):
+                return m.group(0)
+        celsius = [fahrenheit_to_celsius(v) for v in values]
+        return _join(celsius, seps, '°C')
 
-            # Convert large grams to kg
-            if metric_unit == 'g' and converted >= 1000:
-                return round(converted / 1000, 2), 'kg'
+    @staticmethod
+    def _temp_f_only(m: re.Match) -> str:
+        values, seps = _split_range(m.group('q'))
+        return _join([fahrenheit_to_celsius(v) for v in values], seps, '°C')
 
-            # Round appropriately
-            if converted < 10:
-                return round(converted, 1), metric_unit
-            else:
-                return round(converted), metric_unit
+    @staticmethod
+    def _dims(m: re.Match) -> str:
+        nums = [parse_number(m.group(k)) for k in ('a', 'b', 'c') if m.group(k)]
+        cm = [_inches_to_metric(n) for n in nums]
+        unit = 'mm' if all(u == 'mm' for _, u in cm) else 'cm'
+        vals = [v if u == unit else (v / 10 if unit == 'cm' else v * 10) for v, u in cm]
+        out = ' x '.join(fmt(v) for v in vals) + f' {unit}'
+        return out + (' ' if m.group('dash') else '')
 
-        return amount, unit
+    @staticmethod
+    def _inches(m: re.Match) -> str:
+        values, seps = _split_range(m.group('q'))
+        converted = [_inches_to_metric(v) for v in values]
+        unit = converted[-1][1]
+        vals = [v if u == unit else (v / 10 if unit == 'cm' else v * 10) for v, u in converted]
+        return _join(vals, seps, unit) + (' ' if m.group('dash') else '')
 
-    def convert_text(self, text: str) -> str:
-        """
-        Convert all imperial measurements in text to metric.
+    @staticmethod
+    def _units(m: re.Match) -> str:
+        unit_text = m.group('unit')
+        found = _lookup_unit(unit_text)
+        if not found:
+            return m.group(0)
+        base, factor = found
+        tail = m.string[m.end():m.end() + 20]
 
-        Args:
-            text: Text containing measurements
+        # "12-cup muffin tin" is a count of cups, not a volume.
+        if base == 'ml' and factor == 240.0 and _MUFFIN_HINT.match(tail):
+            return m.group(0)
+        # "4 (6-ounce) ramekins" is a capacity -> ml, not g.
+        if base == 'g' and factor == 28.35 and _CAPACITY_HINT.match(tail):
+            base, factor = 'ml', 30.0
 
-        Returns:
-            Text with imperial measurements converted to metric
-        """
-        def replace_measurement(match):
-            amount_str = match.group(1)
-            descriptor = match.group(2)
-            unit = match.group(3)
-            original = f"{amount_str} {descriptor} {unit}" if descriptor else f"{amount_str} {unit}"
-
-            try:
-                amount = self.convert_fraction_to_decimal(amount_str)
-                converted_amount, metric_unit = self.convert_measurement(amount, unit)
-                return f"{converted_amount} {metric_unit} ({original})"
-            except (ValueError, ZeroDivisionError):
-                return match.group(0)  # Return original if conversion fails
-
-        return self.measurement_pattern.sub(replace_measurement, text)
+        values, seps = _split_range(m.group('q'))
+        metric, unit = _metric_values(values, base, factor)
+        out = _join(metric, seps, unit)
+        if m.group('desc'):
+            out = f"{out} ({m.group('desc')})"
+        return out
 
     def convert_to_metric_only(self, text: str) -> str:
-        """
-        Convert all imperial measurements in text to metric (without showing original).
-
-        Args:
-            text: Text containing measurements
-
-        Returns:
-            Text with imperial measurements converted to metric only
-        """
-        if not text:
+        """Convert every imperial measurement in ``text`` to metric (no originals kept)."""
+        if not text or not isinstance(text, str):
             return text
+        text = text.replace('⁄', '/')  # fraction slash: 1⁄2 -> 1/2
+        text = _DUAL_RE.sub(self._dual, text)
+        text = _CUP_THEN_STICK_RE.sub(self._sticks, text)
+        text = _STICK_RE.sub(self._sticks, text)
+        text = _TEMP_RE.sub(self._temperature, text)
+        text = _TEMP_F_ONLY_RE.sub(self._temp_f_only, text)
+        text = _DIM_RE.sub(self._dims, text)
+        text = _INCH_RE.sub(self._inches, text)
+        text = _UNIT_RE.sub(self._units, text)
+        return re.sub(r'  +', ' ', text)
 
-        def replace_measurement(match):
-            amount_str = match.group(1)
-            unit = match.group(3)
-
-            try:
-                amount = self.convert_fraction_to_decimal(amount_str)
-                converted_amount, metric_unit = self.convert_measurement(amount, unit)
-
-                # Format the output (metric only, no original)
-                if isinstance(converted_amount, float) and converted_amount == int(converted_amount):
-                    converted_amount = int(converted_amount)
-                return f"{converted_amount} {metric_unit}"
-            except (ValueError, ZeroDivisionError):
-                return match.group(0)  # Return original if conversion fails
-
-        return self.measurement_pattern.sub(replace_measurement, text)
+    def convert_text(self, text: str) -> str:
+        """Convert a whole recipe text to metric. Kept for the CLI; metric only, so
+        imperial units never leak into a translation through "(1 cup)" asides."""
+        return self.convert_to_metric_only(text)
 
 
-# Global converter instance
-_converter = UnitConverter()
+_converter_us = UnitConverter(assume_fahrenheit=True)
+_converter_neutral = UnitConverter(assume_fahrenheit=False)
+
+US_SOURCE_DOMAINS = ('nytimes.com', 'menshealth.com', 'seriouseats.com', 'bonappetit.com',
+                     'epicurious.com', 'allrecipes.com', 'foodnetwork.com')
 
 
-def convert_to_metric(text: str) -> str:
-    """
-    Convenience function to convert text to metric units.
+def is_us_source(source_url: Optional[str]) -> bool:
+    return bool(source_url) and any(d in source_url.lower() for d in US_SOURCE_DOMAINS)
 
-    Args:
-        text: Text containing measurements
 
-    Returns:
-        Text with all imperial measurements converted to metric
-    """
-    return _converter.convert_to_metric_only(text)
+def convert_to_metric(text: str, assume_fahrenheit: bool = True) -> str:
+    """Convert text to metric units (metric only, no originals in parentheses)."""
+    conv = _converter_us if assume_fahrenheit else _converter_neutral
+    return conv.convert_to_metric_only(text)
+
+
+def convert_list_to_metric(items, assume_fahrenheit: bool = True) -> list:
+    """Convert every string in a list; non-strings pass through untouched."""
+    if not items:
+        return items or []
+    return [convert_to_metric(i, assume_fahrenheit) if isinstance(i, str) else i for i in items]

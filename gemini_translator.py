@@ -6,7 +6,7 @@ Uses the current google-genai SDK and non-deprecated Gemini models.
 import os
 from typing import Optional
 from settings import get_translation_prompt, get_system_prompt, get_ai_model
-from translation_utils import build_numbered_prompt, parse_numbered_list
+from translation_utils import SYSTEM_PROMPT, build_numbered_prompt, build_text_prompt, parse_numbered_list
 
 try:
     from google import genai
@@ -135,18 +135,7 @@ class GeminiTranslator:
         Returns:
             Translated text
         """
-        prompt = (
-            f"Translate the following text to {target_language}. "
-            "Never convert between measurement systems -- do not turn "
-            "cup, cups, fl oz, oz, lb, or any other imperial unit into "
-            "ml/g/l/kg, and do not turn ml, g, l, kg, or °C into an "
-            "imperial unit. Keep every number and unit exactly as "
-            "written, including anything in parentheses. Only translate "
-            "unit NAMES into their target-language equivalent (e.g. "
-            "tablespoon -> cucharada, cup -> taza) -- never their values "
-            "or unit system. Provide only the translation, no "
-            f"explanations:\n\n{text}"
-        )
+        prompt = f"{SYSTEM_PROMPT}\n\n{build_text_prompt(text, target_language)}"
 
         try:
             response = self._generate(prompt)
@@ -174,7 +163,7 @@ class GeminiTranslator:
             return []
 
         try:
-            response = self._generate(build_numbered_prompt(items, target_language))
+            response = self._generate(f"{SYSTEM_PROMPT}\n\n{build_numbered_prompt(items, target_language)}")
 
             if not response or not response.text:
                 raise Exception("Empty response from Gemini API")

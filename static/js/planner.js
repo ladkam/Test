@@ -831,23 +831,6 @@ function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
     return html;
 }
 
-function scaleIngredients(ingredients, scale) {
-    if (scale === 1) return ingredients;
-
-    return ingredients.map(ing => {
-        return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
-            let num;
-            if (match.includes('/')) {
-                const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
-                num = numerator / denominator;
-            } else {
-                num = parseFloat(match);
-            }
-            const scaled = num * scale;
-            return parseFloat(scaled.toFixed(2)).toString();
-        });
-    });
-}
 
 function adjustServings(delta) {
     const newServings = Math.max(1, window.currentServings + delta);

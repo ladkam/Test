@@ -33,27 +33,25 @@ DEFAULT_SETTINGS = {
 4. Keep markdown headers (## for sections like "Ingrédients" and "Instructions")
 
 **CRITICAL MEASUREMENT RULES - READ CAREFULLY:**
-5. NEVER convert any measurements (tablespoons, teaspoons, cups, ml, grams, etc.)
-6. Keep ALL numbers and units EXACTLY as written - if you see "3 tablespoons", write "3 tablespoons"
-7. DO NOT convert tablespoons to ml, teaspoons to ml, cups to ml, or any unit to any other unit -- this applies in BOTH directions (imperial→metric AND metric→imperial)
-8. If original says "3 tablespoons" you MUST write "3 tablespoons" or "3 cucharadas" (translated)
-9. If original says "30ml" or "237ml" you MUST keep "30ml"/"237ml" exactly, even if the recipe already looks metric
-10. WRONG: Converting "3 tablespoons" → "45ml", or converting "237ml" → "1 cup"
-11. CORRECT: Keeping "3 tablespoons" → "3 cucharadas", keeping "237ml" → "237ml"
+5. Measurements have ALREADY been converted to metric (g, kg, ml, l, °C, cm). Keep ALL numbers and units EXACTLY as written.
+6. NEVER convert anything to cups, ounces, pounds, inches or Fahrenheit, and never add imperial equivalents.
+7. Spoon measures stay spoons: translate only the word (tablespoon→cucharada, teaspoon→cucharadita). Do NOT turn them into ml.
+8. Keep metric symbols as symbols: "240 ml", "450 g", "220 °C", "2.5 cm".
 
 **Translation Guidelines:**
-12. Translate text naturally and idiomatically in {language}
-13. Translate unit NAMES (tablespoon→cucharada, teaspoon→cucharadita, cup→taza) but NEVER change the number
-14. If measurements have parentheses like "237ml (1 cup)", keep both parts exactly
-15. Translate cooking terms accurately (sauté, blanch, fold, etc.)
-16. Use proper culinary vocabulary in {language}
+9. Translate naturally and idiomatically in {language}, the way a native cookbook would -- not word for word
+10. Translate cooking terms accurately (sauté, sear, blanch, fold, simmer, zest, etc.)
+11. Use proper culinary vocabulary for ingredients in {language}
 
 **Examples:**
 Input: "3 tablespoons olive oil"
-Output Spanish: "3 cucharadas de aceite de oliva" (NOT "45ml de aceite de oliva")
+Output Spanish: "3 cucharadas de aceite de oliva" (NOT "45 ml de aceite de oliva")
 
-Input: "237ml (1 cup) whole milk"
-Output French: "237ml (1 tasse) de lait entier" (NOT "1 tasse de lait entier" -- keep "237ml")
+Input: "240 ml whole milk"
+Output Spanish: "240 ml de leche entera" (NOT "1 taza de leche entera")
+
+Input: "Heat oven to 220 °C."
+Output Spanish: "Precalienta el horno a 220 °C." (NOT "425 °F")
 
 ---
 
@@ -61,12 +59,21 @@ Output French: "237ml (1 tasse) de lait entier" (NOT "1 tasse de lait entier" --
 
 ---
 
-Translated recipe (remember: NEVER convert measurements, only translate the unit names):''',
-    'system_prompt': 'You are a professional recipe translator. Translate recipes accurately while preserving all formatting and measurements.',
+Translated recipe (remember: keep every metric number and unit exactly as written):''',
+    'system_prompt': 'You are a professional culinary translator. Translate recipes naturally for home cooks while preserving all formatting, numbers and metric units.',
     'ai_provider': 'mistral',  # 'mistral', 'groq', 'gemini', or 'qwen'
     'ai_model': 'open-mistral-nemo',
     'nyt_cookie': ''
 }
+
+
+# Phrases that only appear in previous built-in prompts.
+_OLD_DEFAULT_PROMPT_MARKERS = (
+    'Output French: "237ml (1 tasse) de lait entier"',
+    'If original says "3 tablespoons" you MUST write',
+    'If you see measurements in parentheses (like "237ml (1 cup)")',
+    'Keep ALL numbers and measurements in parentheses EXACTLY as shown (already converted to metric)',
+)
 
 
 def load_settings():
@@ -84,6 +91,14 @@ def load_settings():
             for key, value in DEFAULT_SETTINGS.items():
                 if key not in settings:
                     settings[key] = value
+            # Upgrade older *default* prompts (never a customised one): they
+            # told the AI to keep "(1 cup)" asides, which leaked imperial units
+            # into translations. The file is written once with the defaults of
+            # the day, so without this the improved prompt would never apply.
+            if any(marker in settings.get('translation_prompt', '') for marker in _OLD_DEFAULT_PROMPT_MARKERS):
+                settings['translation_prompt'] = DEFAULT_SETTINGS['translation_prompt']
+                settings['system_prompt'] = DEFAULT_SETTINGS['system_prompt']
+                save_settings(settings)
             return settings
     except Exception:
         return DEFAULT_SETTINGS.copy()

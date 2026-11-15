@@ -530,26 +530,6 @@ function buildIngredientsHtml(recipe, currentServings, useOriginal = false) {
 }
 
 // Scale ingredients based on servings multiplier
-function scaleIngredients(ingredients, scale) {
-    if (scale === 1) return ingredients;
-
-    return ingredients.map(ing => {
-        // Match numbers (including fractions like 1/2, 1.5, etc.)
-        return ing.replace(/(\d+\.?\d*|\d*\s*\/\s*\d+)/g, (match) => {
-            let num;
-            if (match.includes('/')) {
-                // Handle fractions
-                const [numerator, denominator] = match.split('/').map(s => parseFloat(s.trim()));
-                num = numerator / denominator;
-            } else {
-                num = parseFloat(match);
-            }
-            const scaled = num * scale;
-            // Round to 2 decimal places and remove trailing zeros
-            return parseFloat(scaled.toFixed(2)).toString();
-        });
-    });
-}
 
 // Adjust servings and update ingredients display
 function adjustServings(delta) {

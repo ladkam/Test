@@ -5,7 +5,7 @@ import requests
 import os
 from typing import Optional
 from settings import get_translation_prompt, get_system_prompt, get_ai_model
-from translation_utils import build_numbered_prompt, parse_numbered_list
+from translation_utils import SYSTEM_PROMPT, build_numbered_prompt, build_text_prompt, parse_numbered_list
 
 
 class MistralTranslator:
@@ -115,22 +115,11 @@ class MistralTranslator:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are a professional translator. Translate text accurately while preserving meaning."
+                            "content": SYSTEM_PROMPT
                         },
                         {
                             "role": "user",
-                            "content": (
-                                f"Translate the following text to {target_language}. "
-                                "Never convert between measurement systems -- do not turn "
-                                "cup, cups, fl oz, oz, lb, or any other imperial unit into "
-                                "ml/g/l/kg, and do not turn ml, g, l, kg, or °C into an "
-                                "imperial unit. Keep every number and unit exactly as "
-                                "written, including anything in parentheses. Only translate "
-                                "unit NAMES into their target-language equivalent (e.g. "
-                                "tablespoon -> cucharada, cup -> taza) -- never their values "
-                                "or unit system. Provide only the translation, no "
-                                f"explanations:\n\n{text}"
-                            )
+                            "content": build_text_prompt(text, target_language)
                         }
                     ],
                     "temperature": 0.3,
@@ -175,7 +164,7 @@ class MistralTranslator:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are a professional translator. Translate text accurately while preserving meaning."
+                            "content": SYSTEM_PROMPT
                         },
                         {
                             "role": "user",
