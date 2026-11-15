@@ -56,7 +56,12 @@ class GeminiTranslator:
             )
 
         # Set model (default to latest stable Flash model)
-        self.model_name = model or os.getenv('GEMINI_MODEL', 'gemini-3.7-flash')
+        # Use the model picked in the admin panel when it's a Gemini model
+        # (the setting is shared across providers, so it may hold e.g. a Mistral name).
+        configured = get_ai_model()
+        if configured not in self.AVAILABLE_MODELS:
+            configured = None
+        self.model_name = model or os.getenv('GEMINI_MODEL') or configured or 'gemini-3.7-flash'
 
         # Validate model
         if self.model_name not in self.AVAILABLE_MODELS:
