@@ -20,17 +20,17 @@ except ImportError:
 class GeminiTranslator:
     """Translator using Google Gemini API."""
 
-    # Available models (August 2026)
-    # FREE: 3.7 Flash, 3.5 Flash-Lite, 2.5 Flash
-    # PAID: 3.1 Pro (Preview), 2.5 Pro
-    # Note: Gemini 2.5 models are GA-stable but Google has scheduled them
-    # for deprecation on 2026-10-16; prefer the 3.x line for new setups.
+    # Available models (November 2026)
+    # 3.8 Flash is the current stable Flash model. On the Gemini API, 3.7 Flash
+    # is deprecated and requests to it are routed to 3.8 Flash. Gemini 2.5
+    # access is restricted to existing users and returns 404 for new projects.
     AVAILABLE_MODELS = {
-        'gemini-3.7-flash': 'Gemini 3.7 Flash - Latest, best for complex tasks (FREE, Recommended)',
-        'gemini-3.5-flash-lite': 'Gemini 3.5 Flash-Lite - Fastest, most cost-effective (FREE)',
-        'gemini-2.5-flash': 'Gemini 2.5 Flash - Stable fallback, sunsetting Oct 2026 (FREE)',
-        'gemini-3.1-pro-preview': 'Gemini 3.1 Pro (Preview) - Best quality, agentic (PAID)',
-        'gemini-2.5-pro': 'Gemini 2.5 Pro - Advanced reasoning, sunsetting Oct 2026 (PAID)'
+        'gemini-3.8-flash': 'Gemini 3.8 Flash - Current stable Flash, best for recipes (Recommended)',
+        'gemini-3.5-flash-lite': 'Gemini 3.5 Flash-Lite - Fastest, most cost-effective',
+        'gemini-3.1-pro-preview': 'Gemini 3.1 Pro (Preview) - Best quality (PAID)',
+        'gemini-3.7-flash': 'Gemini 3.7 Flash - Deprecated, routed to 3.8 Flash',
+        'gemini-2.5-flash': 'Gemini 2.5 Flash - Restricted to existing users, avoid',
+        'gemini-2.5-pro': 'Gemini 2.5 Pro - Restricted to existing users, avoid'
     }
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
@@ -39,7 +39,7 @@ class GeminiTranslator:
 
         Args:
             api_key: Google API key (defaults to GEMINI_API_KEY env var)
-            model: Model to use (defaults to gemini-3.7-flash)
+            model: Model to use (defaults to gemini-3.8-flash)
         """
         if not GEMINI_AVAILABLE:
             raise ImportError(
@@ -61,7 +61,7 @@ class GeminiTranslator:
         configured = get_ai_model()
         if configured not in self.AVAILABLE_MODELS:
             configured = None
-        self.model_name = model or os.getenv('GEMINI_MODEL') or configured or 'gemini-3.7-flash'
+        self.model_name = model or os.getenv('GEMINI_MODEL') or configured or 'gemini-3.8-flash'
 
         # Validate model
         if self.model_name not in self.AVAILABLE_MODELS:

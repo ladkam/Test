@@ -163,11 +163,12 @@ const MODEL_OPTIONS = {
         { value: 'qwen/qwen3.6-27b', label: 'Qwen3.6 27B (Preview, strong CJK/multilingual)', free: false }
     ],
     gemini: [
-        { value: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash - Latest, best for complex tasks (FREE, Recommended)', free: true },
-        { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite - Fastest, most cost-effective (FREE)', free: true },
-        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash - Stable fallback, sunsetting Oct 2026 (FREE)', free: true },
-        { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview) - Best quality, agentic (PAID)', free: false },
-        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro - Advanced reasoning, sunsetting Oct 2026 (PAID)', free: false }
+        { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash - Current stable Flash (Recommended)', free: true },
+        { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite - Fastest, most cost-effective', free: true },
+        { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview) - Best quality (PAID)', free: false },
+        { value: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash - Deprecated, routed to 3.8 Flash', free: true },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash - Restricted to existing users, avoid', free: true },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro - Restricted to existing users, avoid', free: false }
     ],
     qwen: [
         { value: 'qwen-mt-turbo', label: 'Qwen-MT Turbo (Recommended, cheapest)', free: false },
@@ -204,7 +205,7 @@ function updateModelOptions() {
     } else if (provider === 'groq') {
         modelHelp.textContent = 'Groq models. Llama 3.3 70B Versatile recommended for best quality (free). Qwen3.6 27B is a paid preview model with stronger CJK/multilingual support.';
     } else if (provider === 'gemini') {
-        modelHelp.textContent = 'Google Gemini models. FREE: 3.7 Flash, 3.5 Flash-Lite, 2.5 Flash. PAID: 3.1 Pro, 2.5 Pro. Recommended: 3.7 Flash. Note: 2.5-series models are sunsetting Oct 2026.';
+        modelHelp.textContent = 'Google Gemini models. Recommended: 3.8 Flash. 3.7 Flash is deprecated (requests go to 3.8 Flash); 2.5 models are restricted to existing users.';
     } else if (provider === 'qwen') {
         modelHelp.textContent = 'Alibaba Qwen-MT: a dedicated translation model (not a general chat model), covers 92 languages including Chinese/Japanese/Korean. Recommended: qwen-mt-turbo (cheapest).';
     }
