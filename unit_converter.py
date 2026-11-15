@@ -205,6 +205,51 @@ _DUAL_RE = re.compile(
     _FLAGS,
 )
 
+# Volume amount, optionally with a spoon correction: "1 cup plus 2 tablespoons",
+# "2 cups minus 2 tablespoons", "1 ¼ cups".
+_VOLUME_UNITS = r'cups?|tablespoons?|teaspoons?|tbsps?\.?|tsps?\.?|quarts?|pints?'
+_VOL_AMOUNT = (
+    r'(?:' + QTY + r')\s*(?:' + _VOLUME_UNITS + r')' + _NO_LETTER_AFTER +
+    r'(?:\s+(?:plus|minus)\s+(?:' + QTY + r')\s*(?:' + _VOLUME_UNITS + r')' + _NO_LETTER_AFTER + r')?'
+)
+# NYT gives the weight in brackets for baking ingredients; a weight is what a
+# metric cook wants, so prefer it to a converted volume:
+#   "1 ¼ cups light brown sugar (10 ounces)"        -> "285 g light brown sugar"
+#   "2 cups minus 2 tablespoons cake flour (8 ½ ounces)" -> "240 g cake flour"
+#   "1 ¼ cups unsalted butter (2 ½ sticks)"          -> "285 g unsalted butter"
+_VOLUME_WITH_WEIGHT_RE = re.compile(
+    _NO_WORD_BEFORE + _VOL_AMOUNT + r'(?P<middle>[^(),;]{0,60}?)\s*'
+    r'\(\s*(?:about\s+)?(?P<w>' + QTY + r')\s*(?P<wu>ounces?|oz\.?|pounds?|lbs?\.?|sticks?|grams?|g|kilograms?|kg)'
+    + _NO_LETTER_AFTER + r'\s*\)',
+    _FLAGS,
+)
+# Volume followed by a bracketed weight, as left by older saves/translations:
+# "296 ml de azúcar moreno (284 g)" -> "284 g de azúcar moreno"
+_METRIC_VOLUME_WITH_WEIGHT_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?:' + NUM + r')\s*(?:ml|l)' + _NO_LETTER_AFTER +
+    r'(?P<middle>[^(),;]{0,60}?)\s*\(\s*(?P<w>' + NUM + r')\s*(?P<wu>g|kg)' + _NO_LETTER_AFTER + r'\s*\)',
+    _FLAGS,
+)
+# "1 cup plus 2 tablespoons sugar" -> "270 ml sugar"
+_VOLUME_PLUS_MINUS_RE = re.compile(
+    _NO_WORD_BEFORE + r'(?P<q1>' + QTY + r')\s*(?P<u1>' + _VOLUME_UNITS + r')' + _NO_LETTER_AFTER +
+    r'\s+(?P<op>plus|minus)\s+(?P<q2>' + QTY + r')\s*(?P<u2>' + _VOLUME_UNITS + r')' + _NO_LETTER_AFTER,
+    _FLAGS,
+)
+_ML_PER_VOLUME_UNIT = [
+    (re.compile(r'^cups?$', re.I), 240.0), (re.compile(r'^(?:tablespoons?|tbsps?\.?)$', re.I), 15.0),
+    (re.compile(r'^(?:teaspoons?|tsps?\.?)$', re.I), 5.0), (re.compile(r'^quarts?$', re.I), 946.0),
+    (re.compile(r'^pints?$', re.I), 473.0),
+]
+
+
+def _ml_per(unit: str) -> float:
+    for rx, ml in _ML_PER_VOLUME_UNIT:
+        if rx.match(unit.strip()):
+            return ml
+    return 0.0
+
+
 # "½ cup (1 stick) butter" / "8 tablespoons (1 stick)"
 _CUP_THEN_STICK_RE = re.compile(
     _NO_WORD_BEFORE + r'(?:' + QTY + r')\s*(?:' + UNIT_ALT + r'|tablespoons?|tbsps?\.?)'
@@ -290,6 +335,33 @@ class UnitConverter:
 
     # -- passes ----------------------------------------------------------
     @staticmethod
+    def _volume_with_weight(m: re.Match) -> str:
+        unit = m.group('wu').lower()
+        values, seps = _split_range(m.group('w'))
+        if unit.startswith('stick'):
+            factor, base = STICK_GRAMS, 'g'
+        elif unit.startswith(('ounce', 'oz')):
+            factor, base = 28.35, 'g'
+        elif unit.startswith(('pound', 'lb')):
+            factor, base = 453.6, 'g'
+        elif unit.startswith('k'):
+            factor, base = 1000.0, 'g'
+        else:
+            factor, base = 1.0, 'g'
+        grams, out_unit = _metric_values(values, base, factor)
+        return _join(grams, seps, out_unit) + m.group('middle')
+
+    @staticmethod
+    def _volume_plus_minus(m: re.Match) -> str:
+        ml1, ml2 = _ml_per(m.group('u1')), _ml_per(m.group('u2'))
+        values, seps = _split_range(m.group('q1'))
+        extra = parse_number(m.group('q2')) * ml2
+        sign = -1 if m.group('op').lower() == 'minus' else 1
+        total = [v * ml1 + sign * extra for v in values]
+        metric, unit = _metric_values(total, 'ml', 1.0)
+        return _join(metric, seps, unit)
+
+    @staticmethod
     def _dual(m: re.Match) -> str:
         qty = m.group('a') or m.group('b')
         unit = _normalize_metric_unit(m.group('au') or m.group('bu'))
@@ -357,6 +429,11 @@ class UnitConverter:
         out = _join(metric, seps, unit)
         if m.group('desc'):
             out = f"{out} ({m.group('desc')})"
+        # "Scoop 6 3½-ounce mounds" -> "Scoop 6 (100 g) mounds", not "6 100 g mounds"
+        before = m.string[:m.start()]
+        between = m.group(0)[len(m.group('q')):m.group(0).lower().rfind(unit_text.lower())]
+        if '-' in between and re.search(r'\d\s+$', before):
+            out = f'({out})'
         return out
 
     def convert_to_metric_only(self, text: str) -> str:
@@ -364,7 +441,9 @@ class UnitConverter:
         if not text or not isinstance(text, str):
             return text
         text = text.replace('⁄', '/')  # fraction slash: 1⁄2 -> 1/2
+        text = _VOLUME_WITH_WEIGHT_RE.sub(self._volume_with_weight, text)
         text = _DUAL_RE.sub(self._dual, text)
+        text = _VOLUME_PLUS_MINUS_RE.sub(self._volume_plus_minus, text)
         text = _CUP_THEN_STICK_RE.sub(self._sticks, text)
         text = _STICK_RE.sub(self._sticks, text)
         text = _TEMP_RE.sub(self._temperature, text)
@@ -372,6 +451,8 @@ class UnitConverter:
         text = _DIM_RE.sub(self._dims, text)
         text = _INCH_RE.sub(self._inches, text)
         text = _UNIT_RE.sub(self._units, text)
+        text = _METRIC_VOLUME_WITH_WEIGHT_RE.sub(
+            lambda m: f"{m.group('w')} {m.group('wu').lower()}{m.group('middle')}", text)
         return re.sub(r'  +', ' ', text)
 
     def convert_text(self, text: str) -> str:

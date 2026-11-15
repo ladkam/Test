@@ -32,6 +32,13 @@ CASES = [
     # package sizes
     ('1 (14-ounce) can coconut milk', '1 (400 g) can coconut milk'),
     ('Divide among 4 (6-ounce) ramekins.', 'Divide among 4 (180 ml) ramekins.'),
+    # NYT's bracketed weights beat converted volumes (real NYT lines)
+    ('2 cups minus 2 tablespoons cake flour (8 ½ ounces)', '240 g cake flour'),
+    ('1 ¼ cups light brown sugar (10 ounces)', '280 g light brown sugar'),
+    ('1 ¼ cups unsalted butter (2 ½ sticks)', '280 g unsalted butter'),
+    ('1 to 2 cups (4 to 8 ounces) grated cheese', '115 to 225 g grated cheese'),
+    ('1 cup plus 2 tablespoons sugar', '270 ml sugar'),
+    ('Scoop 6 3 ½-ounce mounds of dough', 'Scoop 6 (100 g) mounds of dough'),
     # spoons stay spoons
     ('3 tablespoons olive oil', '3 tablespoons olive oil'),
     ('1 teaspoon kosher salt', '1 teaspoon kosher salt'),
@@ -77,3 +84,10 @@ def test_bare_degrees_not_assumed_fahrenheit_for_non_us_sources():
     assert convert_to_metric('Heat oven to 200 degrees.', assume_fahrenheit=False) == 'Heat oven to 200 degrees.'
     # nothing Celsius gets that hot, so this is unambiguous
     assert convert_to_metric('Heat oven to 450 degrees.', assume_fahrenheit=False) == 'Heat oven to 230 °C.'
+
+
+def test_repair_old_half_converted_ranges():
+    from metric_backfill import repair_ranges
+    assert repair_ranges('1 a 680 g de pollo', '450 to 680 g chicken') == '450 a 680 g de pollo'
+    assert repair_ranges('450 a 680 g de pollo', '450 to 680 g chicken') == '450 a 680 g de pollo'
+    assert repair_ranges('Asar hasta 120 a 52 °C', 'Roast until 49 to 52 °C') == 'Asar hasta 49 a 52 °C'
